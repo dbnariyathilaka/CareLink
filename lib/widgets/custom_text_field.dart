@@ -31,26 +31,60 @@ class _CustomTextFieldState extends State<CustomTextField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Label text matching Figma: 13px Medium #94A3B8
         Text(
           widget.label,
           style: const TextStyle(
-            color: AppTheme.accentGreen,
-            fontSize: 14,
+            color: AppTheme.textSecondary,
+            fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 8),
+        // Input field matching Figma: bg #1E293B, border #334155, rounded 10px
         TextFormField(
           controller: widget.controller,
           obscureText: widget.isPassword && _obscureText,
           keyboardType: widget.keyboardType,
           validator: widget.validator,
           style: const TextStyle(
-            color: Colors.white,
+            color: AppTheme.textPrimary,
             fontSize: 15,
+            fontWeight: FontWeight.w400,
           ),
           decoration: InputDecoration(
             hintText: widget.hintText,
+            hintStyle: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+            ),
+            filled: true,
+            fillColor: AppTheme.inputBackground,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 17,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.borderColor, width: 1),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.borderColor, width: 1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+            ),
             suffixIcon: widget.isPassword
                 ? IconButton(
                     icon: Icon(
