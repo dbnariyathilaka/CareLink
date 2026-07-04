@@ -8,6 +8,8 @@ class CustomTextField extends StatefulWidget {
   final TextEditingController? controller;
   final TextInputType keyboardType;
   final String? Function(String?)? validator;
+  final double labelFontSize;
+  final String? prefixText;
 
   const CustomTextField({
     super.key,
@@ -17,6 +19,8 @@ class CustomTextField extends StatefulWidget {
     this.controller,
     this.keyboardType = TextInputType.text,
     this.validator,
+    this.labelFontSize = 13,
+    this.prefixText,
   });
 
   @override
@@ -31,16 +35,16 @@ class _CustomTextFieldState extends State<CustomTextField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label text matching Figma: 13px Medium #94A3B8
+        // Label text matching Figma
         Text(
           widget.label,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.textSecondary,
-            fontSize: 13,
+            fontSize: widget.labelFontSize,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: widget.labelFontSize <= 12 ? 7 : 8),
         // Input field matching Figma: bg #1E293B, border #334155, rounded 10px
         TextFormField(
           controller: widget.controller,
@@ -63,7 +67,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             fillColor: AppTheme.inputBackground,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 17,
-              vertical: 16,
+              vertical: 15,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -85,6 +89,22 @@ class _CustomTextFieldState extends State<CustomTextField> {
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
             ),
+            prefixIcon: widget.prefixText != null
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 17, right: 8),
+                    child: Text(
+                      widget.prefixText!,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  )
+                : null,
+            prefixIconConstraints: widget.prefixText != null
+                ? const BoxConstraints(minWidth: 0, minHeight: 0)
+                : null,
             suffixIcon: widget.isPassword
                 ? IconButton(
                     icon: Icon(
