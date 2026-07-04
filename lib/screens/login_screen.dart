@@ -91,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen>
 
               // Scrollable content
               Expanded(
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,7 +186,12 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
 
-                      const Spacer(),
+                      // Flexible spacing that collapses when keyboard is open
+                      SizedBox(
+                        height: MediaQuery.of(context).viewInsets.bottom > 0
+                            ? 24
+                            : MediaQuery.of(context).size.height * 0.2,
+                      ),
 
                       // Log in button - solid green matching Figma
                       SizedBox(
