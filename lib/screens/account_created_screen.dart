@@ -216,13 +216,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () {
-                                  // TODO: Navigate to profile setup
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Profile setup coming soon!',
-                                      ),
-                                    ),
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/patient-onboarding-1',
                                   );
                                 },
                                 child: const Padding(

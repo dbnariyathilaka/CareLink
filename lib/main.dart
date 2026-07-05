@@ -9,6 +9,7 @@ import 'screens/patient_onboarding1_screen.dart';
 import 'screens/patient_onboarding2_screen.dart';
 import 'screens/patient_onboarding3_screen.dart';
 import 'screens/patient_onboarding4_screen.dart';
+import 'screens/patient_dashboard_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -34,6 +35,7 @@ class CareMatchApp extends StatelessWidget {
         '/patient-onboarding-2': (context) => const PatientOnboarding2Screen(),
         '/patient-onboarding-3': (context) => const PatientOnboarding3Screen(),
         '/patient-onboarding-4': (context) => const PatientOnboarding4Screen(),
+        '/patient-dashboard': (context) => const PatientDashboardScreen(),
       },
     );
   }

@@ -229,11 +229,10 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
                           onTap: () {
-                            // TODO: Navigate to dashboard
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Dashboard coming soon!'),
-                              ),
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              '/patient-dashboard',
+                              (route) => false,
                             );
                           },
                           child: const Padding(
