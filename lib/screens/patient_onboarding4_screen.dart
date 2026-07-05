@@ -47,28 +47,33 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
 
     _heroScale = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(
-          parent: _heroController,
-          curve: const Interval(0.0, 0.6, curve: Curves.elasticOut)),
+        parent: _heroController,
+        curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
+      ),
     );
     _heroFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-          parent: _heroController,
-          curve: const Interval(0.0, 0.4, curve: Curves.easeOut)),
+        parent: _heroController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
+      ),
     );
     _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-          parent: _heroController,
-          curve: const Interval(0.45, 0.75, curve: Curves.easeOut)),
+        parent: _heroController,
+        curve: const Interval(0.45, 0.75, curve: Curves.easeOut),
+      ),
     );
     _textSlide = Tween<double>(begin: 18.0, end: 0.0).animate(
       CurvedAnimation(
-          parent: _heroController,
-          curve: const Interval(0.45, 0.75, curve: Curves.easeOut)),
+        parent: _heroController,
+        curve: const Interval(0.45, 0.75, curve: Curves.easeOut),
+      ),
     );
     _btnFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-          parent: _heroController,
-          curve: const Interval(0.80, 1.0, curve: Curves.easeOut)),
+        parent: _heroController,
+        curve: const Interval(0.80, 1.0, curve: Curves.easeOut),
+      ),
     );
 
     // ── Cards animation (staggered, starts after hero) ──
@@ -100,8 +105,9 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
   Animation<double> _staggeredFade(double start, double end) {
     return Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-          parent: _cardsController,
-          curve: Interval(start, end, curve: Curves.easeOut)),
+        parent: _cardsController,
+        curve: Interval(start, end, curve: Curves.easeOut),
+      ),
     );
   }
 
@@ -127,7 +133,7 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
                 child: Center(
                   child: AnimatedBuilder(
                     animation: _heroController,
-                    builder: (_, __) => Column(
+                    builder: (_, _) => Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // ── Checkmark icon with glow ──
@@ -181,7 +187,7 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
               // ── Lower section: info cards + button ──
               AnimatedBuilder(
                 animation: _cardsController,
-                builder: (_, __) => Column(
+                builder: (_, _) => Column(
                   children: [
                     _buildInfoCard(
                       icon: Icons.verified_outlined,
@@ -211,7 +217,7 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
               // ── Go to dashboard button ──
               AnimatedBuilder(
                 animation: _heroController,
-                builder: (_, __) => Opacity(
+                builder: (_, _) => Opacity(
                   opacity: _btnFade.value,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 24),
@@ -261,7 +267,7 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
   Widget _buildCheckIcon() {
     return AnimatedBuilder(
       animation: _pulseController,
-      builder: (_, __) => Transform.scale(
+      builder: (_, _) => Transform.scale(
         scale: _pulse.value,
         child: Container(
           width: 100,
@@ -321,11 +327,7 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
           ),
           child: Row(
             children: [
-              Icon(
-                icon,
-                color: iconColor,
-                size: 24,
-              ),
+              Icon(icon, color: iconColor, size: 24),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(

@@ -40,7 +40,6 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
       curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
     );
 
-
     _textFadeAnimation = CurvedAnimation(
       parent: _mainController,
       curve: const Interval(0.4, 0.7, curve: Curves.easeOut),
@@ -92,8 +91,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                       center: Alignment.center,
                       radius: 0.8,
                       colors: [
-                        AppTheme.primaryGreen
-                            .withValues(alpha: _pulseAnimation.value),
+                        AppTheme.primaryGreen.withValues(
+                          alpha: _pulseAnimation.value,
+                        ),
                         AppTheme.primaryGreen.withValues(alpha: 0.03),
                         Colors.transparent,
                       ],
@@ -140,7 +140,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                               opacity: _textFadeAnimation.value,
                               child: Transform.translate(
                                 offset: Offset(
-                                    0, 15 * (1 - _textFadeAnimation.value)),
+                                  0,
+                                  15 * (1 - _textFadeAnimation.value),
+                                ),
                                 child: child,
                               ),
                             );
@@ -192,8 +194,10 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                       return Opacity(
                         opacity: _buttonFadeAnimation.value,
                         child: Transform.translate(
-                          offset:
-                              Offset(0, 20 * (1 - _buttonFadeAnimation.value)),
+                          offset: Offset(
+                            0,
+                            20 * (1 - _buttonFadeAnimation.value),
+                          ),
                           child: child,
                         ),
                       );
@@ -215,8 +219,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                                   // TODO: Navigate to profile setup
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content:
-                                          Text('Profile setup coming soon!'),
+                                      content: Text(
+                                        'Profile setup coming soon!',
+                                      ),
                                     ),
                                   );
                                 },
