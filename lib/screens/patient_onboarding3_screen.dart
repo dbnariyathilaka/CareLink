@@ -175,12 +175,8 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
                         onTap: () {
-                          // TODO: Navigate to onboarding step 4
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Step 4 coming soon!'),
-                            ),
-                          );
+                          Navigator.pushNamed(
+                              context, '/patient-onboarding-4');
                         },
                         child: const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
