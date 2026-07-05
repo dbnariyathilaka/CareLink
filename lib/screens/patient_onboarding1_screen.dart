@@ -11,7 +11,7 @@ class PatientOnboarding1Screen extends StatefulWidget {
 
 class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     with SingleTickerProviderStateMixin {
-  // Care type options - multi-select
+  // Care type options - single-select
   final List<String> _careTypes = [
     'Elder care',
     'Pediatric',
@@ -20,7 +20,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     'Mental health',
     'Dementia',
   ];
-  final Set<String> _selectedCareTypes = {'Elder care'};
+  String _selectedCareType = 'Elder care';
 
   // Care level options - single-select
   final List<String> _careLevels = ['Full-time', 'Part-time', 'Live-in'];
@@ -134,18 +134,13 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                           spacing: 10,
                           runSpacing: 10,
                           children: _careTypes.map((type) {
-                            final isSelected =
-                                _selectedCareTypes.contains(type);
+                            final isSelected = _selectedCareType == type;
                             return _buildChip(
                               label: type,
                               isSelected: isSelected,
                               onTap: () {
                                 setState(() {
-                                  if (isSelected) {
-                                    _selectedCareTypes.remove(type);
-                                  } else {
-                                    _selectedCareTypes.add(type);
-                                  }
+                                  _selectedCareType = type;
                                 });
                               },
                             );

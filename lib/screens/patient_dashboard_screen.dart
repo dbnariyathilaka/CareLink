@@ -242,14 +242,19 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   // ── Stats row: match score + available now ───────────────
   Widget _buildStatsRow() {
-    return Row(
-      children: [
-        Expanded(child: _statCard('Your match score', '85%', greenValue: true)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _statCard('Available now', '12', caption: 'near you'),
-        ),
-      ],
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _statCard('Your match score', '85%', greenValue: true),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _statCard('Available now', '12', caption: 'near you'),
+          ),
+        ],
+      ),
     );
   }
 
