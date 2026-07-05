@@ -6,6 +6,7 @@ import 'screens/account_details_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/account_created_screen.dart';
 import 'screens/patient_onboarding1_screen.dart';
+import 'screens/patient_onboarding2_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -28,6 +29,7 @@ class CareMatchApp extends StatelessWidget {
         '/account-details': (context) => const AccountDetailsScreen(),
         '/account-created': (context) => const AccountCreatedScreen(),
         '/patient-onboarding-1': (context) => const PatientOnboarding1Screen(),
+        '/patient-onboarding-2': (context) => const PatientOnboarding2Screen(),
       },
     );
   }
