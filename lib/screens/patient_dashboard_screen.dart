@@ -504,8 +504,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           final color = isSelected ? AppTheme.primaryGreen : const Color(0xFF64748B);
           return GestureDetector(
             onTap: () {
-              if (index == 2) {
+              if (index == 1) {
+                Navigator.pushNamed(context, '/search');
+              } else if (index == 2) {
                 Navigator.pushNamed(context, '/my-bookings');
+              } else if (index == 3) {
+                Navigator.pushNamed(context, '/notifications');
               } else {
                 setState(() => _selectedNavIndex = index);
               }

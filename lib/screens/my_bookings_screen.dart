@@ -101,18 +101,101 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
-            _buildTabBar(),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
-                itemCount: _filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (_, i) => _buildBookingCard(_filtered[i]),
+            if (_allBookings.isEmpty)
+              Expanded(child: _buildEmptyState(context))
+            else ...[
+              const SizedBox(height: 14),
+              _buildTabBar(),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+                  itemCount: _filtered.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) => _buildBookingCard(_filtered[i]),
+                ),
+              ),
+            ],
+            _buildBottomNav(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Empty state: no bookings at all ───────────────────────
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Icon(
+                Icons.event_available_rounded,
+                color: AppTheme.primaryGreen,
+                size: 44,
               ),
             ),
-            _buildBottomNav(context),
+            const SizedBox(height: 24),
+            const Text(
+              'No bookings yet',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 11),
+            const Text(
+              "You haven't sent any care requests yet. Find a caregiver from your top 5 matches and send your first request.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 26),
+            Material(
+              color: AppTheme.primaryGreen,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => Navigator.pushNamed(context, '/search'),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+                  child: Text(
+                    'Find a caregiver',
+                    style: TextStyle(
+                      color: AppTheme.bottleGreen,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Your matches refresh automatically if no one responds.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                height: 1.5,
+              ),
+            ),
           ],
         ),
       ),
@@ -479,6 +562,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             onTap: () {
               if (index == 0) {
                 Navigator.popUntil(context, ModalRoute.withName('/patient-dashboard'));
+              } else if (index == 1) {
+                Navigator.pushNamed(context, '/search');
+              } else if (index == 3) {
+                Navigator.pushNamed(context, '/notifications');
               }
             },
             child: Column(

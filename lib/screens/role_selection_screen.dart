@@ -150,11 +150,18 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                           child: InkWell(
                             borderRadius: BorderRadius.circular(10),
                             onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/account-details',
-                                arguments: _selectedRole,
-                              );
+                              if (_selectedRole == 'caregiver') {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/caregiver-onboarding-1',
+                                );
+                              } else {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/account-details',
+                                  arguments: _selectedRole,
+                                );
+                              }
                             },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(vertical: 16),
