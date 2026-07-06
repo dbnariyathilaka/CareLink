@@ -13,6 +13,7 @@ import 'screens/patient_dashboard_screen.dart';
 import 'screens/top_matches_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
+import 'screens/add_review_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -42,6 +43,7 @@ class CareMatchApp extends StatelessWidget {
         '/top-matches': (context) => const TopMatchesScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/caregiver-profile': (context) => const CaregiverProfileScreen(),
+        '/add-review': (context) => const AddReviewScreen(),
       },
     );
   }

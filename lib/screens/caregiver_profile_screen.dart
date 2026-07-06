@@ -34,7 +34,7 @@ class CaregiverProfileScreen extends StatelessWidget {
                         const SizedBox(height: 20),
                         _buildAboutSection(),
                         const SizedBox(height: 20),
-                        _buildReviewsSection(),
+                        _buildReviewsSection(context),
                         const SizedBox(height: 8),
                       ],
                     ),
@@ -426,7 +426,7 @@ class CaregiverProfileScreen extends StatelessWidget {
   }
 
   // ── Reviews section ───────────────────────────────────────
-  Widget _buildReviewsSection() {
+  Widget _buildReviewsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -439,94 +439,110 @@ class CaregiverProfileScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        // Review card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.borderColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.2),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'S',
-                            style: TextStyle(
-                              color: Color(0xFF6366F1),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Saman Perera',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            '2 weeks ago',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: List.generate(
-                      5,
-                      (i) => Icon(
-                        Icons.star_rounded,
-                        color: i < 5 ? _amber : AppTheme.borderColor,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                ],
+        // Review 1 — Saman Perera
+        _reviewCard(
+          name: 'Saman Perera',
+          date: 'Oct 2025',
+          stars: 5,
+          quote: '"Alice was incredibly caring and professional. She took great care of my father and was always on time. Highly recommended!"',
+        ),
+        const SizedBox(height: 10),
+        // Review 2 — Kamal P. (matches the screenshot)
+        _reviewCard(
+          name: 'Kamal P.',
+          date: 'Nov 2025',
+          stars: 5,
+          quote: '"Punctual, kind and very professional with my father."',
+        ),
+        const SizedBox(height: 16),
+        // Leave a review link
+        Center(
+          child: GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/add-review'),
+            child: const Text(
+              'Leave a review',
+              style: TextStyle(
+                color: AppTheme.primaryGreen,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 10),
-              const Text(
-                '"Alice was incredibly caring and professional. She took great care of my father and was always on time. Highly recommended!"',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w400,
-                  height: 1.55,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
     );
   }
+
+  Widget _reviewCard({
+    required String name,
+    required String date,
+    required int stars,
+    required String quote,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Name + date on same row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                date,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          // Stars directly below name
+          Row(
+            children: List.generate(
+              5,
+              (i) => Padding(
+                padding: const EdgeInsets.only(right: 2),
+                child: Icon(
+                  Icons.star_rounded,
+                  color: i < stars ? _amber : AppTheme.borderColor,
+                  size: 15,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            quote,
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w400,
+              height: 1.55,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   // ── Bottom sticky button ──────────────────────────────────
   Widget _buildBottomButton() {
