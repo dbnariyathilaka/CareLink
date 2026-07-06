@@ -503,7 +503,13 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           final isSelected = index == _selectedNavIndex;
           final color = isSelected ? AppTheme.primaryGreen : const Color(0xFF64748B);
           return GestureDetector(
-            onTap: () => setState(() => _selectedNavIndex = index),
+            onTap: () {
+              if (index == 2) {
+                Navigator.pushNamed(context, '/my-bookings');
+              } else {
+                setState(() => _selectedNavIndex = index);
+              }
+            },
             behavior: HitTestBehavior.opaque,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
