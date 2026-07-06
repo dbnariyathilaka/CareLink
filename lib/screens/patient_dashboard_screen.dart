@@ -174,43 +174,46 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   Widget _buildEmergencyBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [emergencyRedStart, emergencyRedEnd],
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_rounded, color: Colors.white, size: 26),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Emergency — find a caregiver now',
-                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Top 3 nearest available caregivers',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/emergency'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [emergencyRedStart, emergencyRedEnd],
           ),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
-        ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_rounded, color: Colors.white, size: 26),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Emergency — find a caregiver now',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Top 3 nearest available caregivers',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+          ],
+        ),
       ),
     );
   }
