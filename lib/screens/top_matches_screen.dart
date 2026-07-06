@@ -326,7 +326,7 @@ class _TopMatchesScreenState extends State<TopMatchesScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
@@ -468,7 +468,7 @@ class _TopMatchesScreenState extends State<TopMatchesScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(

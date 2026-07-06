@@ -444,7 +444,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   borderRadius: BorderRadius.circular(8),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(8),
-                    onTap: () {},
+                    onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
