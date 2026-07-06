@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
@@ -284,9 +284,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           'Top matches for you',
           style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
         ),
-        Text(
-          'See all',
-          style: TextStyle(color: AppTheme.primaryGreen, fontSize: 13, fontWeight: FontWeight.w600),
+        GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/top-matches'),
+          child: const Text(
+            'See all',
+            style: TextStyle(color: AppTheme.primaryGreen, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
