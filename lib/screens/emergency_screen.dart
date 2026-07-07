@@ -55,7 +55,7 @@ class EmergencyScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     ..._caregivers.map((c) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildCaregiverCard(c),
+                          child: _buildCaregiverCard(context, c),
                         )),
                   ],
                 ),
@@ -238,7 +238,7 @@ class EmergencyScreen extends StatelessWidget {
   }
 
   // ── Caregiver card ────────────────────────────────────────
-  Widget _buildCaregiverCard(_CaregiverData data) {
+  Widget _buildCaregiverCard(BuildContext context, _CaregiverData data) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
@@ -330,7 +330,7 @@ class EmergencyScreen extends StatelessWidget {
           const SizedBox(width: 12),
           // Red Request button
           GestureDetector(
-            onTap: () {},
+            onTap: () => Navigator.pushNamed(context, '/send-request'),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(

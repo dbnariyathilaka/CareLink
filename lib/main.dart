@@ -23,6 +23,7 @@ import 'screens/caregiver_onboarding3_screen.dart';
 import 'screens/caregiver_onboarding4_screen.dart';
 import 'screens/caregiver_onboarding5_screen.dart';
 import 'screens/caregiver_dashboard_screen.dart';
+import 'screens/send_request_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -67,6 +68,7 @@ class CareMatchApp extends StatelessWidget {
         '/caregiver-onboarding-5': (context) =>
             const CaregiverOnboarding5Screen(),
         '/caregiver-dashboard': (context) => const CaregiverDashboardScreen(),
+        '/send-request': (context) => const SendRequestScreen(),
       },
     );
   }

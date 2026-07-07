@@ -425,7 +425,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   borderRadius: BorderRadius.circular(8),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(8),
-                    onTap: () {},
+                    onTap: () => Navigator.pushNamed(context, '/send-request'),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 11),
                       child: Text(
