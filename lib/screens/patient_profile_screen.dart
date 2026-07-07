@@ -431,7 +431,7 @@ class PatientProfileScreen extends StatelessWidget {
           icon: Icons.chat_bubble_outline_rounded,
           label: 'Messages',
           badge: '2',
-          onTap: () {},
+          onTap: () => Navigator.pushNamed(context, '/messages'),
         ),
         const SizedBox(height: 9),
         _menuRow(
