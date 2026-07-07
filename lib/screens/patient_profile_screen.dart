@@ -116,7 +116,7 @@ class PatientProfileScreen extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => Navigator.pushNamed(context, '/settings'),
                 child: const Icon(
                   Icons.settings_outlined,
                   color: _grey98,
@@ -437,7 +437,7 @@ class PatientProfileScreen extends StatelessWidget {
         _menuRow(
           icon: Icons.settings_outlined,
           label: 'Settings',
-          onTap: () {},
+          onTap: () => Navigator.pushNamed(context, '/settings'),
         ),
         const SizedBox(height: 9),
         _menuRow(

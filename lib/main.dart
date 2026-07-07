@@ -29,6 +29,13 @@ import 'screens/confirm_booking_screen.dart';
 import 'screens/patient_profile_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/patient_chat_screen.dart';
+import 'screens/patient_settings_screen.dart';
+import 'screens/caregiver_schedule_screen.dart';
+import 'screens/caregiver_own_profile_screen.dart';
+import 'screens/caregiver_earnings_screen.dart';
+import 'screens/caregiver_reviews_screen.dart';
+import 'screens/caregiver_edit_profile_screen.dart';
+import 'screens/caregiver_notifications_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -79,6 +86,14 @@ class CareMatchApp extends StatelessWidget {
         '/patient-profile': (context) => const PatientProfileScreen(),
         '/messages': (context) => const MessagesScreen(),
         '/chat': (context) => const PatientChatScreen(),
+        '/settings': (context) => const PatientSettingsScreen(),
+        '/caregiver-schedule': (context) => const CaregiverScheduleScreen(),
+        '/caregiver-own-profile': (context) =>
+            const CaregiverOwnProfileScreen(),
+        '/caregiver-earnings': (context) => const CaregiverEarningsScreen(),
+        '/caregiver-reviews': (context) => const CaregiverReviewsScreen(),
+        '/caregiver-edit-profile': (context) => const CaregiverEditProfileScreen(),
+        '/caregiver-notifications': (context) => const CaregiverNotificationsScreen(),
       },
     );
   }
