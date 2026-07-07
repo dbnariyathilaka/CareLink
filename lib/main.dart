@@ -25,6 +25,7 @@ import 'screens/caregiver_onboarding5_screen.dart';
 import 'screens/caregiver_dashboard_screen.dart';
 import 'screens/send_request_screen.dart';
 import 'screens/schedule_care_screen.dart';
+import 'screens/confirm_booking_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -71,6 +72,7 @@ class CareMatchApp extends StatelessWidget {
         '/caregiver-dashboard': (context) => const CaregiverDashboardScreen(),
         '/send-request': (context) => const SendRequestScreen(),
         '/schedule-care': (context) => const ScheduleCareScreen(),
+        '/confirm-booking': (context) => const ConfirmBookingScreen(),
       },
     );
   }

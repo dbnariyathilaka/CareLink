@@ -625,7 +625,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () {
-              // TODO: navigate to step 3 (Confirm)
+              Navigator.pushNamed(context, '/confirm-booking');
             },
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
