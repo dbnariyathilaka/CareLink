@@ -506,8 +506,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () {
-              // Navigate to step 2 (schedule) when implemented
-              Navigator.pop(context);
+              Navigator.pushNamed(context, '/schedule-care');
             },
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
