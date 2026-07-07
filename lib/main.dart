@@ -28,6 +28,7 @@ import 'screens/schedule_care_screen.dart';
 import 'screens/confirm_booking_screen.dart';
 import 'screens/patient_profile_screen.dart';
 import 'screens/messages_screen.dart';
+import 'screens/patient_chat_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -77,6 +78,7 @@ class CareMatchApp extends StatelessWidget {
         '/confirm-booking': (context) => const ConfirmBookingScreen(),
         '/patient-profile': (context) => const PatientProfileScreen(),
         '/messages': (context) => const MessagesScreen(),
+        '/chat': (context) => const PatientChatScreen(),
       },
     );
   }

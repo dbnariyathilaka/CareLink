@@ -154,7 +154,7 @@ class MessagesScreen extends StatelessWidget {
       _ConversationData data, BuildContext context) {
     return InkWell(
       onTap: () {
-        // TODO: navigate to individual chat screen
+        Navigator.pushNamed(context, '/chat');
       },
       child: Container(
         padding: const EdgeInsets.fromLTRB(22, 13, 22, 14),
