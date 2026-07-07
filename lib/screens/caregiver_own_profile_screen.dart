@@ -39,7 +39,7 @@ class CaregiverOwnProfileScreen extends StatelessWidget {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () => _comingSoon(context, 'Settings'),
+                            onTap: () => Navigator.pushNamed(context, '/caregiver-settings'),
                             child: const Icon(
                               Icons.settings_outlined,
                               color: AppTheme.textPrimary,
@@ -89,6 +89,7 @@ class CaregiverOwnProfileScreen extends StatelessWidget {
                         context,
                         icon: Icons.settings_outlined,
                         label: 'Settings',
+                        onTap: () => Navigator.pushNamed(context, '/caregiver-settings'),
                       ),
                       const SizedBox(height: 9),
                       _buildMenuRow(

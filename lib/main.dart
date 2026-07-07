@@ -36,6 +36,7 @@ import 'screens/caregiver_earnings_screen.dart';
 import 'screens/caregiver_reviews_screen.dart';
 import 'screens/caregiver_edit_profile_screen.dart';
 import 'screens/caregiver_notifications_screen.dart';
+import 'screens/caregiver_settings_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -94,6 +95,7 @@ class CareMatchApp extends StatelessWidget {
         '/caregiver-reviews': (context) => const CaregiverReviewsScreen(),
         '/caregiver-edit-profile': (context) => const CaregiverEditProfileScreen(),
         '/caregiver-notifications': (context) => const CaregiverNotificationsScreen(),
+        '/caregiver-settings': (context) => const CaregiverSettingsScreen(),
       },
     );
   }
