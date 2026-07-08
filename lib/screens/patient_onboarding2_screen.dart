@@ -17,10 +17,14 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
     'Medication management',
     'Wound care',
     'Dementia care',
-    'Rehabilitation',
+    'Post-Surgery care',
     'Physiotherapy',
     'Mental health support',
     'Pediatric care',
+    'prenatal care',
+    'Personal hygiene',
+    'Elderly care',
+    'chronic illnes care',
   ];
 
   // Pre-select first two to match the Figma screenshot

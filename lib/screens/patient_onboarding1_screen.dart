@@ -19,6 +19,9 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     'Physical disability',
     'Mental health',
     'Dementia',
+    'Hospice care',
+    'Chronic illness care',
+    'special needs care',
   ];
   String _selectedCareType = 'Elder care';
 

@@ -93,8 +93,10 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverOwnProfileScreen(),
         '/caregiver-earnings': (context) => const CaregiverEarningsScreen(),
         '/caregiver-reviews': (context) => const CaregiverReviewsScreen(),
-        '/caregiver-edit-profile': (context) => const CaregiverEditProfileScreen(),
-        '/caregiver-notifications': (context) => const CaregiverNotificationsScreen(),
+        '/caregiver-edit-profile': (context) =>
+            const CaregiverEditProfileScreen(),
+        '/caregiver-notifications': (context) =>
+            const CaregiverNotificationsScreen(),
         '/caregiver-settings': (context) => const CaregiverSettingsScreen(),
       },
     );

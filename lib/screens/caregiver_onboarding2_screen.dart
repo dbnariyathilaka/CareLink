@@ -19,10 +19,14 @@ class _CaregiverOnboarding2ScreenState
     'Medication management',
     'Dementia care',
     'Wound care',
-    'Rehabilitation',
+    'Post-Surgery care',
     'Physiotherapy',
     'Mental health support',
     'Pediatric care',
+    'Personal hygiene',
+    'Elderly Care',
+    'Prenatal care',
+    'chronic illnes care',
   ];
 
   final Set<String> _selectedSkills = {
@@ -80,7 +84,7 @@ class _CaregiverOnboarding2ScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Your skills',
+                        'Your caregiving service types',
                         style: TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 23,
@@ -91,7 +95,7 @@ class _CaregiverOnboarding2ScreenState
                       const SizedBox(height: 8),
 
                       const Text(
-                        'More skills = more requests',
+                        'More service types = more requests',
                         style: TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 14,
