@@ -246,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen>
                               onTap: () {
                                 Navigator.pushReplacementNamed(
                                   context,
-                                  '/role-selection',
+                                  '/account-details',
                                 );
                               },
                               child: const Text(

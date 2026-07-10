@@ -158,8 +158,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                               } else {
                                 Navigator.pushNamed(
                                   context,
-                                  '/account-details',
-                                  arguments: _selectedRole,
+                                  '/patient-onboarding-1',
                                 );
                               }
                             },

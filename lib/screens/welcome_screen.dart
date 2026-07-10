@@ -263,7 +263,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: () {
-            Navigator.pushNamed(context, '/role-selection');
+            Navigator.pushNamed(context, '/account-details');
           },
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 17),
@@ -298,11 +298,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Google Sign-In coming soon!'),
-              ),
-            );
+            // Navigate to account details — Google Sign-In is triggered there
+            Navigator.pushNamed(context, '/account-details',
+                arguments: {'triggerGoogle': true});
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 15),

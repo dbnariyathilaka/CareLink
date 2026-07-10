@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_text_field.dart';
 
@@ -12,15 +13,22 @@ class AccountDetailsScreen extends StatefulWidget {
 class _AccountDetailsScreenState extends State<AccountDetailsScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _fullNameController    = TextEditingController();
+  final _emailController       = TextEditingController();
+  final _phoneController       = TextEditingController();
+  final _passwordController    = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  bool _googleSignedIn = false;
+  bool _isGoogleLoading = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
+
+  static final _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   @override
   void initState() {
@@ -40,6 +48,16 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // If welcome screen passed triggerGoogle: true, auto-trigger sign-in
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['triggerGoogle'] == true && !_googleSignedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _handleGoogleSignIn());
+    }
+  }
+
+  @override
   void dispose() {
     _fadeController.dispose();
     _fullNameController.dispose();
@@ -48,6 +66,40 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  // ── Google Sign-In ────────────────────────────────────────
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account != null && mounted) {
+        setState(() {
+          _googleSignedIn = true;
+          // Auto-fill name and email from Google account
+          _fullNameController.text = account.displayName ?? '';
+          _emailController.text    = account.email;
+          // Google does not expose phone — leave field empty for user to fill
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Signed in as ${account.displayName}'),
+            backgroundColor: AppTheme.primaryGreen.withValues(alpha: 0.9),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google sign-in failed: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
   }
 
   @override
@@ -89,19 +141,16 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                 ),
               ),
 
-              // Scrollable content
               Expanded(
                 child: Column(
                   children: [
-                    // Header section (non-scrollable)
+                    // Header
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 20),
-
-                          // Title
                           const Text(
                             'Account details',
                             style: TextStyle(
@@ -112,8 +161,6 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                             ),
                           ),
                           const SizedBox(height: 6),
-
-                          // Step indicator subtitle
                           const Text(
                             'Step 1 of 2 · create your login',
                             style: TextStyle(
@@ -122,13 +169,41 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          const SizedBox(height: 20),
+
+                          // ── Google Sign-In button ──────────────────────
+                          _buildGoogleButton(),
+                          const SizedBox(height: 18),
+
+                          // ── Divider ───────────────────────────────────
+                          Row(
+                            children: [
+                              const Expanded(
+                                  child: Divider(color: Color(0xFF334155))),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
+                                child: Text(
+                                  'or fill in manually',
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary
+                                        .withValues(alpha: 0.7),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const Expanded(
+                                  child: Divider(color: Color(0xFF334155))),
+                            ],
+                          ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 16),
 
-                    // Scrollable form fields
+                    // Scrollable form
                     Expanded(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -137,7 +212,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Full name
+                              // Full name (auto-filled from Google)
                               CustomTextField(
                                 label: 'Full name',
                                 hintText: 'e.g. Nipuni Ariyathilaka',
@@ -152,7 +227,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                               ),
                               const SizedBox(height: 13),
 
-                              // Email
+                              // Email (auto-filled from Google)
                               CustomTextField(
                                 label: 'Email',
                                 hintText: 'you@email.com',
@@ -171,59 +246,114 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                               ),
                               const SizedBox(height: 13),
 
-                              // Phone
-                              CustomTextField(
-                                label: 'Phone',
-                                hintText: '77 123 4567',
-                                controller: _phoneController,
-                                keyboardType: TextInputType.phone,
-                                labelFontSize: 12,
-                                prefixText: '+94',
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter your phone number';
-                                  }
-                                  return null;
-                                },
+                              // Phone (manual – Google doesn't expose this)
+                              Stack(
+                                children: [
+                                  CustomTextField(
+                                    label: 'Phone',
+                                    hintText: '77 123 4567',
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    labelFontSize: 12,
+                                    prefixText: '+94',
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Please enter your phone number';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  if (_googleSignedIn)
+                                    Positioned(
+                                      right: 12,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Center(
+                                        child: Text(
+                                          'Enter manually',
+                                          style: TextStyle(
+                                            color: AppTheme.textSecondary
+                                                .withValues(alpha: 0.6),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               const SizedBox(height: 13),
 
-                              // Password
-                              CustomTextField(
-                                label: 'Password',
-                                hintText: 'At least 8 characters',
-                                controller: _passwordController,
-                                isPassword: true,
-                                labelFontSize: 12,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter a password';
-                                  }
-                                  if (value.length < 8) {
-                                    return 'Password must be at least 8 characters';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 13),
-
-                              // Confirm password
-                              CustomTextField(
-                                label: 'Confirm password',
-                                hintText: 'Repeat password',
-                                controller: _confirmPasswordController,
-                                isPassword: true,
-                                labelFontSize: 12,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please confirm your password';
-                                  }
-                                  if (value != _passwordController.text) {
-                                    return 'Passwords do not match';
-                                  }
-                                  return null;
-                                },
-                              ),
+                              // Password — hidden when signed in via Google
+                              if (!_googleSignedIn) ...[
+                                CustomTextField(
+                                  label: 'Password',
+                                  hintText: 'At least 8 characters',
+                                  controller: _passwordController,
+                                  isPassword: true,
+                                  labelFontSize: 12,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please enter a password';
+                                    }
+                                    if (value.length < 8) {
+                                      return 'Password must be at least 8 characters';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 13),
+                                CustomTextField(
+                                  label: 'Confirm password',
+                                  hintText: 'Repeat password',
+                                  controller: _confirmPasswordController,
+                                  isPassword: true,
+                                  labelFontSize: 12,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please confirm your password';
+                                    }
+                                    if (value != _passwordController.text) {
+                                      return 'Passwords do not match';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ] else ...[
+                                // Google sign-in pill indicator
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 11),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryGreen
+                                        .withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: AppTheme.primaryGreen
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.check_circle_rounded,
+                                          color: AppTheme.primaryGreen,
+                                          size: 18),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Authenticated via Google · password not required',
+                                          style: TextStyle(
+                                            color: AppTheme.primaryGreen
+                                                .withValues(alpha: 0.9),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 32),
                             ],
                           ),
@@ -233,7 +363,8 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
 
                     // Continue button pinned at bottom
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(28, 18, 28, 36),
+                      padding:
+                          const EdgeInsets.fromLTRB(28, 18, 28, 36),
                       child: SizedBox(
                         width: double.infinity,
                         child: Material(
@@ -243,8 +374,9 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                             borderRadius: BorderRadius.circular(10),
                             onTap: () {
                               if (_formKey.currentState!.validate()) {
+                                // Step 2: Choose role
                                 Navigator.pushNamed(
-                                    context, '/account-created');
+                                    context, '/role-selection');
                               }
                             },
                             child: const Padding(
@@ -267,6 +399,73 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Google button ─────────────────────────────────────────
+  Widget _buildGoogleButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: _googleSignedIn
+            ? AppTheme.primaryGreen.withValues(alpha: 0.1)
+            : AppTheme.textPrimary,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: _isGoogleLoading ? null : _handleGoogleSignIn,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: _isGoogleLoading
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.ebony,
+                      ),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_googleSignedIn) ...[
+                        const Icon(Icons.check_circle_rounded,
+                            color: AppTheme.primaryGreen, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Signed in with Google',
+                          style: TextStyle(
+                            color: AppTheme.primaryGreen,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'G',
+                          style: TextStyle(
+                            color: AppTheme.googleBlue,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Continue with Google',
+                          style: TextStyle(
+                            color: AppTheme.ebony,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
           ),
         ),
       ),
