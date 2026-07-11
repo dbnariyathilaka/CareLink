@@ -10,6 +10,13 @@ class PatientSearchScreen extends StatefulWidget {
 
 class _PatientSearchScreenState extends State<PatientSearchScreen> {
   int _selectedFilter = 0;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   static const List<String> _filters = [
     'All',
@@ -53,14 +60,12 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatusBar(),
+            _buildHeader(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 12),
                   _buildFilterChips(),
                   const SizedBox(height: 12),
                   _buildResultsHeader(),
@@ -88,69 +93,135 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _FiltersSheet(),
+      builder: (_) => const FiltersSheet(),
     );
   }
 
-  // ── Status bar ────────────────────────────────────────────
-  Widget _buildStatusBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 0, 26, 0),
-      child: SizedBox(
-        height: 52,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '9:41',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Row(
-              children: const [
-                Icon(Icons.signal_cellular_alt, color: AppTheme.textPrimary, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.wifi, color: AppTheme.textPrimary, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.battery_full, color: AppTheme.textPrimary, size: 20),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Search bar ────────────────────────────────────────────
-  Widget _buildSearchBar() {
+  // ── Header (matches dashboard style) ──────────────────────
+  Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(10),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.primaryGreenDark, Color(0xFF15803D)],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          const Icon(Icons.search_rounded, color: AppTheme.textSecondary, size: 20),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Search by name or skill…',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-              ),
+          // Greeting + avatar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 6, 22, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Good morning',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Nipuni 👋',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  width: 46,
+                  height: 46,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.2),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'NA',
+                      style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          GestureDetector(
-            onTap: () => _showFiltersSheet(context),
-            child: const Icon(Icons.tune_rounded, color: AppTheme.textSecondary, size: 20),
+          // Search/filter bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 14),
+                    child: Icon(
+                      Icons.search_rounded,
+                      color: Color(0xFF64748B),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(
+                        color: AppTheme.surfaceColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Search caregivers...',
+                        hintStyle: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      onChanged: (val) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _showFiltersSheet(context),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                      child: Icon(
+                        Icons.tune_rounded,
+                        color: AppTheme.primaryGreen,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -489,14 +560,14 @@ enum _CareType { fullTime, partTime, liveIn }
 
 enum _SortBy { bestMatch, nearest, highestRated }
 
-class _FiltersSheet extends StatefulWidget {
-  const _FiltersSheet();
+class FiltersSheet extends StatefulWidget {
+  const FiltersSheet({super.key});
 
   @override
-  State<_FiltersSheet> createState() => _FiltersSheetState();
+  State<FiltersSheet> createState() => _FiltersSheetState();
 }
 
-class _FiltersSheetState extends State<_FiltersSheet> {
+class _FiltersSheetState extends State<FiltersSheet> {
   _CareType _careType = _CareType.fullTime;
   _SortBy _sortBy = _SortBy.bestMatch;
   double _maxDistance = 15;
@@ -638,7 +709,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                           'Clear all',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppTheme.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),

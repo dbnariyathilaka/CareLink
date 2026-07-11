@@ -13,8 +13,10 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
     with SingleTickerProviderStateMixin {
   // Field controllers
   final TextEditingController _cityController =
-      TextEditingController(text: 'Negombo, Western Province');
+      TextEditingController(text: 'Negombo, Gampaha District');
   final TextEditingController _notesController = TextEditingController();
+
+  List<Map<String, String>> _filteredCities = [];
 
   // Gender dropdown
   String _selectedGender = 'No preference';
@@ -48,8 +50,19 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
     _fadeController.forward();
 
     // Rebuild on focus change so border highlights correctly
-    _cityFocus.addListener(() => setState(() {}));
+    _cityFocus.addListener(() {
+      setState(() {});
+      // When focus is lost, clear suggestions
+      if (!_cityFocus.hasFocus) {
+        setState(() {
+          _filteredCities = [];
+        });
+      }
+    });
     _notesFocus.addListener(() => setState(() {}));
+
+    // Add text listener for autocomplete
+    _cityController.addListener(_onCityTextChanged);
   }
 
   @override
@@ -143,6 +156,7 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
                         _buildFieldLabel('City / area'),
                         const SizedBox(height: 8),
                         _buildCityField(),
+                        _buildSuggestionsList(),
 
                         const SizedBox(height: 18),
 
@@ -269,6 +283,8 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
               ),
               decoration: const InputDecoration(
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 15),
                 hintText: 'Enter your city or area',
@@ -355,6 +371,8 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
         ),
         decoration: const InputDecoration(
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
           isDense: true,
           contentPadding: EdgeInsets.zero,
           hintText:
@@ -369,4 +387,170 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
       ),
     );
   }
+
+  // ── Auto-complete City Suggestions ────────────────────────
+
+  void _onCityTextChanged() {
+    final query = _cityController.text.trim();
+    if (query.isEmpty || !_cityFocus.hasFocus) {
+      if (_filteredCities.isNotEmpty) {
+        setState(() {
+          _filteredCities = [];
+        });
+      }
+      return;
+    }
+
+    // Filter cities matching query
+    final matches = _sriLankanCities.where((item) {
+      final city = item['city']!.toLowerCase();
+      return city.contains(query.toLowerCase());
+    }).toList();
+
+    final limitedMatches = matches.take(5).toList();
+
+    // Hide suggestions if query matches one of the options exactly
+    final exactMatch = limitedMatches.any((item) =>
+        "${item['city']}, ${item['district']}".toLowerCase() == query.toLowerCase());
+
+    setState(() {
+      _filteredCities = exactMatch ? [] : limitedMatches;
+    });
+  }
+
+  Widget _buildSuggestionsList() {
+    if (_filteredCities.isEmpty || !_cityFocus.hasFocus) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.inputBackground, // #1E293B
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF334155)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          children: List.generate(_filteredCities.length, (index) {
+            final item = _filteredCities[index];
+            final displayText = "${item['city']}, ${item['district']}";
+            final isLast = index == _filteredCities.length - 1;
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _cityController.text = displayText;
+                  _cityController.selection = TextSelection.fromPosition(
+                    TextPosition(offset: displayText.length),
+                  );
+                  _filteredCities = [];
+                });
+                _cityFocus.unfocus();
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
+                decoration: BoxDecoration(
+                  border: isLast ? null : const Border(
+                    bottom: BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on, color: AppTheme.primaryGreen, size: 16),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        displayText,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  static const List<Map<String, String>> _sriLankanCities = [
+    {'city': 'Embilipitiya', 'district': 'Rathnapura District'},
+    {'city': 'Ratnapura', 'district': 'Rathnapura District'},
+    {'city': 'Colombo', 'district': 'Colombo District'},
+    {'city': 'Negombo', 'district': 'Gampaha District'},
+    {'city': 'Gampaha', 'district': 'Gampaha District'},
+    {'city': 'Kandy', 'district': 'Kandy District'},
+    {'city': 'Galle', 'district': 'Galle District'},
+    {'city': 'Matara', 'district': 'Matara District'},
+    {'city': 'Jaffna', 'district': 'Jaffna District'},
+    {'city': 'Anuradhapura', 'district': 'Anuradhapura District'},
+    {'city': 'Polonnaruwa', 'district': 'Polonnaruwa District'},
+    {'city': 'Kurunegala', 'district': 'Kurunegala District'},
+    {'city': 'Badulla', 'district': 'Badulla District'},
+    {'city': 'Trincomalee', 'district': 'Trincomalee District'},
+    {'city': 'Batticaloa', 'district': 'Batticaloa District'},
+    {'city': 'Kalutara', 'district': 'Kalutara District'},
+    {'city': 'Kegalle', 'district': 'Kegalle District'},
+    {'city': 'Matale', 'district': 'Matale District'},
+    {'city': 'Nuwara Eliya', 'district': 'Nuwara Eliya District'},
+    {'city': 'Hambantota', 'district': 'Hambantota District'},
+    {'city': 'Mannar', 'district': 'Mannar District'},
+    {'city': 'Vavuniya', 'district': 'Vavuniya District'},
+    {'city': 'Mullaitivu', 'district': 'Mullaitivu District'},
+    {'city': 'Kilinochchi', 'district': 'Kilinochchi District'},
+    {'city': 'Moneragala', 'district': 'Moneragala District'},
+    {'city': 'Ampara', 'district': 'Ampara District'},
+    {'city': 'Puttalam', 'district': 'Puttalam District'},
+    {'city': 'Chilaw', 'district': 'Puttalam District'},
+    {'city': 'Panadura', 'district': 'Kalutara District'},
+    {'city': 'Horana', 'district': 'Kalutara District'},
+    {'city': 'Dehiwala', 'district': 'Colombo District'},
+    {'city': 'Mount Lavinia', 'district': 'Colombo District'},
+    {'city': 'Moratuwa', 'district': 'Colombo District'},
+    {'city': 'Maharagama', 'district': 'Colombo District'},
+    {'city': 'Nugegoda', 'district': 'Colombo District'},
+    {'city': 'Kaduwela', 'district': 'Colombo District'},
+    {'city': 'Malabe', 'district': 'Colombo District'},
+    {'city': 'Battaramulla', 'district': 'Colombo District'},
+    {'city': 'Piliyandala', 'district': 'Colombo District'},
+    {'city': 'Kesbewa', 'district': 'Colombo District'},
+    {'city': 'Homagama', 'district': 'Colombo District'},
+    {'city': 'Wattala', 'district': 'Gampaha District'},
+    {'city': 'Ja-Ela', 'district': 'Gampaha District'},
+    {'city': 'Kadawatha', 'district': 'Gampaha District'},
+    {'city': 'Kiribathgoda', 'district': 'Gampaha District'},
+    {'city': 'Ragama', 'district': 'Gampaha District'},
+    {'city': 'Kelaniya', 'district': 'Gampaha District'},
+    {'city': 'Katunayake', 'district': 'Gampaha District'},
+    {'city': 'Minuwangoda', 'district': 'Gampaha District'},
+    {'city': 'Mirigama', 'district': 'Gampaha District'},
+    {'city': 'Veyangoda', 'district': 'Gampaha District'},
+    {'city': 'Beruwala', 'district': 'Kalutara District'},
+    {'city': 'Aluthgama', 'district': 'Kalutara District'},
+    {'city': 'Hikkaduwa', 'district': 'Galle District'},
+    {'city': 'Ambalangoda', 'district': 'Galle District'},
+    {'city': 'Weligama', 'district': 'Matara District'},
+    {'city': 'Tangalle', 'district': 'Hambantota District'},
+    {'city': 'Bandarawela', 'district': 'Badulla District'},
+    {'city': 'Haputale', 'district': 'Badulla District'},
+    {'city': 'Hatton', 'district': 'Nuwara Eliya District'},
+    {'city': 'Talawakele', 'district': 'Nuwara Eliya District'},
+    {'city': 'Wennappuwa', 'district': 'Puttalam District'},
+    {'city': 'Marawila', 'district': 'Puttalam District'},
+    {'city': 'Kuliyapitiya', 'district': 'Kurunegala District'},
+    {'city': 'Narammala', 'district': 'Kurunegala District'},
+    {'city': 'Wariyapola', 'district': 'Kurunegala District'},
+    {'city': 'Mawanella', 'district': 'Kegalle District'},
+    {'city': 'Ruwanwella', 'district': 'Kegalle District'},
+    {'city': 'Balangoda', 'district': 'Rathnapura District'},
+    {'city': 'Pelmadulla', 'district': 'Rathnapura District'},
+    {'city': 'Eheliyagoda', 'district': 'Rathnapura District'},
+  ];
 }

@@ -30,8 +30,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   // ── state ───────────────────────────────────────────────
   // Calendar
-  DateTime _focusedMonth = DateTime(2025, 12);
-  DateTime _selectedDate = DateTime(2025, 12, 20);
+  DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
   // Start time
   static const List<String> _times = [
@@ -55,6 +55,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   /// "Strikethrough / dimmed" days: weekends before the selected date.
   bool _isUnavailable(DateTime day) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (day.isBefore(today)) {
+      return true;
+    }
     // In the Figma mock, 5 & 6 (Fri/Sat of first week, actually Dec 5=Fri, 6=Sat) are struck-through.
     return (day.weekday == DateTime.saturday || day.weekday == DateTime.sunday) &&
         day.isBefore(_selectedDate);
@@ -107,7 +112,6 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           SafeArea(
             child: Column(
               children: [
-                _buildStatusBar(),
                 _buildTitleRow(context),
                 _buildStepIndicator(),
                 Expanded(
@@ -144,37 +148,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     );
   }
 
-  // ── Status bar ───────────────────────────────────────────
-  Widget _buildStatusBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 0, 26, 0),
-      child: SizedBox(
-        height: 52,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '9:41',
-              style: TextStyle(
-                color: _grey98,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Row(
-              children: const [
-                Icon(Icons.signal_cellular_alt, color: _grey98, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.wifi, color: _grey98, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.battery_full, color: _grey98, size: 20),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   // ── Title row ────────────────────────────────────────────
   Widget _buildTitleRow(BuildContext context) {
@@ -312,15 +286,25 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   Widget _buildCalendarHeader() {
     final monthName = _monthName(_focusedMonth.month);
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+    final canGoBack = _focusedMonth.isAfter(currentMonth);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         GestureDetector(
-          onTap: () => setState(() {
-            _focusedMonth =
-                DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-          }),
-          child: const Icon(Icons.chevron_left, color: _azure84, size: 22),
+          onTap: canGoBack
+              ? () => setState(() {
+                    _focusedMonth =
+                        DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+                  })
+              : null,
+          child: Icon(
+            Icons.chevron_left,
+            color: canGoBack ? _azure84 : _azure35,
+            size: 22,
+          ),
         ),
         Text(
           '$monthName ${_focusedMonth.year}',

@@ -72,6 +72,11 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
 
   @override
   Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final userName = (args is Map && args['name'] != null && args['name'].toString().isNotEmpty)
+        ? args['name'].toString()
+        : 'Nipuni';
+
     return Scaffold(
       backgroundColor: AppTheme.surfaceColor,
       body: Stack(
@@ -169,11 +174,11 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                               child: child,
                             );
                           },
-                          child: const SizedBox(
+                          child: SizedBox(
                             width: 275,
                             child: Text(
-                              "Welcome to CareLink, Nipuni. Let's set up your profile so we can find your matches.",
-                              style: TextStyle(
+                              "Welcome to CareLink, $userName. Let's set up your profile so we can find your matches.",
+                              style: const TextStyle(
                                 color: AppTheme.textSecondary,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
@@ -218,7 +223,7 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                                 onTap: () {
                                   Navigator.pushNamed(
                                     context,
-                                    '/patient-onboarding-1',
+                                    '/role-selection',
                                   );
                                 },
                                 child: const Padding(
@@ -232,31 +237,6 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Skip for now
-                          GestureDetector(
-                            onTap: () {
-                              // TODO: Navigate to home/dashboard
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Skipping for now...'),
-                                ),
-                              );
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 6),
-                              child: Text(
-                                'Skip for now',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),

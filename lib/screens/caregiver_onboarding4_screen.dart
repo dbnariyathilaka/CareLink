@@ -123,6 +123,8 @@ class _CaregiverOnboarding4ScreenState
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
                                 ),
                               ),
@@ -187,6 +189,8 @@ class _CaregiverOnboarding4ScreenState
                           decoration: const InputDecoration(
                             isDense: true,
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                             contentPadding: EdgeInsets.zero,
                           ),
                         ),

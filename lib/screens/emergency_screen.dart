@@ -84,35 +84,6 @@ class EmergencyScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Status bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(26, 0, 26, 0),
-            child: SizedBox(
-              height: 52,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '9:41',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Row(
-                    children: const [
-                      Icon(Icons.signal_cellular_alt, color: Colors.white, size: 18),
-                      SizedBox(width: 5),
-                      Icon(Icons.wifi, color: Colors.white, size: 18),
-                      SizedBox(width: 5),
-                      Icon(Icons.battery_full, color: Colors.white, size: 20),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
           // Close + title row
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),

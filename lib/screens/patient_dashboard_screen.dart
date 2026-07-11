@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'patient_search_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -78,6 +79,15 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
+  void _showFiltersSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const FiltersSheet(),
+    );
+  }
+
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -94,34 +104,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       ),
       child: Column(
         children: [
-          // Status bar row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(26, 0, 26, 0),
-            child: SizedBox(
-              height: 52,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '9:41',
-                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  Row(
-                    children: const [
-                      Icon(Icons.signal_cellular_alt, color: Colors.white, size: 18),
-                      SizedBox(width: 5),
-                      Icon(Icons.wifi, color: Colors.white, size: 18),
-                      SizedBox(width: 5),
-                      Icon(Icons.battery_full, color: Colors.white, size: 20),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
           // Greeting + avatar
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 6, 22, 20),
+            padding: const EdgeInsets.fromLTRB(22, 6, 22, 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -166,6 +151,51 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          // Search/filter bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
+            child: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/search'),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.search_rounded,
+                      color: Color(0xFF64748B),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Search caregivers...',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        _showFiltersSheet(context);
+                      },
+                      child: const Icon(
+                        Icons.tune_rounded,
+                        color: AppTheme.primaryGreen,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

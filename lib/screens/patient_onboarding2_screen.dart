@@ -172,7 +172,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
 
                 // Continue button
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 0),
+                  padding: const EdgeInsets.only(bottom: 24),
                   child: SizedBox(
                     width: double.infinity,
                     child: Material(
@@ -195,31 +195,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Skip for now
-                Padding(
-                  padding: const EdgeInsets.only(top: 14, bottom: 24),
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        // TODO: Navigate to onboarding step 3
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Skipped!'),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Skip for now',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),

@@ -34,7 +34,6 @@ class _TopMatchesScreenState extends State<TopMatchesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildStatusBar(),
             _buildBackRow(context),
             Expanded(
               child: SingleChildScrollView(
@@ -61,37 +60,7 @@ class _TopMatchesScreenState extends State<TopMatchesScreen> {
     );
   }
 
-  // ── Status bar ────────────────────────────────────────────
-  Widget _buildStatusBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 0, 26, 0),
-      child: SizedBox(
-        height: 44,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '9:41',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Row(
-              children: const [
-                Icon(Icons.signal_cellular_alt, color: AppTheme.textPrimary, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.wifi, color: AppTheme.textPrimary, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.battery_full, color: AppTheme.textPrimary, size: 20),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   // ── Back arrow row ────────────────────────────────────────
   Widget _buildBackRow(BuildContext context) {

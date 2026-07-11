@@ -246,6 +246,8 @@ class _CaregiverEditProfileScreenState
                                   decoration: const InputDecoration(
                                     isDense: true,
                                     border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
                                     contentPadding: EdgeInsets.zero,
                                   ),
                                 ),
@@ -316,6 +318,8 @@ class _CaregiverEditProfileScreenState
                         decoration: const InputDecoration(
                           isDense: true,
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),

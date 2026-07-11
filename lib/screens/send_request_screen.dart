@@ -50,7 +50,6 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             SafeArea(
               child: Column(
                 children: [
-                  _buildStatusBar(),
                   _buildTitleRow(context),
                   _buildStepIndicator(),
                   Expanded(
@@ -84,39 +83,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     );
   }
 
-  // ── Status bar ────────────────────────────────────────────
-  Widget _buildStatusBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 0, 26, 0),
-      child: SizedBox(
-        height: 52,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '9:41',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Row(
-              children: const [
-                Icon(Icons.signal_cellular_alt,
-                    color: AppTheme.textPrimary, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.wifi, color: AppTheme.textPrimary, size: 18),
-                SizedBox(width: 5),
-                Icon(Icons.battery_full,
-                    color: AppTheme.textPrimary, size: 20),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   // ── Title row ─────────────────────────────────────────────
   Widget _buildTitleRow(BuildContext context) {

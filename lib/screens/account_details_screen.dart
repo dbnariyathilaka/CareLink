@@ -20,7 +20,6 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
   final _confirmPasswordController = TextEditingController();
 
   bool _googleSignedIn = false;
-  bool _isGoogleLoading = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -70,7 +69,6 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
 
   // ── Google Sign-In ────────────────────────────────────────
   Future<void> _handleGoogleSignIn() async {
-    setState(() => _isGoogleLoading = true);
     try {
       final account = await _googleSignIn.signIn();
       if (account != null && mounted) {
@@ -97,8 +95,6 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
@@ -160,43 +156,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                               letterSpacing: -0.5,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Step 1 of 2 · create your login',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
 
-                          // ── Google Sign-In button ──────────────────────
-                          _buildGoogleButton(),
-                          const SizedBox(height: 18),
-
-                          // ── Divider ───────────────────────────────────
-                          Row(
-                            children: [
-                              const Expanded(
-                                  child: Divider(color: Color(0xFF334155))),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12),
-                                child: Text(
-                                  'or fill in manually',
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary
-                                        .withValues(alpha: 0.7),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const Expanded(
-                                  child: Divider(color: Color(0xFF334155))),
-                            ],
-                          ),
                         ],
                       ),
                     ),
@@ -374,9 +334,12 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
                             borderRadius: BorderRadius.circular(10),
                             onTap: () {
                               if (_formKey.currentState!.validate()) {
-                                // Step 2: Choose role
+                                // Go to account created screen, passing the name
                                 Navigator.pushNamed(
-                                    context, '/role-selection');
+                                  context,
+                                  '/account-created',
+                                  arguments: {'name': _fullNameController.text},
+                                );
                               }
                             },
                             child: const Padding(
@@ -405,70 +368,5 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen>
     );
   }
 
-  // ── Google button ─────────────────────────────────────────
-  Widget _buildGoogleButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: _googleSignedIn
-            ? AppTheme.primaryGreen.withValues(alpha: 0.1)
-            : AppTheme.textPrimary,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: _isGoogleLoading ? null : _handleGoogleSignIn,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: _isGoogleLoading
-                ? const Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppTheme.ebony,
-                      ),
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_googleSignedIn) ...[
-                        const Icon(Icons.check_circle_rounded,
-                            color: AppTheme.primaryGreen, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Signed in with Google',
-                          style: TextStyle(
-                            color: AppTheme.primaryGreen,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ] else ...[
-                        Text(
-                          'G',
-                          style: TextStyle(
-                            color: AppTheme.googleBlue,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Continue with Google',
-                          style: TextStyle(
-                            color: AppTheme.ebony,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
+
 }
