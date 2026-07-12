@@ -203,12 +203,10 @@ class _LoginScreenState extends State<LoginScreen>
                             borderRadius: BorderRadius.circular(10),
                             onTap: () {
                               if (_formKey.currentState!.validate()) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Login functionality coming soon!',
-                                    ),
-                                  ),
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  '/patient-dashboard',
+                                  (route) => false,
                                 );
                               }
                             },

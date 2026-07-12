@@ -10,6 +10,8 @@ class PatientSearchScreen extends StatefulWidget {
 
 class _PatientSearchScreenState extends State<PatientSearchScreen> {
   int _selectedFilter = 0;
+  int _sortIndex = 0; // 0=Best match, 1=Distance, 2=Rating
+  static const List<String> _sortLabels = ['Best match', 'Distance', 'Rating'];
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -192,6 +194,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                         fontWeight: FontWeight.w400,
                       ),
                       decoration: const InputDecoration(
+                        filled: false,
                         hintText: 'Search caregivers...',
                         hintStyle: TextStyle(
                           color: Color(0xFF64748B),
@@ -231,7 +234,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   // ── Filter chips ──────────────────────────────────────────
   Widget _buildFilterChips() {
     return SizedBox(
-      height: 29,
+      height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _filters.length,
@@ -241,7 +244,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
           return GestureDetector(
             onTap: () => setState(() => _selectedFilter = i),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
               decoration: BoxDecoration(
                 color: selected ? AppTheme.primaryGreen : AppTheme.cardColor,
                 border: selected ? null : Border.all(color: AppTheme.borderColor),
@@ -277,19 +280,22 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
             fontWeight: FontWeight.w500,
           ),
         ),
-        Row(
-          children: const [
-            Text(
-              'Sort: Best match',
-              style: TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+        GestureDetector(
+          onTap: () => setState(() => _sortIndex = (_sortIndex + 1) % _sortLabels.length),
+          child: Row(
+            children: [
+              Text(
+                'Sort: ${_sortLabels[_sortIndex]}',
+                style: const TextStyle(
+                  color: Color(0xFFCBD5E1),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            SizedBox(width: 4),
-            Icon(Icons.swap_vert_rounded, color: Color(0xFFCBD5E1), size: 16),
-          ],
+              const SizedBox(width: 4),
+              const Icon(Icons.swap_vert_rounded, color: Color(0xFFCBD5E1), size: 16),
+            ],
+          ),
         ),
       ],
     );
@@ -370,7 +376,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                   borderRadius: BorderRadius.circular(8),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(8),
-                    onTap: () {},
+                    onTap: () => Navigator.pushNamed(context, '/send-request'),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
                       child: Text(
@@ -388,26 +394,21 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppTheme.borderColor),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Profile',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                child: GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppTheme.borderColor),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Profile',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -556,7 +557,7 @@ class _CaregiverData {
 }
 
 // ── Filters bottom sheet ──────────────────────────────────
-enum _CareType { fullTime, partTime, liveIn }
+enum _CareType { fullTime, partTime, liveIn, flexible }
 
 enum _SortBy { bestMatch, nearest, highestRated }
 
@@ -649,6 +650,12 @@ class _FiltersSheetState extends State<FiltersSheet> {
               'Live-in only',
               _careType == _CareType.liveIn,
               () => setState(() => _careType = _CareType.liveIn),
+            ),
+            const SizedBox(height: 9),
+            _radioRow(
+              'Flexible',
+              _careType == _CareType.flexible,
+              () => setState(() => _careType = _CareType.flexible),
             ),
             const SizedBox(height: 18),
             _sectionLabel('MAXIMUM DISTANCE'),
