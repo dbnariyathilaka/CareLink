@@ -1,26 +1,97 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
+import '../app_state.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient My Profile Screen
 //  Figma node: 160-1861
 // ─────────────────────────────────────────────────────────────
-class PatientProfileScreen extends StatelessWidget {
+class PatientProfileScreen extends StatefulWidget {
   const PatientProfileScreen({super.key});
 
-  // ── Figma colour tokens ──────────────────────────────────
-  static const Color _green45   = AppTheme.primaryGreen;   // #22C55E
-  static const Color _green36   = AppTheme.primaryGreenDark;// #16A34A
-  static const Color _green8    = AppTheme.bottleGreen;    // #06240F
-  static const Color _azure11   = AppTheme.surfaceColor;   // #0F172A
-  static const Color _azure17   = AppTheme.cardColor;      // #1E293B
-  static const Color _azure27   = AppTheme.borderColor;    // #334155
-  static const Color _azure47   = Color(0xFF64748B);
-  static const Color _azure65   = AppTheme.textSecondary;  // #94A3B8
-  static const Color _grey98    = AppTheme.textPrimary;    // #F8FAFC
-  static const Color _red44     = Color(0xFFEF4444);       // heart icon
+  @override
+  State<PatientProfileScreen> createState() => _PatientProfileScreenState();
+}
 
-  static const Color _greenBadgeBg = Color(0x26227C55E);   // green 15%
+class _PatientProfileScreenState extends State<PatientProfileScreen> {
+  // ── Figma colour tokens ──────────────────────────────────
+  static const Color _green45   = AppTheme.primaryGreen;
+  static const Color _green36   = AppTheme.primaryGreenDark;
+  static const Color _green8    = AppTheme.bottleGreen;
+  static const Color _azure11   = AppTheme.surfaceColor;
+  static const Color _azure17   = AppTheme.cardColor;
+  static const Color _azure27   = AppTheme.borderColor;
+  static const Color _azure47   = Color(0xFF64748B);
+  static const Color _azure65   = AppTheme.textSecondary;
+  static const Color _grey98    = AppTheme.textPrimary;
+  static const Color _red44     = Color(0xFFEF4444);
+  static const Color _amber     = Color(0xFFF59E0B);
+
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final choice = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: _azure17,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 5,
+              decoration: BoxDecoration(
+                color: _azure27,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: _green45),
+              title: const Text('Take a photo',
+                  style: TextStyle(color: _grey98, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: _green45),
+              title: const Text('Choose from gallery',
+                  style: TextStyle(color: _grey98, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            if (AppState.profileImagePath.value != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: _red44),
+                title: const Text('Remove photo',
+                    style: TextStyle(color: _red44, fontWeight: FontWeight.w600)),
+                onTap: () {
+                  AppState.profileImagePath.value = null;
+                  Navigator.pop(context);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+
+    final picked = await picker.pickImage(
+      source: choice,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+
+    if (picked != null) {
+      AppState.profileImagePath.value = picked.path;
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,13 +114,19 @@ class PatientProfileScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           _buildSectionLabel('Care requirements'),
                           const SizedBox(height: 8),
-                          _buildCareRequirementsCard(),
+                          _buildCareRequirementsCard(context),
                           const SizedBox(height: 12),
                           _buildSectionLabel('Favourite caregivers'),
                           const SizedBox(height: 8),
                           _buildFavouriteCard(context),
                           const SizedBox(height: 10),
                           _buildMenuList(context),
+                          const SizedBox(height: 12),
+                          _buildSectionLabel('Support'),
+                          const SizedBox(height: 8),
+                          _buildSupportSection(context),
+                          const SizedBox(height: 12),
+                          _buildLogoutButton(context),
                         ],
                       ),
                     ),
@@ -64,19 +141,18 @@ class PatientProfileScreen extends StatelessWidget {
     );
   }
 
-
-
   // ── Header: title + avatar + name + badge ────────────────
   Widget _buildHeaderSection(BuildContext context) {
+    final imagePath = AppState.profileImagePath.value;
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
       child: Column(
         children: [
-          // "My profile" title row
+          // "My profile" title row — settings icon removed
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Text(
                 'My profile',
                 style: TextStyle(
                   color: _grey98,
@@ -84,65 +160,72 @@ class PatientProfileScreen extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              GestureDetector(
-                onTap: () => Navigator.pushNamed(context, '/settings'),
-                child: const Icon(
-                  Icons.settings_outlined,
-                  color: _grey98,
-                  size: 24,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 18),
-          // Avatar
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 84,
-                height: 84,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_green45, _green36],
+          // Avatar with pencil badge
+          GestureDetector(
+            onTap: _pickProfileImage,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Circle avatar
+                Container(
+                  width: 84,
+                  height: 84,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: imagePath == null
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_green45, _green36],
+                          )
+                        : null,
+                    color: imagePath != null ? Colors.transparent : null,
                   ),
+                  child: imagePath != null
+                      ? ClipOval(
+                          child: Image.file(
+                            File(imagePath),
+                            width: 84,
+                            height: 84,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : const Center(
+                          child: Text(
+                            'NA',
+                            style: TextStyle(
+                              color: _green8,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                 ),
-                child: const Center(
-                  child: Text(
-                    'NA',
-                    style: TextStyle(
+                // Edit pencil badge
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: _green45,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _azure11, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.edit_rounded,
                       color: _green8,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
+                      size: 12,
                     ),
                   ),
                 ),
-              ),
-              // Edit badge
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: _azure17,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _azure11, width: 2),
-                  ),
-                  child: const Icon(
-                    Icons.edit,
-                    color: _green45,
-                    size: 12,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 14),
-          // Name
           const Text(
             'Nipuni Ariyathilaka',
             style: TextStyle(
@@ -152,7 +235,6 @@ class PatientProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          // Email · Phone
           const Text(
             'nipuni@email.com · +94 77 123 4567',
             style: TextStyle(
@@ -162,7 +244,6 @@ class PatientProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          // "Patient / Family account" badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
@@ -190,7 +271,7 @@ class PatientProfileScreen extends StatelessWidget {
     );
   }
 
-  // ── Stats row: Bookings · Reviews given · Favourite ──────
+  // ── Stats row ─────────────────────────────────────────────
   Widget _buildStatsRow() {
     return Row(
       children: [
@@ -213,24 +294,14 @@ class PatientProfileScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: _grey98,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text(value,
+              style: const TextStyle(
+                  color: _grey98, fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _azure65,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: _azure65, fontSize: 10, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -252,7 +323,7 @@ class PatientProfileScreen extends StatelessWidget {
   }
 
   // ── Care requirements card ────────────────────────────────
-  Widget _buildCareRequirementsCard() {
+  Widget _buildCareRequirementsCard(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
@@ -267,9 +338,9 @@ class PatientProfileScreen extends StatelessWidget {
           _requirementRow('Location', 'Negombo, Western Province', divider: true),
           _requirementRow('Preferred gender', 'No preference', divider: false),
           const SizedBox(height: 10),
-          // Edit link
+          // Navigate to onboarding to edit preferences
           GestureDetector(
-            onTap: () {},
+            onTap: () => Navigator.pushNamed(context, '/patient-onboarding-1'),
             child: const Text(
               'Edit requirements',
               style: TextStyle(
@@ -289,30 +360,17 @@ class PatientProfileScreen extends StatelessWidget {
       height: 35,
       decoration: divider
           ? const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: _azure27, width: 1),
-              ),
-            )
+              border: Border(bottom: BorderSide(color: _azure27, width: 1)))
           : null,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: _azure65,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: _grey98,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(label,
+              style: const TextStyle(
+                  color: _azure65, fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(value,
+              style: const TextStyle(
+                  color: _grey98, fontSize: 13, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -330,7 +388,6 @@ class PatientProfileScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Green avatar
           Container(
             width: 40,
             height: 40,
@@ -343,56 +400,42 @@ class PatientProfileScreen extends StatelessWidget {
               ),
             ),
             child: const Center(
-              child: Text(
-                'AF',
-                style: TextStyle(
-                  color: _green8,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              child: Text('AF',
+                  style: TextStyle(
+                      color: _green8,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
             ),
           ),
           const SizedBox(width: 11),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Alice Fernando',
-                  style: TextStyle(
-                    color: _grey98,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              children: [
+                Text('Alice Fernando',
+                    style: TextStyle(
+                        color: _grey98,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700)),
                 SizedBox(height: 3),
-                Text(
-                  'Elder care · ★4.8',
-                  style: TextStyle(
-                    color: _azure65,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text('Elder care · ★4.8',
+                    style: TextStyle(
+                        color: _azure65,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500)),
               ],
             ),
           ),
-          // Heart icon (favourited = filled red)
           GestureDetector(
             onTap: () {},
-            child: const Icon(
-              Icons.favorite_rounded,
-              color: _red44,
-              size: 20,
-            ),
+            child: const Icon(Icons.favorite_rounded, color: _red44, size: 20),
           ),
         ],
       ),
     );
   }
 
-  // ── Menu list rows ────────────────────────────────────────
+  // ── Menu list (Messages only — Settings & Help removed) ───
   Widget _buildMenuList(BuildContext context) {
     return Column(
       children: [
@@ -408,13 +451,90 @@ class PatientProfileScreen extends StatelessWidget {
           label: 'Settings',
           onTap: () => Navigator.pushNamed(context, '/settings'),
         ),
-        const SizedBox(height: 9),
-        _menuRow(
-          icon: Icons.help_outline_rounded,
-          label: 'Help & FAQ',
-          onTap: () {},
-        ),
       ],
+    );
+  }
+
+  // ── Support section (moved from Settings) ─────────────────
+  Widget _buildSupportSection(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _azure17,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _azure27),
+      ),
+      child: Column(
+        children: [
+          _supportRow(
+            icon: Icons.help_outline_rounded,
+            label: 'Help & FAQ',
+            onTap: () {},
+          ),
+          Container(height: 1, color: _azure27),
+          _supportRow(
+            icon: Icons.shield_outlined,
+            label: 'Privacy policy',
+            onTap: () {},
+          ),
+          Container(height: 1, color: _azure27),
+          _supportRow(
+            icon: Icons.info_outline_rounded,
+            label: 'About CareLink',
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _supportRow({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, color: _azure47, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label,
+                  style: const TextStyle(
+                      color: _grey98,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: _azure65, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Log out button ─────────────────────────────────────────
+  Widget _buildLogoutButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamedAndRemoveUntil(
+          context, '/', (route) => false),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: _azure17,
+          border: Border.all(color: _azure27),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'Log out',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+              color: _amber, fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+      ),
     );
   }
 
@@ -439,14 +559,11 @@ class PatientProfileScreen extends StatelessWidget {
             Icon(icon, color: _green45, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: _grey98,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: Text(label,
+                  style: const TextStyle(
+                      color: _grey98,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
             ),
             if (badge != null) ...[
               Container(
@@ -458,14 +575,11 @@ class PatientProfileScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  badge,
-                  style: const TextStyle(
-                    color: _green8,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                child: Text(badge,
+                    style: const TextStyle(
+                        color: _green8,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700)),
               ),
               const SizedBox(width: 4),
             ],
@@ -495,7 +609,7 @@ class PatientProfileScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(items.length, (i) {
           final item = items[i];
-          final isActive = i == 4; // Profile is active
+          final isActive = i == 4;
           final color = isActive ? _green45 : _azure47;
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -510,22 +624,18 @@ class PatientProfileScreen extends StatelessWidget {
               } else if (i == 3) {
                 Navigator.pushNamed(context, '/notifications');
               }
-              // i == 4 → already here
             },
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(item.icon, color: color, size: 22),
                 const SizedBox(height: 4),
-                Text(
-                  item.label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight:
-                        isActive ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                ),
+                Text(item.label,
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 10,
+                        fontWeight:
+                            isActive ? FontWeight.w600 : FontWeight.w500)),
               ],
             ),
           );
