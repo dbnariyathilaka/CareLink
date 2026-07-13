@@ -148,16 +148,24 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
       child: Column(
         children: [
-          // "My profile" title row — settings icon removed
+          // "My profile" title row with settings icon
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Text(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
                 'My profile',
                 style: TextStyle(
                   color: _grey98,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/settings'),
+                child: const Icon(
+                  Icons.settings_outlined,
+                  color: _grey98,
+                  size: 24,
                 ),
               ),
             ],
@@ -435,7 +443,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     );
   }
 
-  // ── Menu list (Messages only — Settings & Help removed) ───
+  // ── Menu list (Messages only) ──────────────────────────
   Widget _buildMenuList(BuildContext context) {
     return Column(
       children: [
@@ -444,12 +452,6 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
           label: 'Messages',
           badge: '2',
           onTap: () => Navigator.pushNamed(context, '/messages'),
-        ),
-        const SizedBox(height: 9),
-        _menuRow(
-          icon: Icons.settings_outlined,
-          label: 'Settings',
-          onTap: () => Navigator.pushNamed(context, '/settings'),
         ),
       ],
     );

@@ -377,6 +377,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 Navigator.pushNamed(context, '/search');
               } else if (index == 2) {
                 Navigator.pushNamed(context, '/my-bookings');
+              } else if (index == 4) {
+                Navigator.pushNamed(context, '/patient-profile');
               }
             },
             child: Column(

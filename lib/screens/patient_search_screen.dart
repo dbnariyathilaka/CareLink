@@ -513,6 +513,8 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                 Navigator.pushNamed(context, '/my-bookings');
               } else if (index == 3) {
                 Navigator.pushNamed(context, '/notifications');
+              } else if (index == 4) {
+                Navigator.pushNamed(context, '/patient-profile');
               }
             },
             child: Column(

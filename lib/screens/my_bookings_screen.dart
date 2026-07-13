@@ -535,6 +535,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 Navigator.pushNamed(context, '/search');
               } else if (index == 3) {
                 Navigator.pushNamed(context, '/notifications');
+              } else if (index == 4) {
+                Navigator.pushNamed(context, '/patient-profile');
               }
             },
             child: Column(

@@ -131,24 +131,6 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                     ]),
                     const SizedBox(height: 18),
 
-                    _buildSectionLabel('SUPPORT'),
-                    const SizedBox(height: 8),
-                    _buildGroupCard([
-                      _navRow(
-                        icon: Icons.help_outline_rounded,
-                        iconColor: AppTheme.textSecondary,
-                        title: 'Help & FAQ',
-                        onTap: () {},
-                      ),
-                      _navRow(
-                        icon: Icons.shield_outlined,
-                        iconColor: AppTheme.textSecondary,
-                        title: 'Privacy policy',
-                        onTap: () {},
-                      ),
-                    ]),
-                    const SizedBox(height: 18),
-
                     GestureDetector(
                       onTap: () {
                         Navigator.pushNamedAndRemoveUntil(
