@@ -9,20 +9,14 @@ class SendRequestScreen extends StatefulWidget {
 }
 
 class _SendRequestScreenState extends State<SendRequestScreen> {
-  static const Color _amber = Color(0xFFF59E0B);
-
-  // Care type options
-  static const List<String> _careTypes = [
-    'Elder care · Full-time',
-    'Elder care · Part-time',
-    'Post-surgery · Full-time',
-    'Post-surgery · Part-time',
-    'Disability support · Full-time',
-    'Disability support · Part-time',
-    'General home care · Full-time',
-    'General home care · Part-time',
+  // Dropdown options
+  static const List<String> _workSchedules = [
+    'Full-time',
+    'Half-time',
+    'Flexible',
+    'Live-in',
   ];
-  String _selectedCareType = 'Elder care · Full-time';
+  String _selectedWorkSchedule = 'Flexible';
   bool _dropdownOpen = false;
 
   final TextEditingController _notesController = TextEditingController(
@@ -60,7 +54,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                         children: [
                           _buildCaregiverCard(),
                           const SizedBox(height: 22),
-                          _buildCareTypeSection(),
+                          _buildWorkScheduleSection(),
                           const SizedBox(height: 20),
                           _buildSpecialNotesSection(),
                         ],
@@ -83,12 +77,10 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     );
   }
 
-
-
   // ── Title row ─────────────────────────────────────────────
   Widget _buildTitleRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
+      padding: const EdgeInsets.fromLTRB(22, 4, 22, 14),
       child: Row(
         children: [
           GestureDetector(
@@ -101,7 +93,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             'Send request',
             style: TextStyle(
               color: AppTheme.textPrimary,
-              fontSize: 17,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -110,26 +102,26 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     );
   }
 
-  // ── 3-step progress indicator ─────────────────────────────
+  // ── 4-step progress indicator ─────────────────────────────
   Widget _buildStepIndicator() {
     const steps = [
       _StepData(number: '1', label: 'Request', active: true),
       _StepData(number: '2', label: 'Schedule', active: false),
-      _StepData(number: '3', label: 'Confirm', active: false),
+      _StepData(number: '3', label: 'Location', active: false),
+      _StepData(number: '4', label: 'Confirm', active: false),
     ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
             // Connector line
-            final leftActive = steps[i ~/ 2].active;
             return Expanded(
               child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
                 height: 1.5,
-                color: leftActive
-                    ? AppTheme.primaryGreen.withValues(alpha: 0.35)
-                    : AppTheme.borderColor,
+                color: AppTheme.borderColor,
               ),
             );
           }
@@ -144,14 +136,14 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     return Column(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 24,
+          height: 24,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: step.active ? AppTheme.primaryGreen : AppTheme.cardColor,
+            color: step.active ? AppTheme.primaryGreen : AppTheme.inputBackground,
             border: Border.all(
               color: step.active ? AppTheme.primaryGreen : AppTheme.borderColor,
-              width: 1.5,
+              width: 1,
             ),
           ),
           child: Center(
@@ -160,18 +152,18 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               style: TextStyle(
                 color:
                     step.active ? AppTheme.bottleGreen : AppTheme.textSecondary,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         Text(
           step.label,
           style: TextStyle(
             color: step.active ? AppTheme.primaryGreen : AppTheme.textSecondary,
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: step.active ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
@@ -185,7 +177,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: AppTheme.inputBackground,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppTheme.borderColor),
       ),
@@ -193,14 +185,14 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
         children: [
           // Green gradient avatar
           Container(
-            width: 48,
-            height: 48,
+            width: 46,
+            height: 46,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF22C55E), AppTheme.primaryGreenDark],
+                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
               ),
             ),
             child: const Center(
@@ -208,7 +200,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 'AF',
                 style: TextStyle(
                   color: AppTheme.bottleGreen,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -241,8 +233,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           ),
           // Match score badge
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppTheme.primaryGreen.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(999),
@@ -251,8 +242,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               '92% match',
               style: TextStyle(
                 color: AppTheme.primaryGreen,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -261,28 +252,28 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     );
   }
 
-  // ── Care type dropdown ────────────────────────────────────
-  Widget _buildCareTypeSection() {
+  // ── Work schedule dropdown ──────────────────────────────────
+  Widget _buildWorkScheduleSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Care type',
+          'Work schedule',
           style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         // Custom dropdown
         GestureDetector(
           onTap: () => setState(() => _dropdownOpen = !_dropdownOpen),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
             decoration: BoxDecoration(
-              color: AppTheme.cardColor,
+              color: AppTheme.inputBackground,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(10),
                 topRight: const Radius.circular(10),
@@ -293,18 +284,18 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 color: _dropdownOpen
                     ? AppTheme.primaryGreen
                     : AppTheme.borderColor,
-                width: _dropdownOpen ? 1.5 : 1,
+                width: 1,
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _selectedCareType,
+                  _selectedWorkSchedule,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 AnimatedRotation(
@@ -312,8 +303,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                   duration: const Duration(milliseconds: 200),
                   child: const Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: AppTheme.textSecondary,
-                    size: 20,
+                    color: AppTheme.textPrimary,
+                    size: 22,
                   ),
                 ),
               ],
@@ -326,37 +317,34 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           secondChild: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: AppTheme.cardColor,
+              color: AppTheme.inputBackground,
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(10),
                 bottomRight: Radius.circular(10),
               ),
               border: Border(
-                left: BorderSide(
-                    color: AppTheme.primaryGreen, width: 1.5),
-                right: BorderSide(
-                    color: AppTheme.primaryGreen, width: 1.5),
-                bottom: BorderSide(
-                    color: AppTheme.primaryGreen, width: 1.5),
+                left: BorderSide(color: AppTheme.primaryGreen, width: 1),
+                right: BorderSide(color: AppTheme.primaryGreen, width: 1),
+                bottom: BorderSide(color: AppTheme.primaryGreen, width: 1),
               ),
             ),
             child: Column(
-              children: _careTypes
+              children: _workSchedules
                   .map(
-                    (type) => GestureDetector(
+                    (schedule) => GestureDetector(
                       onTap: () => setState(() {
-                        _selectedCareType = type;
+                        _selectedWorkSchedule = schedule;
                         _dropdownOpen = false;
                       }),
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 13),
+                            horizontal: 17, vertical: 13),
                         decoration: BoxDecoration(
-                          color: _selectedCareType == type
+                          color: _selectedWorkSchedule == schedule
                               ? AppTheme.primaryGreen.withValues(alpha: 0.1)
                               : Colors.transparent,
-                          border: type != _careTypes.last
+                          border: schedule != _workSchedules.last
                               ? const Border(
                                   bottom: BorderSide(
                                       color: AppTheme.borderColor,
@@ -367,18 +355,18 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              type,
+                              schedule,
                               style: TextStyle(
-                                color: _selectedCareType == type
+                                color: _selectedWorkSchedule == schedule
                                     ? AppTheme.primaryGreen
                                     : AppTheme.textPrimary,
-                                fontSize: 13,
-                                fontWeight: _selectedCareType == type
+                                fontSize: 14,
+                                fontWeight: _selectedWorkSchedule == schedule
                                     ? FontWeight.w600
                                     : FontWeight.w400,
                               ),
                             ),
-                            if (_selectedCareType == type)
+                            if (_selectedWorkSchedule == schedule)
                               const Icon(Icons.check_rounded,
                                   color: AppTheme.primaryGreen, size: 16),
                           ],
@@ -411,25 +399,25 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         TextField(
           controller: _notesController,
-          maxLines: 6,
+          maxLines: 5,
           style: const TextStyle(
             color: AppTheme.textPrimary,
-            fontSize: 13.5,
+            fontSize: 14,
             fontWeight: FontWeight.w400,
-            height: 1.55,
+            height: 1.5,
           ),
           decoration: InputDecoration(
             hintText:
                 'Add any special requirements or notes for the caregiver...',
             hintStyle: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
+              color: Color(0xFF64748B),
+              fontSize: 14,
             ),
             filled: true,
-            fillColor: AppTheme.cardColor,
+            fillColor: AppTheme.inputBackground,
             contentPadding: const EdgeInsets.all(14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -442,7 +430,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
-                  color: AppTheme.primaryGreen, width: 1.5),
+                  color: AppTheme.primaryGreen, width: 1),
             ),
           ),
         ),
@@ -473,7 +461,11 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () {
-              Navigator.pushNamed(context, '/schedule-care');
+              Navigator.pushNamed(
+                context,
+                '/schedule-care',
+                arguments: _selectedWorkSchedule,
+              );
             },
             child: const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),

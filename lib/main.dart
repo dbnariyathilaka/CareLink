@@ -40,7 +40,9 @@ import 'screens/caregiver_settings_screen.dart';
 import 'screens/forgot_password_step1_screen.dart';
 import 'screens/forgot_password_step2_screen.dart';
 import 'screens/forgot_password_step3_screen.dart';
-
+import 'screens/location_selection_screen.dart';
+import 'screens/map_selection_screen.dart';
+import 'screens/location_confirm_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -87,6 +89,9 @@ class CareMatchApp extends StatelessWidget {
         '/caregiver-dashboard': (context) => const CaregiverDashboardScreen(),
         '/send-request': (context) => const SendRequestScreen(),
         '/schedule-care': (context) => const ScheduleCareScreen(),
+        '/location-selection': (context) => const LocationSelectionScreen(),
+        '/map-selection': (context) => const MapSelectionScreen(),
+        '/location-confirm': (context) => const LocationConfirmScreen(),
         '/confirm-booking': (context) => const ConfirmBookingScreen(),
         '/patient-profile': (context) => const PatientProfileScreen(),
         '/messages': (context) => const MessagesScreen(),
@@ -103,8 +108,10 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverNotificationsScreen(),
         '/caregiver-settings': (context) => const CaregiverSettingsScreen(),
         '/forgot-password': (context) => const ForgotPasswordStep1Screen(),
-        '/forgot-password-step2': (context) => const ForgotPasswordStep2Screen(),
-        '/forgot-password-step3': (context) => const ForgotPasswordStep3Screen(),
+        '/forgot-password-step2': (context) =>
+            const ForgotPasswordStep2Screen(),
+        '/forgot-password-step3': (context) =>
+            const ForgotPasswordStep3Screen(),
       },
     );
   }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Confirm Booking Screen  (Send-request flow — Step 3)
-//  Figma node: 160-2449
+//  Confirm Booking Screen  (Send-request flow — Step 4)
+//  Figma node: 282-11092
 // ─────────────────────────────────────────────────────────────
 class ConfirmBookingScreen extends StatelessWidget {
   const ConfirmBookingScreen({super.key});
@@ -22,18 +22,27 @@ class ConfirmBookingScreen extends StatelessWidget {
   static const Color _amberBg     = Color(0x1FF59E0B);   // 12%
   static const Color _amberBorder = Color(0x66F59E0B);   // 40%
 
-  // ── Booking data (passed / hardcoded to match Figma mock) ─
-  static const List<_BookingRow> _rows = [
-    _BookingRow('Start date',  '20 Dec 2025'),
-    _BookingRow('Start time',  '8:00 AM'),
-    _BookingRow('Duration',    '1 month'),
-    _BookingRow('End date',    '20 Jan 2026'),
-    _BookingRow('Location',    'Negombo'),
-    _BookingRow('Care type',   'Elder · Full-time'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    // Extract dynamic arguments passed down through the wizard steps
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    final startDate = args?['startDate'] ?? '20 Dec 2025';
+    final startTime = args?['startTime'] ?? '8:00 AM';
+    final duration = args?['duration'] ?? '1 month';
+    final endDate = args?['endDate'] ?? '20 Jan 2026';
+    final location = args?['location'] ?? 'Negombo';
+    final careType = args?['careType'] ?? 'Elder · Full-time';
+
+    final List<_BookingRow> rows = [
+      _BookingRow('Start date', startDate),
+      _BookingRow('Start time', startTime),
+      _BookingRow('Duration', duration),
+      _BookingRow('End date', endDate),
+      _BookingRow('Location', location),
+      _BookingRow('Work schedule', careType),
+    ];
+
     return Scaffold(
       backgroundColor: _azure11,
       body: Stack(
@@ -49,7 +58,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSummaryCard(),
+                        _buildSummaryCard(rows),
                         const SizedBox(height: 16),
                         _buildAmberBanner(),
                       ],
@@ -70,8 +79,6 @@ class ConfirmBookingScreen extends StatelessWidget {
       ),
     );
   }
-
-
 
   // ── Title row ─────────────────────────────────────────────
   Widget _buildTitleRow(BuildContext context) {
@@ -98,12 +105,13 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Step indicator ────────────────────────────────────────
-  // Step 1 & 2: outlined green (done). Step 3: filled green (active).
+  // Step 1, 2, 3: completed green (done). Step 4: active green (active).
   Widget _buildStepIndicator() {
     const steps = [
       _StepInfo('1', 'Request',  _StepState.done),
       _StepInfo('2', 'Schedule', _StepState.done),
-      _StepInfo('3', 'Confirm',  _StepState.active),
+      _StepInfo('3', 'Location', _StepState.done),
+      _StepInfo('4', 'Confirm',  _StepState.active),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 0),
@@ -118,7 +126,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 12),
                   child: Container(
                     height: 1.5,
-                    color: _green45.withValues(alpha: 0.35),
+                    color: _green45,
                   ),
                 ),
               );
@@ -143,7 +151,7 @@ class ConfirmBookingScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             color: isActive ? _green45 : _azure17,
             border: Border.all(
-              color: isActive ? Colors.transparent : _green45,
+              color: isActive || isDone ? _green45 : _azure27,
               width: 1,
             ),
           ),
@@ -151,7 +159,7 @@ class ConfirmBookingScreen extends StatelessWidget {
             child: Text(
               s.number,
               style: TextStyle(
-                color: isActive ? _green8 : _green45,
+                color: isActive ? _green8 : (isDone ? _green45 : _azure65),
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -161,8 +169,8 @@ class ConfirmBookingScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           s.label,
-          style: const TextStyle(
-            color: _green45,
+          style: TextStyle(
+            color: isActive || isDone ? _green45 : _azure65,
             fontSize: 8.5,
             fontWeight: FontWeight.w600,
           ),
@@ -172,7 +180,7 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Booking summary card ──────────────────────────────────
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(List<_BookingRow> rows) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -182,9 +190,9 @@ class ConfirmBookingScreen extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 7),
       child: Column(
-        children: List.generate(_rows.length, (index) {
-          final row = _rows[index];
-          final isLast = index == _rows.length - 1;
+        children: List.generate(rows.length, (index) {
+          final row = rows[index];
+          final isLast = index == rows.length - 1;
           return _buildSummaryRow(row, isLast: isLast);
         }),
       ),
@@ -291,7 +299,6 @@ class ConfirmBookingScreen extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
                 onTap: () {
-                  // TODO: dispatch booking to backend; navigate to success
                   _showBookingConfirmedDialog(context);
                 },
                 child: const SizedBox(
@@ -312,9 +319,15 @@ class ConfirmBookingScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            // Secondary: Edit schedule
+            // Secondary: Edit schedule (goes back to step 1 screen '/send-request')
             GestureDetector(
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/send-request',
+                  (route) => false,
+                );
+              },
               child: const Text(
                 'Edit schedule',
                 style: TextStyle(
@@ -421,7 +434,7 @@ class _BookingRow {
   const _BookingRow(this.label, this.value);
 }
 
-enum _StepState { done, active, inactive }
+enum _StepState { done, active }
 
 class _StepInfo {
   final String number;
