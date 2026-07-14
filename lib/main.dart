@@ -43,6 +43,11 @@ import 'screens/forgot_password_step3_screen.dart';
 import 'screens/location_selection_screen.dart';
 import 'screens/map_selection_screen.dart';
 import 'screens/location_confirm_screen.dart';
+import 'screens/advanced_match_send_request_screen.dart';
+import 'screens/qualifications_selection_screen.dart';
+import 'screens/qualifications_intro_screen.dart';
+import 'screens/matching_analysis_screen.dart';
+import 'screens/advanced_match_results_screen.dart';
 
 void main() {
   runApp(const CareMatchApp());
@@ -88,10 +93,15 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverOnboarding5Screen(),
         '/caregiver-dashboard': (context) => const CaregiverDashboardScreen(),
         '/send-request': (context) => const SendRequestScreen(),
+        '/advanced-match-send-request': (context) => const AdvancedMatchSendRequestScreen(),
         '/schedule-care': (context) => const ScheduleCareScreen(),
         '/location-selection': (context) => const LocationSelectionScreen(),
         '/map-selection': (context) => const MapSelectionScreen(),
         '/location-confirm': (context) => const LocationConfirmScreen(),
+        '/qualifications-intro': (context) => const QualificationsIntroScreen(),
+        '/qualifications-selection': (context) => const QualificationsSelectionScreen(),
+        '/matching-analysis': (context) => const MatchingAnalysisScreen(),
+        '/advanced-match-results': (context) => const AdvancedMatchResultsScreen(),
         '/confirm-booking': (context) => const ConfirmBookingScreen(),
         '/patient-profile': (context) => const PatientProfileScreen(),
         '/messages': (context) => const MessagesScreen(),

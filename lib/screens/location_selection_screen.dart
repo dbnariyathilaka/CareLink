@@ -11,8 +11,6 @@ class LocationSelectionScreen extends StatefulWidget {
 
 class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   // Colors (Figma tokens mapped to AppTheme)
-  static const Color _green45 = AppTheme.primaryGreen; // #22C55E
-  static const Color _green8 = AppTheme.bottleGreen;   // #06240F
   static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
   static const Color _azure17 = AppTheme.cardColor;    // #1E293B
   static const Color _azure27 = AppTheme.borderColor;  // #334155
@@ -21,12 +19,28 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   static const Color _azure84 = Color(0xFFCBD5E1);
   static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
 
+  Color get _green45 => _isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen;
+  Color get _green8 => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
+
   // Location State
   String? _selectedCity;
   double? _selectedLat;
   double? _selectedLng;
   bool _showSearch = false;
   final TextEditingController _searchController = TextEditingController();
+
+  bool _isAdvanced = false;
+  Map<String, dynamic> _bookingArgs = {};
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      _isAdvanced = args['isAdvanced'] ?? false;
+      _bookingArgs = args;
+    }
+  }
 
   List<Map<String, dynamic>> _searchResults = [];
 
@@ -127,14 +141,22 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
     );
   }
 
-  // ── 2. 4-step progress indicator ──
+  // ── 2. Progress step indicator ──
   Widget _buildStepIndicator() {
-    const steps = [
-      _StepInfo('1', 'Request', _StepState.done),
-      _StepInfo('2', 'Schedule', _StepState.done),
-      _StepInfo('3', 'Location', _StepState.active),
-      _StepInfo('4', 'Confirm', _StepState.inactive),
-    ];
+    final steps = _isAdvanced
+        ? const [
+            _StepInfo('1', 'Request', _StepState.done),
+            _StepInfo('2', 'Schedule', _StepState.done),
+            _StepInfo('3', 'Location', _StepState.active),
+            _StepInfo('4', 'Qualifications', _StepState.inactive),
+            _StepInfo('5', 'Confirm', _StepState.inactive),
+          ]
+        : const [
+            _StepInfo('1', 'Request', _StepState.done),
+            _StepInfo('2', 'Schedule', _StepState.done),
+            _StepInfo('3', 'Location', _StepState.active),
+            _StepInfo('4', 'Confirm', _StepState.inactive),
+          ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
@@ -200,7 +222,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   Widget _buildMapSection(bool hasLocation) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(context, '/map-selection');
+        Navigator.pushNamed(context, '/map-selection', arguments: _bookingArgs);
       },
       child: Container(
         width: double.infinity,
@@ -239,7 +261,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     ),
                     child: Text(
                       _selectedCity!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _green45,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -247,7 +269,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Icon(
+                  Icon(
                     Icons.location_on_rounded,
                     color: _green45,
                     size: 38,
@@ -388,13 +410,13 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle_rounded, color: _green45, size: 22),
+          Icon(Icons.check_circle_rounded, color: _green45, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Active Care Location',
                   style: TextStyle(
                     color: _green45,
@@ -431,7 +453,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 _selectedLng = null;
               });
             },
-            child: const Icon(Icons.close_rounded, color: _green45, size: 20),
+            child: Icon(Icons.close_rounded, color: _green45, size: 20),
           ),
         ],
       ),
@@ -459,9 +481,9 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             border: Border.all(color: _azure27),
           ),
           child: Row(
-            children: const [
+            children: [
               Icon(Icons.check_rounded, color: _green45, size: 16),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Nearby caregivers matches generated successfully.',
@@ -511,7 +533,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: _green45),
+                          borderSide: BorderSide(color: _green45),
                         ),
                       ),
                     ),
@@ -525,7 +547,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                         _searchResults = [];
                       });
                     },
-                    child: const Text(
+                    child: Text(
                       'Cancel',
                       style: TextStyle(color: _green45, fontSize: 15, fontWeight: FontWeight.w600),
                     ),
@@ -601,10 +623,17 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             onTap: () {
               if (!hasLocation) {
                 // Navigate to full map selection screen
-                Navigator.pushNamed(context, '/map-selection');
+                Navigator.pushNamed(context, '/map-selection', arguments: _bookingArgs);
               } else {
-                // Route to next step (Confirm Booking)
-                Navigator.pushNamed(context, '/confirm-booking');
+                final updatedArgs = {
+                  ..._bookingArgs,
+                  'location': _selectedCity,
+                };
+                if (_isAdvanced) {
+                  Navigator.pushNamed(context, '/qualifications-selection', arguments: updatedArgs);
+                } else {
+                  Navigator.pushNamed(context, '/confirm-booking', arguments: updatedArgs);
+                }
               }
             },
             child: Padding(
@@ -613,13 +642,13 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (!hasLocation) ...[
-                    const Icon(Icons.pin_drop_rounded, color: _green8, size: 20),
+                    Icon(Icons.pin_drop_rounded, color: _green8, size: 20),
                     const SizedBox(width: 8),
                   ],
                   Text(
                     hasLocation ? 'Continue' : 'Set Location',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _green8,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,

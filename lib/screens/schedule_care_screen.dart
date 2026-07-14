@@ -10,8 +10,6 @@ class ScheduleCareScreen extends StatefulWidget {
 
 class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   // Colors (Figma tokens mapped to AppTheme)
-  static const Color _green45 = AppTheme.primaryGreen; // #22C55E
-  static const Color _green8 = AppTheme.bottleGreen;   // #06240F
   static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
   static const Color _azure17 = AppTheme.cardColor;    // #1E293B
   static const Color _azure27 = AppTheme.borderColor;  // #334155
@@ -20,7 +18,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   static const Color _azure65 = AppTheme.textSecondary; // #94A3B8
   static const Color _azure84 = Color(0xFFCBD5E1);
   static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
-  static const Color _carePeriodBg = Color(0x2E22C55E); // green 18%
+
+  bool _isAdvanced = false;
+  Color get _green45 => _isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen;
+  Color get _green8 => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
+  Color get _carePeriodBg => _isAdvanced ? const Color(0xFF3DB498).withValues(alpha: 0.18) : const Color(0x2E22C55E);
 
   // ── State variables ──
   DateTime _focusedMonth = DateTime(2025, 12);
@@ -145,9 +147,20 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    String scheduleType = 'Flexible';
+    bool isAdvanced = false;
+
+    if (args is String) {
+      scheduleType = args;
+    } else if (args is Map<String, dynamic>) {
+      scheduleType = args['schedule'] ?? 'Flexible';
+      isAdvanced = args['isAdvanced'] ?? false;
+    }
+
+    _isAdvanced = isAdvanced;
+
     // Normalise Half-time argument to Part-time
-    String scheduleType =
-        (ModalRoute.of(context)?.settings.arguments as String?) ?? 'Flexible';
     if (scheduleType == 'Half-time') {
       scheduleType = 'Part-time';
     }
@@ -160,7 +173,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             child: Column(
               children: [
                 _buildTitleRow(context),
-                _buildStepIndicator(),
+                _buildStepIndicator(isAdvanced),
                 const SizedBox(height: 6),
                 Padding(
                   padding: const EdgeInsets.only(left: 58),
@@ -168,7 +181,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       scheduleType,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _green45,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -199,7 +212,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildBottomButton(context),
+            child: _buildBottomButton(context, scheduleType, isAdvanced),
           ),
         ],
       ),
@@ -231,13 +244,22 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   // ── 2. 4-step progress indicator ──
-  Widget _buildStepIndicator() {
-    const steps = [
-      _StepInfo('1', 'Request', _StepState.done),
-      _StepInfo('2', 'Schedule', _StepState.active),
-      _StepInfo('3', 'Location', _StepState.inactive),
-      _StepInfo('4', 'Confirm', _StepState.inactive),
-    ];
+  // ── 2. Progress step indicator ──
+  Widget _buildStepIndicator(bool isAdvanced) {
+    final steps = isAdvanced
+        ? const [
+            _StepInfo('1', 'Request', _StepState.done),
+            _StepInfo('2', 'Schedule', _StepState.active),
+            _StepInfo('3', 'Location', _StepState.inactive),
+            _StepInfo('4', 'Qualifications', _StepState.inactive),
+            _StepInfo('5', 'Confirm', _StepState.inactive),
+          ]
+        : const [
+            _StepInfo('1', 'Request', _StepState.done),
+            _StepInfo('2', 'Schedule', _StepState.active),
+            _StepInfo('3', 'Location', _StepState.inactive),
+            _StepInfo('4', 'Confirm', _StepState.inactive),
+          ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
@@ -381,14 +403,14 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           border: Border.all(color: _azure27),
         ),
         child: Row(
-          children: const [
+          children: [
             Icon(
               Icons.home_work_rounded,
               color: _green45,
               size: 22,
             ),
-            SizedBox(width: 12),
-            Expanded(
+            const SizedBox(width: 12),
+            const Expanded(
               child: Text(
                 'Caregiver stays on-site, day and night',
                 style: TextStyle(
@@ -946,7 +968,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.access_time_filled_rounded,
             color: _green45,
             size: 18,
@@ -1076,26 +1098,29 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     width: 1,
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Stack(
                   children: [
-                    Expanded(
+                    Center(
                       child: Text(
                         label,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: active ? _green45 : _grey98,
-                          fontSize: 14,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    if (active) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.check_circle_rounded,
-                          color: _green45, size: 16),
-                    ],
+                    if (active)
+                      Positioned(
+                        top: 6,
+                        right: 8,
+                        child: Icon(
+                          Icons.check_circle_rounded,
+                          color: _green45,
+                          size: 15,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -1122,7 +1147,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           children: [
             Text(
               _selectedDuration,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _green45,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -1135,7 +1160,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                   _isCustomDurationActive = false;
                 });
               },
-              child: const Icon(Icons.close_rounded, color: _green45, size: 20),
+              child: Icon(Icons.close_rounded, color: _green45, size: 20),
             ),
           ],
         ),
@@ -1231,11 +1256,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0x2E22C55E)
+                                      ? (unit == 'Days' ? const Color(0x2EF59E0B) : _green45.withValues(alpha: 0.18))
                                       : const Color(0xFF0F172A),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: isSelected ? _green45 : const Color(0xFF334155),
+                                    color: isSelected
+                                        ? (unit == 'Days' ? const Color(0xFFF59E0B) : _green45)
+                                        : const Color(0xFF334155),
                                     width: 1.2,
                                   ),
                                 ),
@@ -1243,7 +1270,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                 child: Text(
                                   unit,
                                   style: TextStyle(
-                                    color: isSelected ? _green45 : const Color(0xFF94A3B8),
+                                    color: isSelected
+                                        ? (unit == 'Days' ? const Color(0xFFF59E0B) : _green45)
+                                        : const Color(0xFF94A3B8),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1383,7 +1412,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today_rounded,
+          Icon(Icons.calendar_today_rounded,
               color: _green45, size: 18),
           const SizedBox(width: 10),
           Text(
@@ -1400,7 +1429,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   // ── Bottom Button ──
-  Widget _buildBottomButton(BuildContext context) {
+  Widget _buildBottomButton(BuildContext context, String scheduleType, bool isAdvanced) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1422,10 +1451,24 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () {
-              Navigator.pushNamed(context, '/location-selection');
+              Navigator.pushNamed(
+                context,
+                '/location-selection',
+                arguments: {
+                  'isAdvanced': isAdvanced,
+                  'schedule': scheduleType,
+                  'startDate': _formatDate(_selectedDate),
+                  'startTime': _formatTime(scheduleType == 'Part-time'
+                      ? TimeOfDay(hour: _ptHour, minute: _ptMinute)
+                      : _startTime),
+                  'duration': _selectedDuration,
+                  'endDate': _formatDate(_endDate),
+                  'careType': 'Elder · $scheduleType',
+                },
+              );
             },
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
                 'Continue',
                 textAlign: TextAlign.center,

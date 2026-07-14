@@ -559,7 +559,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           if (index == 2) {
             return GestureDetector(
               onTap: () {
-                Navigator.pushNamed(context, '/top-matches');
+                // Route based on whether an active match exists
+                if (AppState.hasActiveMatch.value) {
+                  Navigator.pushNamed(context, '/advanced-match-results');
+                } else {
+                  Navigator.pushNamed(context, '/advanced-match-send-request');
+                }
               },
               behavior: HitTestBehavior.opaque,
               child: Column(

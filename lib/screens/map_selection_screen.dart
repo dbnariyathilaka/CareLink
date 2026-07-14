@@ -11,13 +11,19 @@ class MapSelectionScreen extends StatefulWidget {
 
 class _MapSelectionScreenState extends State<MapSelectionScreen> {
   // Figma design tokens mapped to AppTheme
-  static const Color _green45 = AppTheme.primaryGreen; // #22C55E
-  static const Color _green8 = AppTheme.bottleGreen;   // #06240F
   static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
   static const Color _azure17 = AppTheme.cardColor;    // #1E293B
   static const Color _azure27 = AppTheme.borderColor;  // #334155
   static const Color _azure65 = AppTheme.textSecondary; // #94A3B8
   static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
+
+  // Advanced match flow
+  bool _isAdvanced = false;
+  Map<String, dynamic> _bookingArgs = {};
+
+  // Dynamic accent colors based on flow
+  Color get _accentColor => _isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen;
+  Color get _accentText  => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
 
   // Interactive Map State
   double _zoomLevel = 14.0;
@@ -26,6 +32,16 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   double _currentLat = 6.8402;
   double _currentLng = 79.9839;
   bool _usingGPS = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      _isAdvanced = args['isAdvanced'] ?? false;
+      _bookingArgs = Map<String, dynamic>.from(args);
+    }
+  }
 
   void _simulateGPSLocation() {
     setState(() {
@@ -42,12 +58,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           _currentLat = 6.8402;
           _currentLng = 79.9839;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mobile GPS Location acquired!'),
-            backgroundColor: _green45,
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: const Text('Mobile GPS Location acquired!'),
+            backgroundColor: _accentColor,
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -175,9 +191,9 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: _usingGPS ? _green45 : _azure17,
+          color: _usingGPS ? _accentColor : _azure17,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _usingGPS ? _green45 : _azure27),
+          border: Border.all(color: _usingGPS ? _accentColor : _azure27),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.3),
@@ -188,7 +204,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         ),
         child: Icon(
           _usingGPS ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
-          color: _usingGPS ? _green8 : _grey98,
+          color: _usingGPS ? _accentText : _grey98,
           size: 20,
         ),
       ),
@@ -197,6 +213,42 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
 
   // ── Center Target Pin ──
   Widget _buildCenterTargetPin() {
+    if (_isAdvanced) {
+      // Advanced match: solid black teardrop pin matching Figma P-11g
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              if (_usingGPS)
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _accentColor.withValues(alpha: 0.25),
+                  ),
+                ),
+              Icon(
+                Icons.location_on_rounded,
+                color: _usingGPS ? _accentColor : Colors.black,
+                size: 44,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // Normal flow: tooltip + pulsing ring pin
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -206,12 +258,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.85),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _usingGPS ? _green45 : _azure27),
+            border: Border.all(color: _usingGPS ? _accentColor : _azure27),
           ),
           child: Text(
             _usingGPS ? 'Active GPS Position' : 'Drag Map to Set',
             style: TextStyle(
-              color: _usingGPS ? _green45 : _grey98,
+              color: _usingGPS ? _accentColor : _grey98,
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
@@ -227,12 +279,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
               height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: (_usingGPS ? _green45 : Colors.red).withValues(alpha: 0.35),
+                color: (_usingGPS ? _accentColor : Colors.red).withValues(alpha: 0.35),
               ),
             ),
             Icon(
               Icons.location_on_rounded,
-              color: _usingGPS ? _green45 : Colors.redAccent,
+              color: _usingGPS ? _accentColor : Colors.redAccent,
               size: 38,
             ),
           ],
@@ -347,17 +399,18 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
               // Select Button
               Expanded(
                 child: Material(
-                  color: _green45,
+                  color: _accentColor,
                   borderRadius: BorderRadius.circular(9),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(9),
                     onTap: () {
-                      // Navigate to Location Confirm Screen passing the data
                       Navigator.pushNamed(
                         context,
                         '/location-confirm',
                         arguments: {
-                          'city': _usingGPS ? 'Homagama (GPS)' : 'Selected Location',
+                          ..._bookingArgs,
+                          'city': _usingGPS ? 'Homagama' : 'Selected Location',
+                          'location': _usingGPS ? 'Homagama' : 'Selected Location',
                           'lat': _currentLat,
                           'lng': _currentLng,
                         },
@@ -365,11 +418,11 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      child: const Text(
+                      child: Text(
                         'Select',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: _green8,
+                          color: _accentText,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -392,12 +445,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(_green45),
+              valueColor: AlwaysStoppedAnimation<Color>(_accentColor),
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Acquiring Mobile GPS location...',
               style: TextStyle(
                 color: _grey98,

@@ -18,23 +18,29 @@ class _LocationConfirmScreenState extends State<LocationConfirmScreen> {
   late String _city;
   late double _lat;
   late double _lng;
+  bool _isAdvanced = false;
   Timer? _navigationTimer;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    
+
     // Extract route arguments passed from MapSelectionScreen
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     _city = args?['city'] ?? 'Homagama (GPS)';
     _lat = args?['lat'] ?? 6.8402;
     _lng = args?['lng'] ?? 79.9839;
+    _isAdvanced = args?['isAdvanced'] ?? false;
 
-    // Start auto-navigation timer to go to step 4 confirm booking
+    // Start auto-navigation timer
     _navigationTimer?.cancel();
     _navigationTimer = Timer(const Duration(milliseconds: 1800), () {
       if (mounted) {
-        Navigator.pushNamed(context, '/confirm-booking');
+        if (_isAdvanced) {
+          Navigator.pushNamed(context, '/qualifications-intro', arguments: args);
+        } else {
+          Navigator.pushNamed(context, '/confirm-booking', arguments: args);
+        }
       }
     });
   }
@@ -117,7 +123,24 @@ class _LocationConfirmScreenState extends State<LocationConfirmScreen> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 24), // empty spacer to balance
+                    // Profile avatar icon (visible in advanced match flow per Figma P-11h)
+                    if (_isAdvanced)
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF1E293B),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          color: _grey98,
+                          size: 18,
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 24),
                   ],
                 ),
               ),
