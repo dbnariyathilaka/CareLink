@@ -1,13 +1,21 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
+import '../app_state.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver's own "My profile" screen
 //  Figma node: 160-2021
 // ─────────────────────────────────────────────────────────────
-class CaregiverOwnProfileScreen extends StatelessWidget {
+class CaregiverOwnProfileScreen extends StatefulWidget {
   const CaregiverOwnProfileScreen({super.key});
 
+  @override
+  State<CaregiverOwnProfileScreen> createState() => _CaregiverOwnProfileScreenState();
+}
+
+class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   static const Color _indigo = Color(0xFF6366F1);
   static const Color _indigoLight = Color(0xFF818CF8);
   static const Color _amber = Color(0xFFF59E0B);
@@ -86,13 +94,6 @@ class CaregiverOwnProfileScreen extends StatelessWidget {
                       const SizedBox(height: 9),
                       _buildMenuRow(
                         context,
-                        icon: Icons.settings_outlined,
-                        label: 'Settings',
-                        onTap: () => Navigator.pushNamed(context, '/caregiver-settings'),
-                      ),
-                      const SizedBox(height: 9),
-                      _buildMenuRow(
-                        context,
                         icon: Icons.help_outline_rounded,
                         label: 'Help & FAQ',
                       ),
@@ -114,96 +115,178 @@ class CaregiverOwnProfileScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final choice = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 5,
+              decoration: BoxDecoration(
+                color: AppTheme.borderColor,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: _indigo),
+              title: const Text('Take a photo',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: _indigo),
+              title: const Text('Choose from gallery',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            if (AppState.caregiverProfileImagePath.value != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+                title: const Text('Remove photo',
+                    style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+                onTap: () {
+                  AppState.caregiverProfileImagePath.value = null;
+                  Navigator.pop(context);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
 
+    if (choice == null) return;
+
+    final picked = await picker.pickImage(
+      source: choice,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+
+    if (picked != null) {
+      AppState.caregiverProfileImagePath.value = picked.path;
+      setState(() {});
+    }
+  }
 
   // ── Avatar + name + verified badge ────────────────────────
   Widget _buildAvatarSection() {
-    return Center(
-      child: Column(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
+    return ValueListenableBuilder<String?>(
+      valueListenable: AppState.caregiverProfileImagePath,
+      builder: (context, imagePath, _) {
+        return Center(
+          child: Column(
             children: [
-              Container(
-                width: 84,
-                height: 84,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'BK',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
+              GestureDetector(
+                onTap: _pickProfileImage,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: imagePath == null
+                            ? const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+                              )
+                            : null,
+                        color: imagePath != null ? Colors.transparent : null,
+                      ),
+                      child: imagePath != null
+                          ? ClipOval(
+                              child: Image.file(
+                                File(imagePath),
+                                width: 84,
+                                height: 84,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : const Center(
+                              child: Text(
+                                'BK',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                     ),
-                  ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.surfaceColor, width: 2),
+                        ),
+                        child: const Icon(Icons.edit, color: _indigo, size: 12),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardColor,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.surfaceColor, width: 2),
-                  ),
-                  child: const Icon(Icons.edit, color: _indigo, size: 12),
+              const SizedBox(height: 10),
+              const Text(
+                'Brian Kumara',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'brian@email.com · +94 71 456 7890',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _indigo.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.verified_rounded, color: _indigoLight, size: 15),
+                    SizedBox(width: 5),
+                    Text(
+                      'Verified caregiver',
+                      style: TextStyle(
+                        color: _indigoLight,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'Brian Kumara',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'brian@email.com · +94 71 456 7890',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: _indigo.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.verified_rounded, color: _indigoLight, size: 15),
-                SizedBox(width: 5),
-                Text(
-                  'Verified caregiver',
-                  style: TextStyle(
-                    color: _indigoLight,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

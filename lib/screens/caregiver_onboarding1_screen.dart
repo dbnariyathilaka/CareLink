@@ -14,7 +14,7 @@ class _CaregiverOnboarding1ScreenState
   static const Color _indigo = Color(0xFF6366F1);
   static const Color _indigoLight = Color(0xFF818CF8);
 
-  final List<String> _careTypes = ['Part-time', 'Full-time', 'Live-in'];
+  final List<String> _careTypes = ['Part-time', 'Full-time', 'Live-in', 'Flexible'];
   final Set<String> _selectedCareTypes = {'Part-time', 'Full-time'};
 
   int _yearsExperience = 5;
@@ -88,27 +88,23 @@ class _CaregiverOnboarding1ScreenState
                       ),
                       const SizedBox(height: 12),
 
-                      Row(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
                         children: _careTypes.map((type) {
                           final isSelected = _selectedCareTypes.contains(type);
-                          final isLast = type == _careTypes.last;
-                          return Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.only(right: isLast ? 0 : 10),
-                              child: _buildCareTypeChip(
-                                label: type,
-                                isSelected: isSelected,
-                                onTap: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedCareTypes.remove(type);
-                                    } else {
-                                      _selectedCareTypes.add(type);
-                                    }
-                                  });
-                                },
-                              ),
-                            ),
+                          return _buildCareTypeChip(
+                            label: type,
+                            isSelected: isSelected,
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedCareTypes.remove(type);
+                                } else {
+                                  _selectedCareTypes.add(type);
+                                }
+                              });
+                            },
                           );
                         }).toList(),
                       ),
@@ -235,7 +231,7 @@ class _CaregiverOnboarding1ScreenState
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
         decoration: BoxDecoration(
           color: isSelected ? _indigo.withValues(alpha: 0.15) : AppTheme.inputBackground,
           borderRadius: BorderRadius.circular(999),

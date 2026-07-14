@@ -355,10 +355,8 @@ class CaregiverNotificationsScreen extends StatelessWidget {
                 Navigator.popUntil(context, ModalRoute.withName('/caregiver-dashboard'));
               } else if (index == 1) {
                 Navigator.pushNamed(context, '/caregiver-schedule');
-              } else if (index != 2) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${item.label} coming soon!')),
-                );
+              } else if (index == 3) {
+                Navigator.pushNamed(context, '/caregiver-own-profile');
               }
             },
             child: Column(

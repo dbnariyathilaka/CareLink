@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../app_state.dart';
 
 enum _DutyStatus { available, busy, offDuty }
 
@@ -180,28 +182,42 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               ),
             ],
           ),
-          Container(
-            width: 46,
-            height: 46,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.2),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.5),
-                width: 2,
-              ),
-            ),
-            child: const Center(
-              child: Text(
-                'BK',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+          ValueListenableBuilder<String?>(
+            valueListenable: AppState.caregiverProfileImagePath,
+            builder: (context, imagePath, _) {
+              return Container(
+                width: 46,
+                height: 46,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.2),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 2,
+                  ),
                 ),
-              ),
-            ),
+                child: imagePath != null
+                    ? ClipOval(
+                        child: Image.file(
+                          File(imagePath),
+                          width: 46,
+                          height: 46,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : const Center(
+                        child: Text(
+                          'BK',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+              );
+            },
           ),
         ],
       ),
@@ -211,8 +227,9 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   // ── State preview tabs (prototype only) ───────────────────
   Widget _buildStateTabs() {
     return SizedBox(
-      height: 26,
+      height: 32,
       child: ListView.separated(
+        padding: EdgeInsets.zero,
         scrollDirection: Axis.horizontal,
         itemCount: _stateTabs.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -221,7 +238,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           return GestureDetector(
             onTap: () => setState(() => _selectedStateTab = i),
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: isSelected ? 9 : 10, vertical: isSelected ? 6 : 7),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected ? _indigo : AppTheme.cardColor,
                 border: isSelected ? null : Border.all(color: AppTheme.borderColor),
@@ -232,7 +249,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                   _stateTabs[i],
                   style: TextStyle(
                     color: isSelected ? Colors.white : AppTheme.textSecondary,
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

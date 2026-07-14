@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../app_state.dart';
 
 class PatientSearchScreen extends StatefulWidget {
   const PatientSearchScreen({super.key});
@@ -146,20 +148,42 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                     ),
                   ],
                 ),
-                Container(
-                  width: 46,
-                  height: 46,
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.2),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'NA',
-                      style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
-                    ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Navigator.pushNamed(context, '/patient-profile'),
+                  child: ValueListenableBuilder<String?>(
+                    valueListenable: AppState.profileImagePath,
+                    builder: (_, imagePath, _) {
+                      return Container(
+                        width: 46,
+                        height: 46,
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.2),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.5), width: 2),
+                        ),
+                        child: imagePath != null
+                            ? ClipOval(
+                                child: Image.file(
+                                  File(imagePath),
+                                  width: 42,
+                                  height: 42,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : const Center(
+                                child: Text(
+                                  'NA',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                      );
+                    },
                   ),
                 ),
               ],

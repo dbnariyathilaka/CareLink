@@ -11,9 +11,24 @@ class CaregiverOnboarding3Screen extends StatefulWidget {
 
 class _DayAvailability {
   bool available;
-  String hours;
+  TimeOfDay startTime;
+  TimeOfDay endTime;
 
-  _DayAvailability({required this.available, required this.hours});
+  _DayAvailability({
+    required this.available,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  String get hoursLabel =>
+      '${_fmt(startTime)} – ${_fmt(endTime)}';
+
+  static String _fmt(TimeOfDay t) {
+    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final min = t.minute.toString().padLeft(2, '0');
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$min $period';
+  }
 }
 
 class _CaregiverOnboarding3ScreenState
@@ -22,13 +37,34 @@ class _CaregiverOnboarding3ScreenState
   static const Color _indigoLight = Color(0xFF818CF8);
 
   final Map<String, _DayAvailability> _days = {
-    'Mon': _DayAvailability(available: true, hours: '8 AM – 6 PM'),
-    'Tue': _DayAvailability(available: true, hours: '8 AM – 6 PM'),
-    'Wed': _DayAvailability(available: true, hours: '8 AM – 6 PM'),
-    'Thu': _DayAvailability(available: true, hours: '8 AM – 6 PM'),
-    'Fri': _DayAvailability(available: true, hours: '8 AM – 6 PM'),
-    'Sat': _DayAvailability(available: false, hours: '8 AM – 6 PM'),
-    'Sun': _DayAvailability(available: false, hours: '8 AM – 6 PM'),
+    'Mon': _DayAvailability(
+        available: true,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0)),
+    'Tue': _DayAvailability(
+        available: true,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0)),
+    'Wed': _DayAvailability(
+        available: true,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0)),
+    'Thu': _DayAvailability(
+        available: true,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0)),
+    'Fri': _DayAvailability(
+        available: true,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0)),
+    'Sat': _DayAvailability(
+        available: false,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0)),
+    'Sun': _DayAvailability(
+        available: false,
+        startTime: const TimeOfDay(hour: 8, minute: 0),
+        endTime: const TimeOfDay(hour: 18, minute: 0)),
   };
 
   @override
@@ -55,7 +91,8 @@ class _CaregiverOnboarding3ScreenState
                     ),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                   const Text(
                     'Step 3 of 5',
@@ -91,7 +128,7 @@ class _CaregiverOnboarding3ScreenState
                       const SizedBox(height: 8),
 
                       const Text(
-                        'Tap a day to add or edit hours',
+                        'Tap a day to toggle — tap the time to edit hours',
                         style: TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 13,
@@ -123,7 +160,8 @@ class _CaregiverOnboarding3ScreenState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
-                        Navigator.pushNamed(context, '/caregiver-onboarding-4');
+                        Navigator.pushNamed(
+                            context, '/caregiver-onboarding-4');
                       },
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
@@ -167,52 +205,122 @@ class _CaregiverOnboarding3ScreenState
     );
   }
 
-  /// A single day row — tap to toggle availability on/off
+  /// A single day row — tap the day name to toggle; tap the time to edit
   Widget _buildDayRow(String day, _DayAvailability data) {
     final available = data.available;
-    return GestureDetector(
-      onTap: () => setState(() => data.available = !data.available),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppTheme.inputBackground,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: available ? _indigo : AppTheme.borderColor,
-          ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppTheme.inputBackground,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: available ? _indigo : AppTheme.borderColor,
         ),
-        child: Row(
-          children: [
-            SizedBox(
+      ),
+      child: Row(
+        children: [
+          // Day name — tap to toggle availability
+          GestureDetector(
+            onTap: () => setState(() => data.available = !data.available),
+            child: SizedBox(
               width: 44,
               child: Text(
                 day,
                 style: TextStyle(
-                  color: available ? AppTheme.textPrimary : AppTheme.textSecondary,
+                  color: available
+                      ? AppTheme.textPrimary
+                      : AppTheme.textSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            Expanded(
-              child: Text(
-                available ? data.hours : 'Unavailable',
-                style: TextStyle(
-                  color: available ? _indigoLight : const Color(0xFF64748B),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            Icon(
-              available ? Icons.edit_outlined : Icons.add_rounded,
+          ),
+
+          // Hours — tap to open time pickers (only when available)
+          Expanded(
+            child: available
+                ? GestureDetector(
+                    onTap: () => _editTimes(day, data),
+                    child: Row(
+                      children: [
+                        Text(
+                          data.hoursLabel,
+                          style: const TextStyle(
+                            color: _indigoLight,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.edit_outlined,
+                            color: _indigo, size: 14),
+                      ],
+                    ),
+                  )
+                : const Text(
+                    'Unavailable',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+          ),
+
+          // Toggle icon
+          GestureDetector(
+            onTap: () => setState(() => data.available = !data.available),
+            child: Icon(
+              available ? Icons.check_circle_rounded : Icons.add_rounded,
               color: available ? _indigo : const Color(0xFF64748B),
               size: 19,
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Opens start-time picker then end-time picker sequentially
+  Future<void> _editTimes(String day, _DayAvailability data) async {
+    final start = await showTimePicker(
+      context: context,
+      initialTime: data.startTime,
+      helpText: 'Start time — $day',
+      builder: (context, child) => _themedPicker(child),
+    );
+    if (start == null || !mounted) return;
+
+    final end = await showTimePicker(
+      context: context,
+      initialTime: data.endTime,
+      helpText: 'End time — $day',
+      builder: (context, child) => _themedPicker(child),
+    );
+    if (end == null || !mounted) return;
+
+    setState(() {
+      data.startTime = start;
+      data.endTime = end;
+    });
+  }
+
+  Widget _themedPicker(Widget? child) {
+    return Theme(
+      data: ThemeData.dark().copyWith(
+        colorScheme: const ColorScheme.dark(
+          primary: _indigo,
+          onPrimary: Colors.white,
+          surface: Color(0xFF1E293B),
+          onSurface: Colors.white,
+        ),
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Color(0xFF0F172A),
         ),
       ),
+      child: child!,
     );
   }
 }
