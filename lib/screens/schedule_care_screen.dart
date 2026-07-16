@@ -367,7 +367,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   // C. Flexible Option Layout
   List<Widget> _buildFlexibleLayout() {
     return [
-      _buildCalendar(multiSelect: true),
+      _buildCalendar(multiSelect: false),
       const SizedBox(height: 18),
       _buildTimeCard(
         label: 'Start time',
@@ -380,12 +380,6 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         time: _endTime,
         onTap: () => _selectTime(false),
       ),
-      const SizedBox(height: 24),
-      _buildDurationSection(),
-      const SizedBox(height: 16),
-      _buildCustomDurationToggleOrChip(),
-      const SizedBox(height: 12),
-      _buildDateRangeSummaryCard(),
     ];
   }
 
@@ -653,6 +647,12 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   // Shift selection for Full-time
   Widget _buildChooseShiftSection() {
+    const shiftIcons = [
+      Icons.wb_sunny_rounded,
+      Icons.wb_twilight_rounded,
+      Icons.nightlight_round,
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -685,8 +685,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.access_time_rounded,
-                          color: _azure84, size: 22),
+                      Icon(
+                        shiftIcons[index],
+                        color: active ? _green45 : _azure84,
+                        size: 22,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -712,11 +715,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           ],
                         ),
                       ),
-                      Icon(
-                        active ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                        color: active ? _green45 : _azure47,
-                        size: 22,
-                      ),
+                      if (active) ...[
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: _green45,
+                          size: 22,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -862,99 +867,118 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             ),
           ),
           // Scroll widgets
-          Row(
-            children: [
-              // 1. Hour Column
-              Expanded(
-                child: ListWheelScrollView.useDelegate(
-                  itemExtent: 32,
-                  physics: const FixedExtentScrollPhysics(),
-                  onSelectedItemChanged: (index) {
-                    setState(() {
-                      _ptHour = index + 1;
-                    });
-                  },
-                  controller: FixedExtentScrollController(initialItem: _ptHour - 1),
-                  childDelegate: ListWheelChildBuilderDelegate(
-                    childCount: 12,
-                    builder: (context, index) {
-                      final itemHour = index + 1;
-                      final isSelected = itemHour == _ptHour;
-                      return Center(
-                        child: Text(
-                          '$itemHour',
-                          style: TextStyle(
-                            color: isSelected ? _grey98 : _azure35,
-                            fontSize: isSelected ? 19 : 13,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                          ),
-                        ),
-                      );
+          ShaderMask(
+            shaderCallback: (rect) {
+              return const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black,
+                  Colors.black,
+                  Colors.transparent,
+                ],
+                stops: [0.0, 0.15, 0.85, 1.0],
+              ).createShader(rect);
+            },
+            blendMode: BlendMode.dstIn,
+            child: Row(
+              children: [
+                // 1. Hour Column
+                Expanded(
+                  child: ListWheelScrollView.useDelegate(
+                    itemExtent: 32,
+                    clipBehavior: Clip.none,
+                    physics: const FixedExtentScrollPhysics(),
+                    onSelectedItemChanged: (index) {
+                      setState(() {
+                        _ptHour = index + 1;
+                      });
                     },
+                    controller: FixedExtentScrollController(initialItem: _ptHour - 1),
+                    childDelegate: ListWheelChildBuilderDelegate(
+                      childCount: 12,
+                      builder: (context, index) {
+                        final itemHour = index + 1;
+                        final isSelected = itemHour == _ptHour;
+                        return Center(
+                          child: Text(
+                            '$itemHour',
+                            style: TextStyle(
+                              color: isSelected ? _grey98 : _azure35,
+                              fontSize: isSelected ? 19 : 13,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-              // 2. Minute Column
-              Expanded(
-                child: ListWheelScrollView.useDelegate(
-                  itemExtent: 32,
-                  physics: const FixedExtentScrollPhysics(),
-                  onSelectedItemChanged: (index) {
-                    setState(() {
-                      _ptMinute = index;
-                    });
-                  },
-                  controller: FixedExtentScrollController(initialItem: _ptMinute),
-                  childDelegate: ListWheelChildBuilderDelegate(
-                    childCount: 60,
-                    builder: (context, index) {
-                      final itemMinute = index;
-                      final isSelected = itemMinute == _ptMinute;
-                      return Center(
-                        child: Text(
-                          itemMinute.toString().padLeft(2, '0'),
-                          style: TextStyle(
-                            color: isSelected ? _grey98 : _azure35,
-                            fontSize: isSelected ? 19 : 13,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                          ),
-                        ),
-                      );
+                // 2. Minute Column
+                Expanded(
+                  child: ListWheelScrollView.useDelegate(
+                    itemExtent: 32,
+                    clipBehavior: Clip.none,
+                    physics: const FixedExtentScrollPhysics(),
+                    onSelectedItemChanged: (index) {
+                      setState(() {
+                        _ptMinute = index;
+                      });
                     },
+                    controller: FixedExtentScrollController(initialItem: _ptMinute),
+                    childDelegate: ListWheelChildBuilderDelegate(
+                      childCount: 60,
+                      builder: (context, index) {
+                        final itemMinute = index;
+                        final isSelected = itemMinute == _ptMinute;
+                        return Center(
+                          child: Text(
+                            itemMinute.toString().padLeft(2, '0'),
+                            style: TextStyle(
+                              color: isSelected ? _grey98 : _azure35,
+                              fontSize: isSelected ? 19 : 13,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-              // 3. Period Column
-              Expanded(
-                child: ListWheelScrollView.useDelegate(
-                  itemExtent: 32,
-                  physics: const FixedExtentScrollPhysics(),
-                  onSelectedItemChanged: (index) {
-                    setState(() {
-                      _ptPeriod = index == 0 ? 'AM' : 'PM';
-                    });
-                  },
-                  controller: FixedExtentScrollController(initialItem: _ptPeriod == 'AM' ? 0 : 1),
-                  childDelegate: ListWheelChildBuilderDelegate(
-                    childCount: 2,
-                    builder: (context, index) {
-                      final itemPeriod = index == 0 ? 'AM' : 'PM';
-                      final isSelected = itemPeriod == _ptPeriod;
-                      return Center(
-                        child: Text(
-                          itemPeriod.toLowerCase(),
-                          style: TextStyle(
-                            color: isSelected ? _grey98 : _azure35,
-                            fontSize: isSelected ? 19 : 13,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                          ),
-                        ),
-                      );
+                // 3. Period Column
+                Expanded(
+                  child: ListWheelScrollView.useDelegate(
+                    itemExtent: 32,
+                    clipBehavior: Clip.none,
+                    physics: const FixedExtentScrollPhysics(),
+                    onSelectedItemChanged: (index) {
+                      setState(() {
+                        _ptPeriod = index == 0 ? 'AM' : 'PM';
+                      });
                     },
+                    controller: FixedExtentScrollController(initialItem: _ptPeriod == 'AM' ? 0 : 1),
+                    childDelegate: ListWheelChildBuilderDelegate(
+                      childCount: 2,
+                      builder: (context, index) {
+                        final itemPeriod = index == 0 ? 'AM' : 'PM';
+                        final isSelected = itemPeriod == _ptPeriod;
+                        return Center(
+                          child: Text(
+                            itemPeriod.toLowerCase(),
+                            style: TextStyle(
+                              color: isSelected ? _grey98 : _azure35,
+                              fontSize: isSelected ? 19 : 13,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -1260,12 +1284,12 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? (unit == 'Days' ? const Color(0x2EF59E0B) : _green45.withValues(alpha: 0.18))
+                                      ? const Color(0x2EF59E0B)
                                       : const Color(0xFF0F172A),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: isSelected
-                                        ? (unit == 'Days' ? const Color(0xFFF59E0B) : _green45)
+                                        ? const Color(0xFFF59E0B)
                                         : const Color(0xFF334155),
                                     width: 1.2,
                                   ),
@@ -1275,7 +1299,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                   unit,
                                   style: TextStyle(
                                     color: isSelected
-                                        ? (unit == 'Days' ? const Color(0xFFF59E0B) : _green45)
+                                        ? const Color(0xFFF59E0B)
                                         : const Color(0xFF94A3B8),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
@@ -1379,11 +1403,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                       alignment: Alignment.center,
                       child: GestureDetector(
                         onTap: () {
-                          setState(() {
-                            _selectedDuration = '1 month';
-                            _isCustomDurationActive = false;
+                          setDialogState(() {
+                            tempAmount = 1;
+                            tempUnit = 'Days';
                           });
-                          Navigator.pop(context);
                         },
                         child: const Text(
                           'Reset to default',
@@ -1465,8 +1488,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                   'startTime': _formatTime(scheduleType == 'Part-time'
                       ? TimeOfDay(hour: _ptHour, minute: _ptMinute)
                       : _startTime),
-                  'duration': _selectedDuration,
-                  'endDate': _formatDate(_endDate),
+                  'endTime': _formatTime(_endTime),
+                  'duration': scheduleType == 'Flexible' ? '1 day' : _selectedDuration,
+                  'endDate': _formatDate(scheduleType == 'Flexible' ? _selectedDate : _endDate),
                   'careType': 'Elder · $scheduleType',
                 },
               );

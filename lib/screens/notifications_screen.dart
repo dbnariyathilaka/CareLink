@@ -175,7 +175,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildFilterChips() {
     final chipColors = [AppTheme.primaryGreen, _amber, _cerulean, null];
     return SizedBox(
-      height: 27,
+      height: 32,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _filters.length,

@@ -35,6 +35,7 @@ class ConfirmBookingScreen extends StatelessWidget {
 
     final startDate  = args?['startDate']  ?? '20 Dec 2025';
     final startTime  = args?['startTime']  ?? '8:00 AM';
+    final endTime    = args?['endTime']    ?? '5:00 PM';
     final duration   = args?['duration']   ?? '1 month';
     final endDate    = args?['endDate']    ?? '20 Jan 2026';
     final location   = args?['location']   ?? 'Negombo';
@@ -80,6 +81,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                         _buildScheduleCard(
                           startDate: startDate,
                           startTime: startTime,
+                          endTime:   endTime,
                           duration:  duration,
                           endDate:   endDate,
                           location:  location,
@@ -235,6 +237,7 @@ class ConfirmBookingScreen extends StatelessWidget {
   Widget _buildScheduleCard({
     required String startDate,
     required String startTime,
+    required String endTime,
     required String duration,
     required String endDate,
     required String location,
@@ -243,8 +246,12 @@ class ConfirmBookingScreen extends StatelessWidget {
     final rows = [
       _BookingRow('Start date',     startDate),
       _BookingRow('Start time',     startTime),
-      _BookingRow('Duration',       duration),
-      _BookingRow('End date',       endDate),
+      if (careType.contains('Flexible'))
+        _BookingRow('End time',     endTime)
+      else ...[
+        _BookingRow('Duration',       duration),
+        _BookingRow('End date',       endDate),
+      ],
       _BookingRow('Location',       location),
       _BookingRow('Work schedule',  careType),
     ];

@@ -12,7 +12,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   // Dropdown options
   static const List<String> _workSchedules = [
     'Full-time',
-    'Half-time',
+    'Part-time',
     'Flexible',
     'Live-in',
   ];

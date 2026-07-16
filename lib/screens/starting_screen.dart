@@ -10,13 +10,16 @@ class StartingScreen extends StatefulWidget {
 
 class _StartingScreenState extends State<StartingScreen> {
   Timer? _timer;
+  int _currentScreen = 1;
 
   @override
   void initState() {
     super.initState();
     _timer = Timer(const Duration(seconds: 5), () {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/welcome');
+        setState(() {
+          _currentScreen = 2;
+        });
       }
     });
   }
@@ -29,111 +32,251 @@ class _StartingScreenState extends State<StartingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The design is based on width=412 and height=917.
-    // We position the background shapes and icons relative to edges to support different screens nicely.
+    switch (_currentScreen) {
+      case 1:
+        return _buildScreen1();
+      case 2:
+        return _buildScreen2();
+      case 3:
+        return _buildScreen3();
+      default:
+        return _buildScreen1();
+    }
+  }
+
+  Widget _buildScreen1() {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D9488), // Teal background
-      body: Stack(
-        children: [
-          // Ellipse 1 (top-right): x=340, y=-60, size=120x120
-          Positioned(
-            top: -60,
-            right: -48, // 412 - 340 - 120 = -48
-            child: _buildBackgroundCircle(),
-          ),
-
-          // Ellipse 2 (middle-left): x=-50, y=190, size=120x120
-          Positioned(
-            top: 190,
-            left: -50,
-            child: _buildBackgroundCircle(),
-          ),
-
-          // Ellipse 3 (bottom-right): x=323, y=667, size=120x120
-          Positioned(
-            bottom: 130, // 917 - 667 - 120 = 130
-            right: -31,  // 412 - 323 - 120 = -31
-            child: _buildBackgroundCircle(),
-          ),
-
-          // Plus Icon 1 (Group 2): x=140, y=120, size=38x38
-          Positioned(
-            top: 120,
-            left: 140,
-            width: 38,
-            height: 38,
-            child: _buildPlusIcon(),
-          ),
-
-          // Plus Icon 2 (Group 3): x=333, y=212, size=38x38
-          Positioned(
-            top: 212,
-            right: 41, // 412 - 333 - 38 = 41
-            width: 38,
-            height: 38,
-            child: _buildPlusIcon(),
-          ),
-
-          // Plus Icon 3 (Group 1): x=70, y=689, size=38x38
-          Positioned(
-            bottom: 190, // 917 - 689 - 38 = 190
-            left: 70,
-            width: 38,
-            height: 38,
-            child: _buildPlusIcon(),
-          ),
-
-          // Centered Text
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'CareLink',
-                  style: TextStyle(
-                    fontFamily: 'Courier', // Serif/monospace look from Figma
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFF8FAFC), // White/very light teal
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Smart Match',
-                  style: TextStyle(
-                    fontFamily: 'Courier',
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF06291F), // Dark teal/green
-                    letterSpacing: 4.0,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      backgroundColor: const Color(0xFF06402B), // Dark green background
+      body: Center(
+        child: Image.asset(
+          'assets/images/splash_logo.png',
+          width: 300,
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }
 
-  Widget _buildBackgroundCircle() {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2DD4BF).withOpacity(0.24), // Light teal with opacity
-        shape: BoxShape.circle,
+  Widget _buildScreen2() {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFA96F3C),
+              Color(0xFFF4D3B6),
+              Color(0xFFFFFFFF),
+            ],
+            stops: [0.0, 0.80, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              // Title
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Care that comes to you',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: 44,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF06402B),
+                    height: 1.1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Subtitle
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Find trusted caregivers matched to your needs',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF06402B),
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Redesigned pre-masked single combined image with soft blur fade mask
+              ShaderMask(
+                shaderCallback: (rect) {
+                  return const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black,
+                      Colors.black,
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.15, 0.85, 1.0],
+                  ).createShader(rect);
+                },
+                blendMode: BlendMode.dstIn,
+                child: Image.asset(
+                  'assets/images/screen2_obj.png',
+                  fit: BoxFit.contain,
+                  height: 380,
+                ),
+              ),
+              const Spacer(),
+              // Next Button
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _currentScreen = 3;
+                  });
+                },
+                child: Container(
+                  width: 296,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06402B),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Next',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 36),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildPlusIcon() {
-    return const Center(
-      child: Icon(
-        Icons.add,
-        color: Color(0xFF2DD4BF),
-        size: 32,
+  Widget _buildScreen3() {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFC8B65E),
+              Color(0xFFFBEB9C),
+              Color(0xFFFDF5CE),
+              Color(0xFFFFFFFF),
+            ],
+            stops: [0.0, 0.17, 0.88, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              // Title
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Matched, not searched',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: 44,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF06402B),
+                    height: 1.1,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Subtitle
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'We rank caregivers by skills, location, and availability.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF06402B),
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Image Stack with soft blur fade mask
+              ShaderMask(
+                shaderCallback: (rect) {
+                  return const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black,
+                      Colors.black,
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.15, 0.85, 1.0],
+                  ).createShader(rect);
+                },
+                blendMode: BlendMode.dstIn,
+                child: SizedBox(
+                  height: 380,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/screen3_bg.png',
+                        fit: BoxFit.cover,
+                        height: 360,
+                      ),
+                      Image.asset(
+                        'assets/images/screen3_obj.png',
+                        fit: BoxFit.contain,
+                        height: 380,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              // Next Button
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushReplacementNamed(context, '/welcome');
+                },
+                child: Container(
+                  width: 296,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF06402B),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Next',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 36),
+            ],
+          ),
+        ),
       ),
     );
   }

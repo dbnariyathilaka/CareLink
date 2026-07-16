@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../app_state.dart';
 
 class MyBookingsScreen extends StatefulWidget {
@@ -10,16 +9,12 @@ class MyBookingsScreen extends StatefulWidget {
 }
 
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
-  int _selectedTab = 0; // 0=All, 1=Ongoing, 2=Upcoming, 3=Past
+  int _selectedTab = 0; // 0=All, 1=Requested, 2=Past
 
-  static const List<String> _tabs = ['All', 'Ongoing', 'Upcoming', 'Past'];
+  static const List<String> _tabs = ['All', 'Requested', 'Past'];
 
   // Colours
   static const Color _amber = Color(0xFFF59E0B);
-  static const Color _ongoingGreen = Color(0xFF22C55E);
-  static const Color _upcomingBlue = Color(0xFF6366F1);
-  static const Color _cancelledRed = Color(0xFFEF4444);
-  static const Color _completedGrey = Color(0xFF64748B);
 
   // ── Booking data ──────────────────────────────────────────
   static const List<_BookingData> _allBookings = [
@@ -72,32 +67,42 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
   List<_BookingData> get _filtered {
     if (_selectedTab == 0) return _allBookings;
-    final map = {
-      1: _StatusType.ongoing,
-      2: _StatusType.upcoming,
-      3: _StatusType.completed,
-    };
-    final type = map[_selectedTab];
-    return _allBookings.where((b) => b.statusType == type).toList();
+    if (_selectedTab == 1) {
+      // Requested includes Ongoing and Upcoming
+      return _allBookings
+          .where((b) =>
+              b.statusType == _StatusType.ongoing ||
+              b.statusType == _StatusType.upcoming)
+          .toList();
+    }
+    if (_selectedTab == 2) {
+      // Past includes Completed and Cancelled
+      return _allBookings
+          .where((b) =>
+              b.statusType == _StatusType.completed ||
+              b.statusType == _StatusType.cancelled)
+          .toList();
+    }
+    return _allBookings;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: const Color(0xFF0F172A),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(22, 6, 22, 0),
+              padding: EdgeInsets.fromLTRB(22, 12, 22, 0),
               child: Text(
                 'My bookings',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 22,
+                  color: Color(0xFFF8FAFC),
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  fontFamily: 'Inter',
                 ),
               ),
             ),
@@ -135,12 +140,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withValues(alpha: 0.12),
+                color: const Color(0xFF22C55E).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(28),
               ),
               child: const Icon(
                 Icons.event_available_rounded,
-                color: AppTheme.primaryGreen,
+                color: Color(0xFF22C55E),
                 size: 44,
               ),
             ),
@@ -149,9 +154,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               'No bookings yet',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 22,
+                color: Color(0xFFF8FAFC),
+                fontSize: 20,
                 fontWeight: FontWeight.w800,
+                fontFamily: 'Inter',
               ),
             ),
             const SizedBox(height: 11),
@@ -159,15 +165,16 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               "You haven't sent any care requests yet. Find a caregiver from your top 5 matches and send your first request.",
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: Color(0xFF94A3B8),
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
+                fontFamily: 'Inter',
                 height: 1.6,
               ),
             ),
             const SizedBox(height: 26),
             Material(
-              color: AppTheme.primaryGreen,
+              color: const Color(0xFF22C55E),
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
@@ -177,9 +184,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   child: Text(
                     'Find a caregiver',
                     style: TextStyle(
-                      color: AppTheme.bottleGreen,
+                      color: Color(0xFF06240F),
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
+                      fontFamily: 'Inter',
                     ),
                   ),
                 ),
@@ -193,6 +201,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 color: Color(0xFF64748B),
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
+                fontFamily: 'Inter',
                 height: 1.5,
               ),
             ),
@@ -202,41 +211,38 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     );
   }
 
-
-
   // ── Tab bar ───────────────────────────────────────────────
   Widget _buildTabBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 22),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Color(0xFF1E293B), width: 1.0),
+        ),
+      ),
       child: Row(
         children: List.generate(_tabs.length, (i) {
           final selected = i == _selectedTab;
           return GestureDetector(
             onTap: () => setState(() => _selectedTab = i),
-            child: Padding(
-              padding: const EdgeInsets.only(right: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _tabs[i],
-                    style: TextStyle(
-                      color: selected ? AppTheme.primaryGreen : const Color(0xFF64748B),
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 2.5,
-                    width: selected ? 28 : 0,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ],
+            child: Container(
+              padding: const EdgeInsets.only(bottom: 9),
+              margin: const EdgeInsets.only(right: 18),
+              decoration: BoxDecoration(
+                border: selected
+                    ? const Border(
+                        bottom: BorderSide(color: Color(0xFF22C55E), width: 2.0),
+                      )
+                    : null,
+              ),
+              child: Text(
+                _tabs[i],
+                style: TextStyle(
+                  color: selected ? const Color(0xFF22C55E) : const Color(0xFF94A3B8),
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                  fontFamily: 'Inter',
+                ),
               ),
             ),
           );
@@ -250,9 +256,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: const Color(0xFF334155)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,7 +268,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildAvatar(data),
-              const SizedBox(width: 12),
+              const SizedBox(width: 11),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,18 +276,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     Text(
                       data.name,
                       style: const TextStyle(
-                        color: AppTheme.textPrimary,
+                        color: Color(0xFFF8FAFC),
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       data.detail,
                       style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF94A3B8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Inter',
                         height: 1.4,
                       ),
                     ),
@@ -292,10 +300,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               _buildStatusBadge(data.statusType, data.statusLabel),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 11),
           // Divider
-          Container(height: 1, color: AppTheme.borderColor),
-          const SizedBox(height: 10),
+          Container(height: 1, color: const Color(0xFF334155)),
+          const SizedBox(height: 12),
           // Bottom row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -313,70 +321,94 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     switch (data.avatarType) {
       case _AvatarType.greenGradient:
         return Container(
-          width: 44,
-          height: 44,
+          width: 42,
+          height: 42,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF22C55E), AppTheme.primaryGreenDark],
+              colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
             ),
           ),
           child: const Center(
-            child: Text('AF',
-                style: TextStyle(
-                    color: AppTheme.bottleGreen,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'AF',
+              style: TextStyle(
+                color: Color(0xFF06240F),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Inter',
+              ),
+            ),
           ),
         );
       case _AvatarType.blue:
         return Container(
-          width: 44,
-          height: 44,
+          width: 42,
+          height: 42,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Color(0xFF058CD0),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+            ),
           ),
           child: const Center(
-            child: Text('BK',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'BK',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Inter',
+              ),
+            ),
           ),
         );
       case _AvatarType.amber:
         return Container(
-          width: 44,
-          height: 44,
+          width: 42,
+          height: 42,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: _amber,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF59E0B), Color(0xFFD97606)],
+            ),
           ),
           child: const Center(
-            child: Text('CS',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'CS',
+              style: TextStyle(
+                color: Color(0xFF3B2406),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Inter',
+              ),
+            ),
           ),
         );
       case _AvatarType.grey:
         return Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
+          width: 42,
+          height: 42,
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF64748B).withValues(alpha: 0.35),
+            color: Color(0xFF334155),
           ),
           child: const Center(
-            child: Text('DR',
-                style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'DR',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Inter',
+              ),
+            ),
           ),
         );
     }
@@ -387,24 +419,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     Color text;
     switch (type) {
       case _StatusType.ongoing:
-        bg = _ongoingGreen.withValues(alpha: 0.15);
-        text = _ongoingGreen;
+        bg = const Color(0xFF22C55E).withValues(alpha: 0.15);
+        text = const Color(0xFF22C55E);
         break;
       case _StatusType.upcoming:
-        bg = _upcomingBlue.withValues(alpha: 0.18);
-        text = _upcomingBlue;
+        bg = const Color(0xFF6366F1).withValues(alpha: 0.15);
+        text = const Color(0xFF01D3A8);
         break;
       case _StatusType.completed:
-        bg = _completedGrey.withValues(alpha: 0.2);
-        text = _completedGrey;
+        bg = const Color(0xFF94A3B8).withValues(alpha: 0.18);
+        text = const Color(0xFF94A3B8);
         break;
       case _StatusType.cancelled:
-        bg = _cancelledRed.withValues(alpha: 0.15);
-        text = _cancelledRed;
+        bg = const Color(0xFFEF4444).withValues(alpha: 0.15);
+        text = const Color(0xFFEF4444);
         break;
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
@@ -413,8 +445,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         label,
         style: TextStyle(
           color: text,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Inter',
         ),
       ),
     );
@@ -426,20 +459,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         return Row(
           children: [
             Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: _ongoingGreen,
-                borderRadius: BorderRadius.circular(4),
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: Color(0xFF22C55E),
+                shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
             Text(
               data.bottomLeftText,
               style: const TextStyle(
-                color: _ongoingGreen,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                color: Color(0xFF22C55E),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Inter',
               ),
             ),
           ],
@@ -448,7 +482,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         return Row(
           children: List.generate(
             5,
-            (i) => Icon(Icons.star_rounded, color: _amber, size: 16),
+            (i) => const Icon(Icons.star_rounded, color: _amber, size: 16),
           ),
         );
       case _BottomLeft.text:
@@ -457,9 +491,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           style: TextStyle(
             color: data.statusType == _StatusType.cancelled
                 ? const Color(0xFF64748B)
-                : AppTheme.textSecondary,
-            fontSize: 12,
+                : const Color(0xFF94A3B8),
+            fontSize: 11,
             fontWeight: FontWeight.w500,
+            fontFamily: 'Inter',
           ),
         );
     }
@@ -472,9 +507,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         child: const Text(
           'Re-book Carol',
           style: TextStyle(
-            color: AppTheme.primaryGreen,
+            color: Color(0xFF22C55E),
             fontSize: 12,
             fontWeight: FontWeight.w600,
+            fontFamily: 'Inter',
           ),
         ),
       );
@@ -482,17 +518,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     if (data.hasMessage) {
       return GestureDetector(
         onTap: () {},
-        child: Row(
-          children: const [
+        child: const Row(
+          children: [
             Icon(Icons.chat_bubble_outline_rounded,
-                color: AppTheme.textSecondary, size: 14),
+                color: Color(0xFFF8FAFC), size: 16),
             SizedBox(width: 5),
             Text(
               'Message',
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: Color(0xFFF8FAFC),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
+                fontFamily: 'Inter',
               ),
             ),
           ],
@@ -514,10 +551,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     const selectedIndex = 3; // Bookings tab always active on this screen
 
     return Container(
-      height: 68,
+      height: 64,
       decoration: const BoxDecoration(
-        color: AppTheme.surfaceColor,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
+        color: Color(0xFF0F172A),
+        border: Border(top: BorderSide(color: Color(0xFF1E293B), width: 1.0)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -539,17 +576,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
                       color: const Color(0xFF01D3A8), // Caribbean Green
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.surfaceColor, width: 3),
+                      border: Border.all(color: const Color(0xFF0F172A), width: 4),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF01D3A8).withValues(alpha: 0.4),
+                          color: const Color(0xFF01D3A8).withValues(alpha: 0.5),
                           blurRadius: 8,
-                          offset: const Offset(0, 3),
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
@@ -566,6 +603,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       color: Color(0xFF01D3A8),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
+                      fontFamily: 'Inter',
                     ),
                   ),
                 ],
@@ -574,7 +612,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           }
 
           final color = isSelected
-              ? AppTheme.primaryGreen
+              ? const Color(0xFF22C55E)
               : const Color(0xFF64748B);
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -600,6 +638,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       color: color,
                       fontSize: 10,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontFamily: 'Inter',
                     ),
                   ),
                 ],

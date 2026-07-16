@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../theme/app_theme.dart';
+import '../data/sri_lankan_cities.dart';
 
 class MapSelectionScreen extends StatefulWidget {
   const MapSelectionScreen({super.key});
@@ -9,7 +14,7 @@ class MapSelectionScreen extends StatefulWidget {
   State<MapSelectionScreen> createState() => _MapSelectionScreenState();
 }
 
-class _MapSelectionScreenState extends State<MapSelectionScreen> {
+class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTickerProviderStateMixin {
   // Figma design tokens mapped to AppTheme
   static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
   static const Color _azure17 = AppTheme.cardColor;    // #1E293B
@@ -26,12 +31,24 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   Color get _accentText  => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
 
   // Interactive Map State
+  final MapController _mapController = MapController();
   double _zoomLevel = 14.0;
   bool _isLocating = false;
-  String _address = 'Search location';
-  double _currentLat = 6.8402;
-  double _currentLng = 79.9839;
+  String _address = 'Colombo';
+  double _currentLat = 6.9271; // Colombo initial lat
+  double _currentLng = 79.8612; // Colombo initial lng
   bool _usingGPS = false;
+
+  // Real GPS State variables
+  double? _gpsLat;
+  double? _gpsLng;
+  StreamSubscription<Position>? _positionStreamSubscription;
+  late final AnimationController _pulseController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  )..repeat();
+
+  bool _showLocationChangedPopup = false;
 
   @override
   void didChangeDependencies() {
@@ -41,33 +58,259 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       _isAdvanced = args['isAdvanced'] ?? false;
       _bookingArgs = Map<String, dynamic>.from(args);
     }
+    // Set initial address matching initial coordinates
+    _address = _getClosestCityName(_currentLat, _currentLng);
   }
 
-  void _simulateGPSLocation() {
+  String _getClosestCityName(double lat, double lng) {
+    double minDistance = double.infinity;
+    String closestCity = 'Colombo';
+
+    for (final cityMap in sriLankanCities) {
+      final String? cityStr = cityMap['city'];
+      final String? latStr = cityMap['lat'];
+      final String? lngStr = cityMap['lng'];
+
+      if (cityStr != null && latStr != null && lngStr != null) {
+        final cityLat = double.tryParse(latStr) ?? 0.0;
+        final cityLng = double.tryParse(lngStr) ?? 0.0;
+
+        // Simple Euclidean distance approximation
+        final double dist = math.sqrt(
+          math.pow(lat - cityLat, 2) + math.pow(lng - cityLng, 2),
+        );
+
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestCity = cityStr;
+        }
+      }
+    }
+    return closestCity;
+  }
+
+  Future<void> _initiateRealTimeLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
     setState(() {
       _isLocating = true;
     });
 
-    // Simulate mobile location retrieval delay
-    Timer(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        setState(() {
-          _isLocating = false;
-          _usingGPS = true;
-          _address = 'Homagama, Colombo (GPS)';
-          _currentLat = 6.8402;
-          _currentLng = 79.9839;
-        });
+    try {
+      // 1. Check if location services are enabled
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw 'Location services are disabled.';
+      }
 
+      // 2. Check permission status
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Location permissions are denied.';
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Location permissions are permanently denied.';
+      }
+
+      // 3. Retrieve current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 8),
+      );
+
+      _updateGPSLocation(position);
+
+      // 4. Start listening to position updates
+      _positionStreamSubscription?.cancel();
+      _positionStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).listen(
+        (Position position) {
+          _updateGPSLocation(position);
+        },
+        onError: (error) {
+          debugPrint('Location stream error: $error');
+        },
+      );
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Mobile GPS Location acquired!'),
+            content: const Text('Real-time GPS tracking active!'),
             backgroundColor: _accentColor,
-            duration: const Duration(seconds: 1),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
-    });
+    } catch (e) {
+      debugPrint('Real GPS error, falling back to simulated location: $e');
+      
+      // Fallback simulation: Homagama location
+      Timer(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() {
+            _usingGPS = true;
+            _gpsLat = 6.8438; // Homagama Lat
+            _gpsLng = 80.0000; // Homagama Lng
+            _currentLat = 6.8438;
+            _currentLng = 80.0000;
+            _zoomLevel = 15.0;
+            _address = _getClosestCityName(_currentLat, _currentLng);
+          });
+          _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('GPS unavailable ($e). Using simulated location.'),
+              backgroundColor: _accentColor,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLocating = false;
+        });
+      }
+    }
+  }
+
+  void _updateGPSLocation(Position position) {
+    if (mounted) {
+      setState(() {
+        _usingGPS = true;
+        _gpsLat = position.latitude;
+        _gpsLng = position.longitude;
+        _currentLat = position.latitude;
+        _currentLng = position.longitude;
+        _address = _getClosestCityName(_currentLat, _currentLng);
+      });
+      _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
+    }
+  }
+
+  Widget _buildGPSLocationMarker() {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Pulsing ring
+            Container(
+              width: 36 * _pulseController.value,
+              height: 36 * _pulseController.value,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _accentColor.withValues(alpha: 0.4 * (1.0 - _pulseController.value)),
+              ),
+            ),
+            // Outer white border
+            Container(
+              width: 14,
+              height: 14,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+            // Inner core
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _accentColor,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLocationChangedPopup() {
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 20,
+      child: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFB5484B),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 15,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Location changed!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${_currentLat.toStringAsFixed(6)}, ${_currentLng.toStringAsFixed(6)}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    _pulseController.dispose();
+    super.dispose();
   }
 
   @override
@@ -76,19 +319,43 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       backgroundColor: _azure11,
       body: Stack(
         children: [
-          // 1. Full-screen custom map background
+          // 1. Full-screen OpenStreetMap tile background
           Positioned.fill(
-            child: InteractiveViewer(
-              maxScale: 3.0,
-              minScale: 0.8,
-              child: CustomPaint(
-                painter: _FullscreenMapPainter(
-                  zoomLevel: _zoomLevel,
-                  lat: _currentLat,
-                  lng: _currentLng,
-                  usingGPS: _usingGPS,
-                ),
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: LatLng(_currentLat, _currentLng),
+                initialZoom: _zoomLevel,
+                onPositionChanged: (position, hasGesture) {
+                  if (position.center != null) {
+                    setState(() {
+                      _currentLat = position.center!.latitude;
+                      _currentLng = position.center!.longitude;
+                      _address = _getClosestCityName(_currentLat, _currentLng);
+                      if (hasGesture) {
+                        _usingGPS = false;
+                      }
+                    });
+                  }
+                },
               ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.carematch',
+                ),
+                if (_gpsLat != null && _gpsLng != null)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: LatLng(_gpsLat!, _gpsLng!),
+                        width: 40,
+                        height: 40,
+                        child: _buildGPSLocationMarker(),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
 
@@ -127,14 +394,20 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                   _buildFloatingTool(
                     icon: Icons.add_rounded,
                     onTap: () {
-                      setState(() => _zoomLevel = (_zoomLevel + 1).clamp(10, 20));
+                      setState(() {
+                        _zoomLevel = (_zoomLevel + 1).clamp(3.0, 20.0);
+                        _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
+                      });
                     },
                   ),
                   const SizedBox(height: 10),
                   _buildFloatingTool(
                     icon: Icons.remove_rounded,
                     onTap: () {
-                      setState(() => _zoomLevel = (_zoomLevel - 1).clamp(10, 20));
+                      setState(() {
+                        _zoomLevel = (_zoomLevel - 1).clamp(3.0, 20.0);
+                        _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
+                      });
                     },
                   ),
                   const SizedBox(height: 14),
@@ -145,13 +418,16 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             ),
           ),
 
-          // 5. Bottom Panel Sheet
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomPanel(context),
-          ),
+          // 5. Bottom Panel Sheet / Location Changed Popup
+          if (!_showLocationChangedPopup)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBottomPanel(context),
+            )
+          else
+            _buildLocationChangedPopup(),
 
           // 6. Loading screen/GPS loader overlay
           if (_isLocating) _buildLocatingOverlay(),
@@ -186,7 +462,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
 
   Widget _buildGPSFloatingButton() {
     return GestureDetector(
-      onTap: _simulateGPSLocation,
+      onTap: _initiateRealTimeLocation,
       child: Container(
         width: 40,
         height: 40,
@@ -203,7 +479,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           ],
         ),
         child: Icon(
-          _usingGPS ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+          Icons.gps_fixed_rounded,
           color: _usingGPS ? _accentText : _grey98,
           size: 20,
         ),
@@ -211,89 +487,37 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     );
   }
 
-  // ── Center Target Pin ──
+  // Center target pin widget
   Widget _buildCenterTargetPin() {
-    if (_isAdvanced) {
-      // Advanced match: solid black teardrop pin matching Figma P-11g
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              if (_usingGPS)
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _accentColor.withValues(alpha: 0.25),
-                  ),
-                ),
-              Icon(
-                Icons.location_on_rounded,
-                color: _usingGPS ? _accentColor : Colors.black,
-                size: 44,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    // Normal flow: tooltip + pulsing ring pin
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Marker tooltip
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          height: 12,
+          width: 12,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _usingGPS ? _accentColor : _azure27),
-          ),
-          child: Text(
-            _usingGPS ? 'Active GPS Position' : 'Drag Map to Set',
-            style: TextStyle(
-              color: _usingGPS ? _accentColor : _grey98,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-            ),
+            color: _accentColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: _accentColor.withValues(alpha: 0.5),
+                blurRadius: 10,
+                spreadRadius: 4,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        // Pulsing Circle Under Pin
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: (_usingGPS ? _accentColor : Colors.red).withValues(alpha: 0.35),
-              ),
-            ),
-            Icon(
-              Icons.location_on_rounded,
-              color: _usingGPS ? _accentColor : Colors.redAccent,
-              size: 38,
-            ),
-          ],
+        const SizedBox(height: 2),
+        Icon(
+          Icons.location_on_rounded,
+          color: _accentColor,
+          size: 42,
         ),
       ],
     );
   }
 
-  // ── Bottom Sheet Panel ──
+  // Bottom panel details sheet
   Widget _buildBottomPanel(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
@@ -328,39 +552,29 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           ),
           const SizedBox(height: 15),
 
-          // Search location input bar
-          GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Search location overlay is active.'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-              decoration: BoxDecoration(
-                color: _azure11,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _azure27),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search_rounded, color: _azure65, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _address,
-                      style: TextStyle(
-                        color: _address == 'Search location' ? _azure65 : _grey98,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
+          // Selected location display bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+            decoration: BoxDecoration(
+              color: _azure11,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _azure27),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.location_city_rounded, color: _accentColor, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _address,
+                    style: const TextStyle(
+                      color: _grey98,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -404,17 +618,31 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(9),
                     onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/location-confirm',
-                        arguments: {
-                          ..._bookingArgs,
-                          'city': _usingGPS ? 'Homagama' : 'Selected Location',
-                          'location': _usingGPS ? 'Homagama' : 'Selected Location',
-                          'lat': _currentLat,
-                          'lng': _currentLng,
-                        },
-                      );
+                      setState(() {
+                        _showLocationChangedPopup = true;
+                        _bookingArgs['city'] = _address;
+                        _bookingArgs['location'] = _address;
+                        _bookingArgs['lat'] = _currentLat;
+                        _bookingArgs['lng'] = _currentLng;
+                      });
+
+                      Timer(const Duration(milliseconds: 3500), () {
+                        if (mounted) {
+                          if (_isAdvanced) {
+                            Navigator.pushNamed(
+                              context,
+                              '/qualifications-intro',
+                              arguments: _bookingArgs,
+                            );
+                          } else {
+                            Navigator.pushNamed(
+                              context,
+                              '/confirm-booking',
+                              arguments: _bookingArgs,
+                            );
+                          }
+                        }
+                      });
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -462,119 +690,5 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         ),
       ),
     );
-  }
-}
-
-// ── Full screen Custom Painter map ──
-class _FullscreenMapPainter extends CustomPainter {
-  final double zoomLevel;
-  final double lat;
-  final double lng;
-  final bool usingGPS;
-
-  _FullscreenMapPainter({
-    required this.zoomLevel,
-    required this.lat,
-    required this.lng,
-    required this.usingGPS,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Fill background (Moss Green/Zanah land colors)
-    final bgPaint = Paint()..color = const Color(0xFFE3E7DE);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
-
-    // Forest / Park area green (c7e3bc)
-    final parkPaint = Paint()..color = const Color(0xFFC7E3BC);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.4, size.height * 0.2),
-        width: 320,
-        height: 250,
-      ),
-      parkPaint,
-    );
-
-    // Lake/River water blue (cfe7c6)
-    final lakePaint = Paint()..color = const Color(0xFFCFE7C6);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.1, size.height * 0.75),
-        width: 220,
-        height: 200,
-      ),
-      lakePaint,
-    );
-
-    // Draw main highways and avenues
-    final roadPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Highway 1 (Diagonal Left-Right)
-    roadPaint.strokeWidth = 32.0;
-    canvas.drawLine(
-      Offset(-50, size.height * 0.4),
-      Offset(size.width + 50, size.height * 0.6),
-      roadPaint,
-    );
-
-    // Local road lines (yellowish/white)
-    roadPaint.strokeWidth = 14.0;
-    canvas.drawLine(
-      Offset(size.width * 0.3, -50),
-      Offset(size.width * 0.3, size.height + 50),
-      roadPaint,
-    );
-
-    canvas.drawLine(
-      Offset(size.width * 0.7, -50),
-      Offset(size.width * 0.7, size.height + 50),
-      roadPaint,
-    );
-
-    // Yellow accent center lines for highway
-    final centerLinePaint = Paint()
-      ..color = const Color(0xFFF6F1DD)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(
-      Offset(-50, size.height * 0.4),
-      Offset(size.width + 50, size.height * 0.6),
-      centerLinePaint,
-    );
-
-    // Draw text labels
-    _drawText(canvas, 'Riverside Park', Offset(size.width * 0.4, size.height * 0.18), const Color(0xFF188038));
-    _drawText(canvas, 'Valley Farm Supplies', Offset(size.width * 0.15, size.height * 0.12), const Color(0xFF3C4043));
-    _drawText(canvas, 'City Bank ATM', Offset(size.width * 0.25, size.height * 0.42), const Color(0xFF1A73E8));
-    _drawText(canvas, 'Gaziler Physiotherapy', Offset(size.width * 0.15, size.height * 0.55), const Color(0xFFC5221F));
-    _drawText(canvas, 'Erensu Barracks', Offset(size.width * 0.65, size.height * 0.72), const Color(0xFF3C4043));
-  }
-
-  void _drawText(Canvas canvas, String text, Offset offset, Color color) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: color,
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    tp.layout();
-    tp.paint(canvas, offset - Offset(tp.width / 2, tp.height / 2));
-  }
-
-  @override
-  bool shouldRepaint(covariant _FullscreenMapPainter oldDelegate) {
-    return oldDelegate.zoomLevel != zoomLevel ||
-        oldDelegate.lat != lat ||
-        oldDelegate.lng != lng ||
-        oldDelegate.usingGPS != usingGPS;
   }
 }

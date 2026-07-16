@@ -42,7 +42,6 @@ import 'screens/forgot_password_step2_screen.dart';
 import 'screens/forgot_password_step3_screen.dart';
 import 'screens/location_selection_screen.dart';
 import 'screens/map_selection_screen.dart';
-import 'screens/location_confirm_screen.dart';
 import 'screens/advanced_match_send_request_screen.dart';
 import 'screens/qualifications_selection_screen.dart';
 import 'screens/qualifications_intro_screen.dart';
@@ -98,7 +97,6 @@ class CareMatchApp extends StatelessWidget {
         '/schedule-care': (context) => const ScheduleCareScreen(),
         '/location-selection': (context) => const LocationSelectionScreen(),
         '/map-selection': (context) => const MapSelectionScreen(),
-        '/location-confirm': (context) => const LocationConfirmScreen(),
         '/qualifications-intro': (context) => const QualificationsIntroScreen(),
         '/qualifications-selection': (context) =>
             const QualificationsSelectionScreen(),

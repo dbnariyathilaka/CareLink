@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../theme/app_theme.dart';
 import '../data/sri_lankan_cities.dart';
 
@@ -227,72 +229,65 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       child: Container(
         width: double.infinity,
         height: 200,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: _azure17,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _azure27),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [_azure17, _azure11],
-          ),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Simulated Radar / grid streets background
-            CustomPaint(
-              size: const Size(double.infinity, 200),
-              painter: _MapGridPainter(hasLocation: hasLocation),
-            ),
-            if (hasLocation) ...[
-              // Pulse circle centered at user location
-              _buildPulseRadar(),
-              // Location Pin widget
+            if (hasLocation && _selectedLat != null && _selectedLng != null) ...[
+              // Real mini map preview using OpenStreetMap!
+              Positioned.fill(
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(_selectedLat!, _selectedLng!),
+                    initialZoom: 14.0,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.none, // Disable all gestures for static preview
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.carematch',
+                    ),
+                  ],
+                ),
+              ),
+              // Marker on center
+              Icon(
+                Icons.location_on_rounded,
+                color: _green45,
+                size: 38,
+              ),
+            ] else ...[
+              // Simulated Radar / grid streets background
+              CustomPaint(
+                size: const Size(double.infinity, 200),
+                painter: _MapGridPainter(hasLocation: hasLocation),
+              ),
+              // Pin icon placeholder
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _green8,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: _green45, width: 1),
-                    ),
-                    child: Text(
-                      _selectedCity!,
-                      style: TextStyle(
-                        color: _green45,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
                   Icon(
-                    Icons.location_on_rounded,
-                    color: _green45,
-                    size: 38,
+                    Icons.map_rounded,
+                    color: _azure47,
+                    size: 32,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Tap to open interactive map',
+                    style: TextStyle(
+                      color: _azure47,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
-              ),
-              // Nearby caregivers simulation
-              const Positioned(
-                top: 40,
-                left: 60,
-                child: Icon(Icons.person_pin_circle_rounded, color: Colors.blue, size: 28),
-              ),
-              const Positioned(
-                bottom: 30,
-                right: 80,
-                child: Icon(Icons.person_pin_circle_rounded, color: Colors.tealAccent, size: 28),
-              ),
-            ] else ...[
-              // Generic center pin
-              const Icon(
-                Icons.location_off_rounded,
-                color: _azure47,
-                size: 40,
               ),
             ],
           ],
