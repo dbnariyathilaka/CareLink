@@ -119,13 +119,26 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                           _buildSectionLabel('Favourite caregivers'),
                           const SizedBox(height: 8),
                           _buildFavouriteCard(context),
-                          const SizedBox(height: 10),
-                          _buildMenuList(context),
                           const SizedBox(height: 12),
-                          _buildSectionLabel('Support'),
-                          const SizedBox(height: 8),
-                          _buildSupportSection(context),
+                          _menuRow(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            label: 'Messages',
+                            badge: '2',
+                            onTap: () => Navigator.pushNamed(context, '/messages'),
+                          ),
                           const SizedBox(height: 12),
+                          _menuRow(
+                            icon: Icons.shield_outlined,
+                            label: 'Privacy policy',
+                            onTap: () {},
+                          ),
+                          const SizedBox(height: 12),
+                          _menuRow(
+                            icon: Icons.help_outline_rounded,
+                            label: 'Help & FAQ',
+                            onTap: () {},
+                          ),
+                          const SizedBox(height: 16),
                           _buildLogoutButton(context),
                         ],
                       ),
@@ -386,132 +399,178 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
 
   // ── Favourite caregiver card ──────────────────────────────
   Widget _buildFavouriteCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: _azure17,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _azure27),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [_green45, _green36],
-              ),
-            ),
-            child: const Center(
-              child: Text('AF',
-                  style: TextStyle(
-                      color: _green8,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-            ),
-          ),
-          const SizedBox(width: 11),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Alice Fernando',
-                    style: TextStyle(
-                        color: _grey98,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
-                SizedBox(height: 3),
-                Text('Elder care · ★4.8',
-                    style: TextStyle(
-                        color: _azure65,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () {},
-            child: const Icon(Icons.favorite_rounded, color: _red44, size: 20),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Menu list (Messages only) ──────────────────────────
-  Widget _buildMenuList(BuildContext context) {
-    return Column(
-      children: [
-        _menuRow(
-          icon: Icons.chat_bubble_outline_rounded,
-          label: 'Messages',
-          badge: '2',
-          onTap: () => Navigator.pushNamed(context, '/messages'),
-        ),
-      ],
-    );
-  }
-
-  // ── Support section (moved from Settings) ─────────────────
-  Widget _buildSupportSection(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: _azure17,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _azure27),
-      ),
-      child: Column(
-        children: [
-          _supportRow(
-            icon: Icons.help_outline_rounded,
-            label: 'Help & FAQ',
-            onTap: () {},
-          ),
-          Container(height: 1, color: _azure27),
-          _supportRow(
-            icon: Icons.shield_outlined,
-            label: 'Privacy policy',
-            onTap: () {},
-          ),
-          Container(height: 1, color: _azure27),
-          _supportRow(
-            icon: Icons.info_outline_rounded,
-            label: 'About CareLink',
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _supportRow({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
     return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          '/caregiver-profile',
+          arguments: const {'caregiverName': 'Alice Fernando'},
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: _azure17,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _azure27),
+        ),
         child: Row(
           children: [
-            Icon(icon, color: _azure47, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(label,
-                  style: const TextStyle(
-                      color: _grey98,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600)),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_green45, _green36],
+                ),
+              ),
+              child: const Center(
+                child: Text('AF',
+                    style: TextStyle(
+                        color: _green8,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700)),
+              ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: _azure65, size: 20),
+            const SizedBox(width: 11),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Alice Fernando',
+                      style: TextStyle(
+                          color: _grey98,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700)),
+                  SizedBox(height: 3),
+                  Text('Elder care · ★4.8',
+                      style: TextStyle(
+                          color: _azure65,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                // Heart icon toggles (prevent propagation if needed, but in Flutter onTap on child doesn't bubble up if behavior is set or child consumes it)
+              },
+              child: const Icon(Icons.favorite_border, color: _red44, size: 20),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+
+
+  // ── Log out confirmation dialog ────────────────────────────
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => Dialog(
+        backgroundColor: _azure17,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: _amber.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: _amber,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Log out?',
+                style: TextStyle(
+                  color: _grey98,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Are you sure you want to log out of your account?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _azure65,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: _azure27),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _azure65,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/welcome',
+                          (route) => false,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _amber.withOpacity(0.12),
+                          border: Border.all(color: _amber.withOpacity(0.4)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Log out',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _amber,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -520,8 +579,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   // ── Log out button ─────────────────────────────────────────
   Widget _buildLogoutButton(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamedAndRemoveUntil(
-          context, '/', (route) => false),
+      onTap: () => _showLogoutConfirmationDialog(context),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 15),
@@ -592,64 +650,114 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     );
   }
 
-  // ── Bottom nav (Profile tab active) ──────────────────────
+  // ── Bottom nav (matches dashboard) ────────────────────────
   Widget _buildBottomNav(BuildContext context) {
-    const items = [
-      _NavItem(Icons.home_rounded, 'Home'),
-      _NavItem(Icons.search_rounded, 'Search'),
-      _NavItem(Icons.calendar_month_rounded, 'Bookings'),
-      _NavItem(Icons.notifications_none_rounded, 'Alerts'),
-      _NavItem(Icons.person_rounded, 'Profile'),
+    final items = [
+      (icon: Icons.home_rounded, label: 'Home'),
+      (icon: Icons.search_rounded, label: 'Search'),
+      (icon: null, label: 'Match'),
+      (icon: Icons.calendar_month_rounded, label: 'Bookings'),
+      (icon: Icons.notifications_none_rounded, label: 'Alerts'),
     ];
+    // No tab highlighted on profile screen since it's a sub-page
+    const selectedIndex = -1;
+
     return Container(
-      height: 64,
+      height: 68,
       decoration: const BoxDecoration(
-        color: _azure11,
-        border: Border(top: BorderSide(color: _azure27)),
+        color: AppTheme.surfaceColor,
+        border: Border(top: BorderSide(color: AppTheme.borderColor)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (i) {
-          final item = items[i];
-          final isActive = i == 4;
-          final color = isActive ? _green45 : _azure47;
+        children: List.generate(items.length, (index) {
+          final item = items[index];
+          final isSelected = index == selectedIndex;
+
+          if (index == 2) {
+            return GestureDetector(
+              onTap: () {
+                if (AppState.hasActiveMatch.value) {
+                  Navigator.pushNamed(context, '/advanced-match-results');
+                } else {
+                  Navigator.pushNamed(context, '/advanced-match-send-request');
+                }
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF01D3A8), // Caribbean Green
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.surfaceColor, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF01D3A8).withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.diversity_3_rounded,
+                      color: Color(0xFF06240F), // Bottle green
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Match',
+                    style: TextStyle(
+                      color: Color(0xFF01D3A8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final color = isSelected ? AppTheme.primaryGreen : const Color(0xFF64748B);
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
-              if (i == 0) {
+              if (index == 0) {
                 Navigator.pushNamedAndRemoveUntil(
                     context, '/patient-dashboard', (r) => false);
-              } else if (i == 1) {
+              } else if (index == 1) {
                 Navigator.pushNamed(context, '/search');
-              } else if (i == 2) {
+              } else if (index == 3) {
                 Navigator.pushNamed(context, '/my-bookings');
-              } else if (i == 3) {
+              } else if (index == 4) {
                 Navigator.pushNamed(context, '/notifications');
               }
             },
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(item.icon, color: color, size: 22),
-                const SizedBox(height: 4),
-                Text(item.label,
+            child: SizedBox(
+              width: 60,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(item.icon, color: color, size: 22),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.label,
                     style: TextStyle(
-                        color: color,
-                        fontSize: 10,
-                        fontWeight:
-                            isActive ? FontWeight.w600 : FontWeight.w500)),
-              ],
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }),
       ),
     );
   }
-}
-
-// ── Nav item model ────────────────────────────────────────────
-class _NavItem {
-  final IconData icon;
-  final String label;
-  const _NavItem(this.icon, this.label);
 }

@@ -230,6 +230,8 @@ class _ForgotPasswordStep2ScreenState extends State<ForgotPasswordStep2Screen> {
                                 decoration: const InputDecoration(
                                   counterText: '',
                                   border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
                                 ),
                                 onChanged: (val) {
@@ -314,6 +316,8 @@ class _ForgotPasswordStep2ScreenState extends State<ForgotPasswordStep2Screen> {
                           ),
                           decoration: InputDecoration(
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 17, vertical: 16),
                             isDense: true,
@@ -386,6 +390,8 @@ class _ForgotPasswordStep2ScreenState extends State<ForgotPasswordStep2Screen> {
                           ),
                           decoration: InputDecoration(
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 17, vertical: 16),
                             isDense: true,

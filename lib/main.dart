@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
+import 'screens/starting_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/account_details_screen.dart';
@@ -10,7 +11,6 @@ import 'screens/patient_onboarding2_screen.dart';
 import 'screens/patient_onboarding3_screen.dart';
 import 'screens/patient_onboarding4_screen.dart';
 import 'screens/patient_dashboard_screen.dart';
-import 'screens/top_matches_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
 import 'screens/add_review_screen.dart';
@@ -64,17 +64,17 @@ class CareMatchApp extends StatelessWidget {
       theme: AppTheme.darkTheme,
       initialRoute: '/',
       routes: {
-        '/': (context) => const WelcomeScreen(),
+        '/': (context) => const StartingScreen(),
+        '/welcome': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/role-selection': (context) => const RoleSelectionScreen(),
         '/account-details': (context) => const AccountDetailsScreen(),
         '/account-created': (context) => const AccountCreatedScreen(),
-        '/patient-onboarding-1': (context) => const PatientOnboarding1Screen(),
-        '/patient-onboarding-2': (context) => const PatientOnboarding2Screen(),
+        '/patient-onboarding-1': (context) => const PatientOnboarding2Screen(),
+        '/patient-onboarding-2': (context) => const PatientOnboarding1Screen(),
         '/patient-onboarding-3': (context) => const PatientOnboarding3Screen(),
         '/patient-onboarding-4': (context) => const PatientOnboarding4Screen(),
         '/patient-dashboard': (context) => const PatientDashboardScreen(),
-        '/top-matches': (context) => const TopMatchesScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/caregiver-profile': (context) => const CaregiverProfileScreen(),
         '/add-review': (context) => const AddReviewScreen(),
@@ -93,15 +93,18 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverOnboarding5Screen(),
         '/caregiver-dashboard': (context) => const CaregiverDashboardScreen(),
         '/send-request': (context) => const SendRequestScreen(),
-        '/advanced-match-send-request': (context) => const AdvancedMatchSendRequestScreen(),
+        '/advanced-match-send-request': (context) =>
+            const AdvancedMatchSendRequestScreen(),
         '/schedule-care': (context) => const ScheduleCareScreen(),
         '/location-selection': (context) => const LocationSelectionScreen(),
         '/map-selection': (context) => const MapSelectionScreen(),
         '/location-confirm': (context) => const LocationConfirmScreen(),
         '/qualifications-intro': (context) => const QualificationsIntroScreen(),
-        '/qualifications-selection': (context) => const QualificationsSelectionScreen(),
+        '/qualifications-selection': (context) =>
+            const QualificationsSelectionScreen(),
         '/matching-analysis': (context) => const MatchingAnalysisScreen(),
-        '/advanced-match-results': (context) => const AdvancedMatchResultsScreen(),
+        '/advanced-match-results': (context) =>
+            const AdvancedMatchResultsScreen(),
         '/confirm-booking': (context) => const ConfirmBookingScreen(),
         '/patient-profile': (context) => const PatientProfileScreen(),
         '/messages': (context) => const MessagesScreen(),

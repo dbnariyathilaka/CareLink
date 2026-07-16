@@ -131,33 +131,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                     ]),
                     const SizedBox(height: 18),
 
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/',
-                          (route) => false,
-                        );
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          color: AppTheme.cardColor,
-                          border: Border.all(color: AppTheme.borderColor),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Log out',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _amber,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
+                    _buildDeleteAccountButton(),
                   ],
                 ),
               ),
@@ -201,6 +175,157 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
               },
             );
           }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountButton() {
+    return GestureDetector(
+      onTap: () => _showDeleteAccountDialog(context),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEF4444).withOpacity(0.08),
+          border: Border.all(
+            color: const Color(0xFFEF4444).withOpacity(0.3),
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: const [
+            Text(
+              'Delete account',
+              style: TextStyle(
+                color: Color(0xFFEF4444),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'This cannot be undone',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => Dialog(
+        backgroundColor: AppTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Delete account?',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppTheme.borderColor),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/welcome',
+                          (route) => false,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Account deleted successfully.'),
+                            backgroundColor: Color(0xFFEF4444),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withOpacity(0.12),
+                          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.4)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Delete',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

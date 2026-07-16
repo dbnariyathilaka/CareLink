@@ -553,14 +553,14 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   Widget _buildDayCell(DateTime day, {required bool multiSelect}) {
-    final isSelected = multiSelect
-        ? _flexibleDates.any((d) => _isSameDay(d, day))
-        : _isSameDay(day, _selectedDate);
+    final isSelected = _isSameDay(day, _selectedDate);
 
-    // Highlight care range for Full-time/Live-in (e.g. 5 days from selected start date)
-    final bool inRange = !multiSelect &&
-        day.isAfter(_selectedDate) &&
-        day.isBefore(_selectedDate.add(const Duration(days: 5)));
+    // Calculate duration in days
+    final int durationDays = _endDate.difference(_selectedDate).inDays;
+
+    // Highlight care range starting from selected start date (service dates = user selected duration - 1)
+    final bool inRange = day.isAfter(_selectedDate) &&
+        day.isBefore(_selectedDate.add(Duration(days: durationDays)));
 
     final unavailable = _isUnavailable(day);
 
@@ -575,6 +575,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                   } else {
                     _flexibleDates.add(day);
                   }
+                  if (_flexibleDates.isNotEmpty) {
+                    _selectedDate = _flexibleDates.reduce((a, b) => a.isBefore(b) ? a : b);
+                  } else {
+                    _selectedDate = day;
+                  }
                 } else {
                   _selectedDate = day;
                 }
@@ -586,7 +591,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               : inRange
                   ? _carePeriodBg
                   : Colors.transparent,
-          borderRadius: BorderRadius.circular(isSelected ? 13 : 6),
+          borderRadius: BorderRadius.circular((isSelected || inRange) ? 13 : 6),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -597,12 +602,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 : inRange
                     ? _green45
                     : unavailable
-                        ? _azure35
+                        ? const Color(0xFF3F4B5E)
                         : _azure84,
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            decoration: unavailable ? TextDecoration.lineThrough : TextDecoration.none,
-            decorationColor: _azure35,
+            decoration: TextDecoration.none,
           ),
         ),
       ),

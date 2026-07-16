@@ -41,36 +41,36 @@ class EmergencyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.surfaceColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatusBanner(),
-                    const SizedBox(height: 14),
-                    ..._caregivers.map((c) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildCaregiverCard(context, c),
-                        )),
-                  ],
-                ),
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatusBanner(),
+                  const SizedBox(height: 14),
+                  ..._caregivers.map((c) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildCaregiverCard(context, c),
+                      )),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   // ── Red header ────────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
+    final double statusBarHeight = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
+      padding: EdgeInsets.fromLTRB(22, 12 + statusBarHeight, 22, 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -82,88 +82,38 @@ class EmergencyScreen extends StatelessWidget {
           bottomRight: Radius.circular(22),
         ),
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Close + title row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // ✕ close button
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close, color: Colors.white, size: 18),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Emergency',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    Text(
-                      'Find a caregiver now',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: const Icon(Icons.close, color: Colors.white, size: 24),
           ),
-          const SizedBox(height: 12),
-          // Page indicator dots
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Active dot (wider)
-              Container(
-                width: 18,
-                height: 5,
-                decoration: BoxDecoration(
+              const Text(
+                'Emergency',
+                style: TextStyle(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(3),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(width: 6),
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(3),
+              const SizedBox(height: 2),
+              Text(
+                'Find a caregiver now',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.85),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
         ],
       ),
     );

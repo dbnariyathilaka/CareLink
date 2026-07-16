@@ -26,7 +26,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     'Physiotherapy',
   ];
 
-  final Set<String> _selectedCareTypes = {'Elder care'};
+  String _selectedCareType = 'Elder care';
 
   final List<String> _careLevels = [
     'Full-time',
@@ -149,7 +149,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                       ),
                     ),
                     const Text(
-                      'Step 1 of 3',
+                      'Step 2 of 2',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
@@ -162,7 +162,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                 const SizedBox(height: 16),
 
                 // Progress bar - 3 segments
-                _buildProgressBar(currentStep: 1, totalSteps: 3),
+                _buildProgressBar(currentStep: 2, totalSteps: 2),
 
                 const SizedBox(height: 24),
 
@@ -189,21 +189,12 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                           spacing: 10,
                           runSpacing: 10,
                           children: _careTypes.map((type) {
-                            final isSelected = _selectedCareTypes.contains(type);
+                            final isSelected = _selectedCareType == type;
                             return _buildChip(
                               label: type,
                               isSelected: isSelected,
                               onTap: () {
-                                setState(() {
-                                  if (isSelected) {
-                                    // Keep at least one selected
-                                    if (_selectedCareTypes.length > 1) {
-                                      _selectedCareTypes.remove(type);
-                                    }
-                                  } else {
-                                    _selectedCareTypes.add(type);
-                                  }
-                                });
+                                setState(() => _selectedCareType = type);
                               },
                             );
                           }).toList(),
@@ -309,7 +300,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                         borderRadius: BorderRadius.circular(10),
                         onTap: () {
                           Navigator.pushNamed(
-                              context, '/patient-onboarding-2');
+                              context, '/patient-onboarding-3');
                         },
                         child: const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),

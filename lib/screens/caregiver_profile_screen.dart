@@ -47,7 +47,7 @@ class CaregiverProfileScreen extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildBottomButton(),
+            child: _buildBottomButton(context),
           ),
         ],
       ),
@@ -382,7 +382,7 @@ class CaregiverProfileScreen extends StatelessWidget {
         ),
         SizedBox(height: 8),
         Text(
-          'Compassionate elder-care nurse with 7 years supporting families across the Western Province. I specialise in dementia and post-surgery recovery, and I treat every patient like family.',
+          'Compassionate elder-care nurse with 7 years supporting families across the Western Province. I specialise in dementia and post-surgery recovery, and I bring a calm, patient approach to every visit.',
           style: TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
@@ -399,44 +399,43 @@ class CaregiverProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Reviews · 4.8 ★',
-          style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Review 1 — Saman Perera
-        _reviewCard(
-          name: 'Saman Perera',
-          date: 'Oct 2025',
-          stars: 5,
-          quote: '"Alice was incredibly caring and professional. She took great care of my father and was always on time. Highly recommended!"',
-        ),
-        const SizedBox(height: 10),
-        // Review 2 — Kamal P. (matches the screenshot)
-        _reviewCard(
-          name: 'Kamal P.',
-          date: 'Nov 2025',
-          stars: 5,
-          quote: '"Punctual, kind and very professional with my father."',
-        ),
-        const SizedBox(height: 16),
-        // Leave a review link
-        Center(
-          child: GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/add-review'),
-            child: const Text(
-              'Leave a review',
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Reviews',
               style: TextStyle(
-                color: AppTheme.primaryGreen,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
+            GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, '/caregiver-reviews');
+              },
+              child: const Text(
+                'See all (24)',
+                style: TextStyle(
+                  color: AppTheme.primaryGreen,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _reviewCard(
+          name: 'Priyanka W.',
+          rating: 5.0,
+          comment: 'Alice was wonderful with my mother — patient, punctual, and very knowledgeable about dementia care.',
+        ),
+        const SizedBox(height: 10),
+        _reviewCard(
+          name: 'Ruwan D.',
+          rating: 4.5,
+          comment: 'Great communication throughout recovery. Would book again without hesitation.',
         ),
       ],
     );
@@ -444,13 +443,12 @@ class CaregiverProfileScreen extends StatelessWidget {
 
   Widget _reviewCard({
     required String name,
-    required String date,
-    required int stars,
-    required String quote,
+    required double rating,
+    required String comment,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(12),
@@ -459,7 +457,6 @@ class CaregiverProfileScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Name + date on same row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -471,40 +468,35 @@ class CaregiverProfileScreen extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(
-                date,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.star_border_rounded,
+                    color: _amber,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      color: _amber,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 5),
-          // Stars directly below name
-          Row(
-            children: List.generate(
-              5,
-              (i) => Padding(
-                padding: const EdgeInsets.only(right: 2),
-                child: Icon(
-                  Icons.star_rounded,
-                  color: i < stars ? _amber : AppTheme.borderColor,
-                  size: 15,
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 8),
           Text(
-            quote,
+            comment,
             style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 12.5,
               fontWeight: FontWeight.w400,
-              height: 1.55,
-              fontStyle: FontStyle.italic,
+              height: 1.5,
             ),
           ),
         ],
@@ -514,41 +506,75 @@ class CaregiverProfileScreen extends StatelessWidget {
 
 
   // ── Bottom sticky button ──────────────────────────────────
-  Widget _buildBottomButton() {
+  Widget _buildBottomButton(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppTheme.surfaceColor.withValues(alpha: 0),
+            AppTheme.surfaceColor.withOpacity(0.0),
             AppTheme.surfaceColor,
           ],
-          stops: const [0.0, 0.35],
+          stops: const [0.0, 0.2],
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
       child: SafeArea(
         top: false,
-        child: Material(
-          color: AppTheme.primaryGreen,
-          borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () {},
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                'Send booking request',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.bottleGreen,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Outlined "Leave a review" button
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => Navigator.pushNamed(context, '/add-review'),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppTheme.primaryGreen, width: 1.5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Leave a review',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppTheme.primaryGreen,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            // Filled "Send booking request" button
+            Material(
+              color: AppTheme.primaryGreen,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => Navigator.pushNamed(context, '/send-request'),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: const Text(
+                    'Send booking request',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppTheme.bottleGreen,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

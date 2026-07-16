@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../app_state.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -527,7 +528,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           if (index == 2) {
             return GestureDetector(
               onTap: () {
-                Navigator.pushNamed(context, '/top-matches');
+                if (AppState.hasActiveMatch.value) {
+                  Navigator.pushNamed(context, '/advanced-match-results');
+                } else {
+                  Navigator.pushNamed(context, '/advanced-match-send-request');
+                }
               },
               behavior: HitTestBehavior.opaque,
               child: Column(

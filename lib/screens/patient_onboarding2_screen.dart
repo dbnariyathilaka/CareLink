@@ -214,7 +214,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                       ),
                     ),
                     const Text(
-                      'Step 2 of 3',
+                      'Step 1 of 2',
                       style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
@@ -225,7 +225,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                 ),
 
                 const SizedBox(height: 16),
-                _buildProgressBar(currentStep: 2, totalSteps: 3),
+                _buildProgressBar(currentStep: 1, totalSteps: 2),
                 const SizedBox(height: 24),
 
                 const Text(
@@ -348,8 +348,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                         borderRadius: BorderRadius.circular(10),
                         onTap: () {
                           if (_formKey.currentState!.validate()) {
-                            // Navigate to step 3 (Success Screen)
-                            Navigator.pushNamed(context, '/patient-onboarding-3');
+                            Navigator.pushNamed(context, '/patient-onboarding-2');
                           }
                         },
                         child: const Padding(
@@ -548,6 +547,8 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
               ),
               decoration: const InputDecoration(
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 15),
                 hintText: 'Enter your city or area',

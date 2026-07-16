@@ -342,7 +342,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
         ),
         GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/top-matches'),
+          onTap: () => Navigator.pushNamed(context, '/search'),
           child: const Text(
             'See all',
             style: TextStyle(color: AppTheme.primaryGreen, fontSize: 13, fontWeight: FontWeight.w600),

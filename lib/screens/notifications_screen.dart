@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../app_state.dart';
 
 enum _NotifCategory { booking, reminders, system }
 
@@ -371,7 +372,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (index == 2) {
             return GestureDetector(
               onTap: () {
-                Navigator.pushNamed(context, '/top-matches');
+                if (AppState.hasActiveMatch.value) {
+                  Navigator.pushNamed(context, '/advanced-match-results');
+                } else {
+                  Navigator.pushNamed(context, '/advanced-match-send-request');
+                }
               },
               behavior: HitTestBehavior.opaque,
               child: Column(
