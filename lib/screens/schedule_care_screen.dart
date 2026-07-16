@@ -1284,12 +1284,12 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0x2EF59E0B)
+                                      ? (_isAdvanced ? _green45.withValues(alpha: 0.18) : const Color(0x2EF59E0B))
                                       : const Color(0xFF0F172A),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: isSelected
-                                        ? const Color(0xFFF59E0B)
+                                        ? (_isAdvanced ? _green45 : const Color(0xFFF59E0B))
                                         : const Color(0xFF334155),
                                     width: 1.2,
                                   ),
@@ -1299,7 +1299,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                   unit,
                                   style: TextStyle(
                                     color: isSelected
-                                        ? const Color(0xFFF59E0B)
+                                        ? (_isAdvanced ? _green45 : const Color(0xFFF59E0B))
                                         : const Color(0xFF94A3B8),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,

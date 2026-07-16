@@ -142,8 +142,8 @@ class _QualificationsSelectionScreenState
     const titles = [
       'Highest educational qualification',
       'Years of caregiving experience',
-      'Have you received formal caregiving training?',
-      'Languages you can speak',
+      'Should the caregiver be properly trained?',
+      'Languages the caregiver must speak',
     ];
     return titles[_currentQ];
   }

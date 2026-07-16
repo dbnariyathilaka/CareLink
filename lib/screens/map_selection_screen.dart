@@ -39,6 +39,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   double _currentLng = 79.8612; // Colombo initial lng
   bool _usingGPS = false;
 
+  // Search bar state
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  List<Map<String, String>> _searchResults = [];
+  bool _showSearchClear = false;
+
   // Real GPS State variables
   double? _gpsLat;
   double? _gpsLng;
@@ -59,7 +65,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
       _bookingArgs = Map<String, dynamic>.from(args);
     }
     // Set initial address matching initial coordinates
-    _address = _getClosestCityName(_currentLat, _currentLng);
+    _address = _getFormattedAddress(_currentLat, _currentLng);
   }
 
   String _getClosestCityName(double lat, double lng) {
@@ -163,7 +169,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
             _currentLat = 6.8438;
             _currentLng = 80.0000;
             _zoomLevel = 15.0;
-            _address = _getClosestCityName(_currentLat, _currentLng);
+            _address = _getFormattedAddress(_currentLat, _currentLng);
           });
           _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -192,7 +198,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
         _gpsLng = position.longitude;
         _currentLat = position.latitude;
         _currentLng = position.longitude;
-        _address = _getClosestCityName(_currentLat, _currentLng);
+        _address = _getFormattedAddress(_currentLat, _currentLng);
       });
       _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
     }
@@ -310,7 +316,239 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   void dispose() {
     _positionStreamSubscription?.cancel();
     _pulseController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  String _getFormattedAddress(double lat, double lng) {
+    final closestCity = _getClosestCityName(lat, lng);
+
+    final places = [
+      'Keells Super', 'Cargills Food City', 'Arpico Supercentre', 'Hemas Hospital', 
+      'Softlogic Max', 'Pizza Hut', 'KFC Outlet', 'SLT-MOBITEL Centre',
+      'Majestic Apartments', 'Commercial Bank', 'Sampath Bank Branch', 'Singer Mega',
+      'People\'s Bank', 'Lanka Hospitals Clinic', 'Nawaloka Medical Centre', 'Odel Mall',
+      'NSBM Campus Hub', 'Royal Institute', 'Lyceum School', 'Gateway College Office'
+    ];
+
+    final lanes = [
+      'Dharmapala Mawatha', 'Anagarika Dharmapala Mawatha', 'Galle Road', 'Kandy Road', 
+      'High Level Road', 'Negombo Road', 'Baseline Road', 'Temple Road', 'Station Road', 
+      'School Lane', 'Church Road', 'Lewis Place', 'Porutota Road', 'Lake Road', 
+      'Flower Road', 'Duplication Road', 'Havelock Road', 'Ward Place', 'Bullers Lane'
+    ];
+
+    // Use lat/lng as seed to deterministically choose place and road names
+    final seed = (lat.abs() * 100000 + lng.abs() * 100000).round();
+    final randPlaceIdx = seed % places.length;
+    final randLaneIdx = (seed ~/ 3) % lanes.length;
+    final number = (seed % 150) + 1;
+
+    final String place = places[randPlaceIdx];
+    final String lane = lanes[randLaneIdx];
+
+    if (seed % 3 == 0) {
+      return '$place, No. $number, $lane, $closestCity';
+    } else if (seed % 3 == 1) {
+      return '$place, $lane, $closestCity';
+    } else {
+      return 'No. $number, $lane, $closestCity';
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _showSearchClear = false;
+      });
+      return;
+    }
+    final lowercaseQuery = query.toLowerCase();
+    final matches = sriLankanCities.where((city) {
+      final cityName = city['city'] ?? '';
+      final districtName = city['district'] ?? '';
+      return cityName.toLowerCase().contains(lowercaseQuery) ||
+             districtName.toLowerCase().contains(lowercaseQuery);
+    }).toList();
+
+    setState(() {
+      _searchResults = matches;
+      _showSearchClear = true;
+    });
+  }
+
+  void _selectSearchResult(Map<String, String> city) {
+    final latStr = city['lat'];
+    final lngStr = city['lng'];
+    final cityName = city['city'] ?? '';
+
+    if (latStr != null && lngStr != null) {
+      final lat = double.tryParse(latStr) ?? 6.9271;
+      final lng = double.tryParse(lngStr) ?? 79.8612;
+
+      setState(() {
+        _currentLat = lat;
+        _currentLng = lng;
+        _address = _getFormattedAddress(lat, lng);
+        _searchResults = [];
+        _searchController.text = cityName;
+        _showSearchClear = true;
+      });
+
+      _mapController.move(LatLng(lat, lng), 15.5);
+      _searchFocusNode.unfocus();
+    }
+  }
+
+  Widget _buildSearchBar() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: _azure17,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _azure27, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded, color: _azure65, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  style: const TextStyle(
+                    color: _grey98,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Inter',
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Search place or location...',
+                    hintStyle: TextStyle(
+                      color: _azure65,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: _onSearchChanged,
+                ),
+              ),
+              if (_showSearchClear)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchResults = [];
+                      _showSearchClear = false;
+                    });
+                  },
+                  child: const Icon(Icons.close_rounded, color: _grey98, size: 20),
+                ),
+            ],
+          ),
+        ),
+        if (_searchResults.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              color: _azure17,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _azure27, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: _searchResults.length,
+                separatorBuilder: (context, index) => const Divider(
+                  color: _azure27,
+                  height: 1,
+                  thickness: 0.5,
+                ),
+                itemBuilder: (context, index) {
+                  final city = _searchResults[index];
+                  final cityName = city['city'] ?? '';
+                  final districtName = city['district'] ?? '';
+
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _selectSearchResult(city),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 13),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_rounded,
+                              color: Color(0xFFCBD5E1),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    cityName,
+                                    style: const TextStyle(
+                                      color: _grey98,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    districtName,
+                                    style: const TextStyle(
+                                      color: _azure65,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      fontFamily: 'Inter',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
@@ -331,7 +569,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                     setState(() {
                       _currentLat = position.center!.latitude;
                       _currentLng = position.center!.longitude;
-                      _address = _getClosestCityName(_currentLat, _currentLng);
+                      _address = _getFormattedAddress(_currentLat, _currentLng);
                       if (hasGesture) {
                         _usingGPS = false;
                       }
@@ -368,26 +606,20 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
             ),
           ),
 
-          // 3. Status Bar Spacer & Back top-left overlay
+          // 3. Search Bar Overlay
           Positioned(
+            left: 16,
+            right: 16,
             top: 20,
-            left: 20,
             child: SafeArea(
-              child: Text(
-                '9:41',
-                style: TextStyle(
-                  color: _grey98.withValues(alpha: 0.8),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _buildSearchBar(),
             ),
           ),
 
           // 4. Floating map tools on the right (Zoom, Location GPS)
           Positioned(
             right: 16,
-            top: 60,
+            top: 140,
             child: SafeArea(
               child: Column(
                 children: [

@@ -267,7 +267,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
               // Simulated Radar / grid streets background
               CustomPaint(
                 size: const Size(double.infinity, 200),
-                painter: _MapGridPainter(hasLocation: hasLocation),
+                painter: _MapGridPainter(hasLocation: hasLocation, isAdvanced: _isAdvanced),
               ),
               // Pin icon placeholder
               Column(
@@ -662,7 +662,8 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
 // ── Custom Painter to simulate map grids and streets ──
 class _MapGridPainter extends CustomPainter {
   final bool hasLocation;
-  _MapGridPainter({required this.hasLocation});
+  final bool isAdvanced;
+  _MapGridPainter({required this.hasLocation, required this.isAdvanced});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -691,7 +692,7 @@ class _MapGridPainter extends CustomPainter {
 
       // Draw radius circle
       final radiusPaint = Paint()
-        ..color = AppTheme.primaryGreen.withValues(alpha: 0.15)
+        ..color = (isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen).withValues(alpha: 0.15)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(size.width / 2, size.height / 2), 60, radiusPaint);
     }

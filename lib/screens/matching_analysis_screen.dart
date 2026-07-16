@@ -173,12 +173,12 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
         children: [
           // Top teal hero
           Expanded(
-            flex: 44,
+            flex: 40,
             child: _buildHero(),
           ),
           // Bottom content
           Expanded(
-            flex: 56,
+            flex: 60,
             child: _buildContent(),
           ),
         ],
@@ -322,13 +322,13 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
   Widget _buildContent() {
     return Container(
       color: _azure11,
-      padding: const EdgeInsets.fromLTRB(22, 24, 22, 16),
+      padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Title
           _buildTitle(),
-          const SizedBox(height: 22),
+          const SizedBox(height: 14),
 
           // Step list
           _buildStepList(),
@@ -339,13 +339,13 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
             icon: Icons.verified_user_outlined,
             text: 'We only show caregivers who are verified and background-checked.',
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _buildInfoBanner(
             icon: Icons.bolt_rounded,
             text: 'Hang tight — this usually takes just a few seconds.',
             isAccent: true,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
         ],
       ),
     );
@@ -460,7 +460,7 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
             child: Padding(
               padding: EdgeInsets.only(
                 top: 4,
-                bottom: isLastStep ? 0 : 14,
+                bottom: isLastStep ? 0 : 10,
               ),
               child: Text(
                 label,

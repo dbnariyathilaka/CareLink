@@ -21,6 +21,7 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
   static const Color _azure17   = Color(0xFF1E293B); // card
   static const Color _azure27   = Color(0xFF334155); // border
   static const Color _azure65   = Color(0xFF94A3B8); // text secondary
+  static const Color _azure84   = Color(0xFFCBD5E1);
   static const Color _grey98    = Color(0xFFF8FAFC); // text primary
   static const Color _tealTop   = Color(0xFF1A7A6E); // hero gradient top
   static const Color _tealMid   = Color(0xFF0F4F46); // hero gradient mid
@@ -223,7 +224,7 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 3),
               height: 1.5,
-              color: i < 6 ? _keppel : _azure27,
+              color: i < 6 ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.15),
             ),
           );
         }
@@ -234,13 +235,17 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 24,
-              height: 24,
+              width: 22,
+              height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isActive ? _keppel : _tealMid,
+                color: isActive
+                    ? Colors.white
+                    : (isDone ? Colors.white.withValues(alpha: 0.12) : Colors.transparent),
                 border: Border.all(
-                  color: isActive || isDone ? _keppel : _azure27,
+                  color: isActive
+                      ? Colors.white
+                      : (isDone ? const Color(0xFF8CC0BB) : Colors.white.withValues(alpha: 0.4)),
                   width: 1,
                 ),
               ),
@@ -249,8 +254,8 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
                   s.number,
                   style: TextStyle(
                     color: isActive
-                        ? _bottleGreen
-                        : (isDone ? _keppel : _azure65),
+                        ? const Color(0xFF0F766E)
+                        : (isDone ? Colors.white : Colors.white.withValues(alpha: 0.7)),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -261,10 +266,9 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
             Text(
               s.label,
               style: TextStyle(
-                color: isActive || isDone ? _keppel : _azure65.withValues(alpha: 0.8),
-                fontSize: 7.5,
-                fontWeight:
-                    isActive || isDone ? FontWeight.w600 : FontWeight.w400,
+                color: isActive || isDone ? Colors.white : Colors.white.withValues(alpha: 0.7),
+                fontSize: 8,
+                fontWeight: isActive || isDone ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],
@@ -277,42 +281,55 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
   Widget _buildContentSection(BuildContext context) {
     return Container(
       color: _azure11,
-      padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
+      padding: const EdgeInsets.fromLTRB(24, 26, 24, 0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          const Spacer(),
           // Heading
           const Text(
             "Now, let's set caregiver\nqualifications",
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: _grey98,
-              fontSize: 22,
+              fontSize: 25,
               fontWeight: FontWeight.w800,
-              height: 1.25,
+              fontFamily: 'Inter',
+              height: 1.2,
+              letterSpacing: -0.4,
             ),
           ),
           const SizedBox(height: 12),
 
           // Subtitle
-          const Text(
-            'Tell us the education, experience and skills your ideal caregiver should have.',
-            style: TextStyle(
-              color: _azure65,
-              fontSize: 13.5,
-              height: 1.5,
+          Container(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: const Text(
+              'Tell us the education, experience and skills your ideal caregiver should have.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _azure65,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Inter',
+                height: 1.5,
+              ),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
 
           // Category cards row
-          Row(
-            children: [
-              _buildCategoryCard(Icons.school_rounded, 'Education'),
-              const SizedBox(width: 12),
-              _buildCategoryCard(Icons.work_history_rounded, 'Experience'),
-              const SizedBox(width: 12),
-              _buildCategoryCard(Icons.translate_rounded, 'Languages'),
-            ],
+          SizedBox(
+            width: 300,
+            child: Row(
+              children: [
+                _buildCategoryCard(Icons.school_rounded, 'Education'),
+                const SizedBox(width: 10),
+                _buildCategoryCard(Icons.work_history_rounded, 'Experience'),
+                const SizedBox(width: 10),
+                _buildCategoryCard(Icons.translate_rounded, 'Languages'),
+              ],
+            ),
           ),
 
           const Spacer(),
@@ -324,9 +341,9 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
               padding: const EdgeInsets.only(bottom: 24),
               child: Material(
                 color: _keppel,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   onTap: () {
                     Navigator.pushNamed(
                       context,
@@ -343,6 +360,7 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
                           color: _bottleGreen,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
+                          fontFamily: 'Inter',
                         ),
                       ),
                     ),
@@ -359,23 +377,24 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
   Widget _buildCategoryCard(IconData icon, String label) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        height: 65,
         decoration: BoxDecoration(
           color: _azure17,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _azure27),
+          border: Border.all(color: _azure27, width: 1),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: _keppel, size: 26),
-            const SizedBox(height: 8),
+            Icon(icon, color: _keppel, size: 22),
+            const SizedBox(height: 4),
             Text(
               label,
               style: const TextStyle(
-                color: _grey98,
-                fontSize: 12,
+                color: _azure84,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
+                fontFamily: 'Inter',
               ),
             ),
           ],

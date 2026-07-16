@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 
@@ -22,6 +23,17 @@ class AdvancedMatchResultsScreen extends StatefulWidget {
 
 class _AdvancedMatchResultsScreenState
     extends State<AdvancedMatchResultsScreen> {
+  // Popup state
+  bool _showRequestPopup = false;
+  String _requestedCaregiver = '';
+  Timer? _popupTimer;
+
+  @override
+  void dispose() {
+    _popupTimer?.cancel();
+    super.dispose();
+  }
+
   // ── Design tokens ──────────────────────────────────────────────────────────
   static const Color _keppel      = Color(0xFF3DB498);
   static const Color _bottleGreen = Color(0xFF06291F);
@@ -221,25 +233,44 @@ class _AdvancedMatchResultsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _azure11,
-      body: Column(
+      body: Stack(
         children: [
-          // Teal hero header
-          _buildHeroHeader(),
+          Column(
+            children: [
+              // Teal hero header
+              _buildHeroHeader(),
 
-          // Scrollable list
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Column(
-                children: _caregivers
-                    .map((c) => _buildCaregiverCard(c))
-                    .toList(),
+              // Scrollable list
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Column(
+                    children: _caregivers
+                        .map((c) => _buildCaregiverCard(c))
+                        .toList(),
+                  ),
+                ),
+              ),
+
+              // Bottom nav
+              _buildBottomNav(),
+            ],
+          ),
+          if (_showRequestPopup)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () {
+                  setState(() {
+                    _showRequestPopup = false;
+                  });
+                  _popupTimer?.cancel();
+                },
+                child: Container(color: Colors.transparent),
               ),
             ),
-          ),
-
-          // Bottom nav
-          _buildBottomNav(),
+          if (_showRequestPopup)
+            _buildRequestSuccessPopup(),
         ],
       ),
     );
@@ -497,11 +528,18 @@ class _AdvancedMatchResultsScreenState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/send-request',
-                          arguments: {'caregiverName': c.name},
-                        );
+                        setState(() {
+                          _showRequestPopup = true;
+                          _requestedCaregiver = c.name;
+                        });
+                        _popupTimer?.cancel();
+                        _popupTimer = Timer(const Duration(seconds: 5), () {
+                          if (mounted) {
+                            setState(() {
+                              _showRequestPopup = false;
+                            });
+                          }
+                        });
                       },
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 11),
@@ -645,6 +683,67 @@ class _AdvancedMatchResultsScreenState
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequestSuccessPopup() {
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 90,
+      child: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF3DB498), // Keppel cyan
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Request Sent!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$_requestedCaregiver has been requested.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
