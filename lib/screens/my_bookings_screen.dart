@@ -551,7 +551,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     const selectedIndex = 3; // Bookings tab always active on this screen
 
     return Container(
-      height: 64,
+      height: 68,
       decoration: const BoxDecoration(
         color: Color(0xFF0F172A),
         border: Border(top: BorderSide(color: Color(0xFF1E293B), width: 1.0)),
@@ -576,17 +576,17 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
                       color: const Color(0xFF01D3A8), // Caribbean Green
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF0F172A), width: 4),
+                      border: Border.all(color: const Color(0xFF0F172A), width: 3),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF01D3A8).withValues(alpha: 0.5),
                           blurRadius: 8,
-                          offset: const Offset(0, 6),
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),

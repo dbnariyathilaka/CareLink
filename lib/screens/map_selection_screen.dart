@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -22,6 +24,28 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   static const Color _azure65 = AppTheme.textSecondary; // #94A3B8
   static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
 
+  // Custom known landmarks for accurate mock geocoding and search autocomplete
+  static const List<Map<String, String>> _customLandmarks = [
+    {
+      'city': 'NSBM Sports Centre',
+      'district': 'Colombo District',
+      'lat': '6.8220',
+      'lng': '80.0407',
+    },
+    {
+      'city': 'NSBM Green University',
+      'district': 'Colombo District',
+      'lat': '6.8215',
+      'lng': '80.0415',
+    },
+    {
+      'city': 'Faculty of Technology, NSBM',
+      'district': 'Colombo District',
+      'lat': '6.8227',
+      'lng': '80.0422',
+    },
+  ];
+
   // Advanced match flow
   bool _isAdvanced = false;
   Map<String, dynamic> _bookingArgs = {};
@@ -44,6 +68,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   final FocusNode _searchFocusNode = FocusNode();
   List<Map<String, String>> _searchResults = [];
   bool _showSearchClear = false;
+  Timer? _debounce;
 
   // Real GPS State variables
   double? _gpsLat;
@@ -314,6 +339,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _positionStreamSubscription?.cancel();
     _pulseController.dispose();
     _searchController.dispose();
@@ -322,6 +348,21 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   }
 
   String _getFormattedAddress(double lat, double lng) {
+    // Check if near any custom landmarks (like NSBM Sports Centre)
+    double distanceTo(double targetLat, double targetLng) {
+      return math.sqrt(math.pow(lat - targetLat, 2) + math.pow(lng - targetLng, 2));
+    }
+
+    if (distanceTo(6.8220, 80.0407) < 0.0006) {
+      return 'NSBM Sports Centre, Temple Road, Pitipana, Homagama';
+    }
+    if (distanceTo(6.8215, 80.0415) < 0.0012) {
+      return 'NSBM Green University, Temple Road, Pitipana, Homagama';
+    }
+    if (distanceTo(6.8227, 80.0422) < 0.0006) {
+      return 'Faculty of Technology, NSBM, Temple Road, Pitipana, Homagama';
+    }
+
     final closestCity = _getClosestCityName(lat, lng);
 
     final places = [
@@ -358,6 +399,13 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   }
 
   void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(query);
+    });
+  }
+
+  Future<void> _performSearch(String query) async {
     if (query.isEmpty) {
       setState(() {
         _searchResults = [];
@@ -365,18 +413,88 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
       });
       return;
     }
+    setState(() {
+      _showSearchClear = true;
+    });
+
     final lowercaseQuery = query.toLowerCase();
-    final matches = sriLankanCities.where((city) {
-      final cityName = city['city'] ?? '';
-      final districtName = city['district'] ?? '';
-      return cityName.toLowerCase().contains(lowercaseQuery) ||
+    
+    // First, find local matching cities/landmarks
+    final allLocalLocations = [...sriLankanCities, ..._customLandmarks];
+    final localMatches = allLocalLocations.where((loc) {
+      final name = loc['city'] ?? '';
+      final districtName = loc['district'] ?? '';
+      return name.toLowerCase().contains(lowercaseQuery) ||
              districtName.toLowerCase().contains(lowercaseQuery);
     }).toList();
 
+    // Show local results instantly
     setState(() {
-      _searchResults = matches;
-      _showSearchClear = true;
+      _searchResults = localMatches;
     });
+
+    // Fetch matching places from Nominatim API for general landmarks, restaurants, hospitals, universities, etc.
+    try {
+      final client = HttpClient();
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}+Sri+Lanka&format=json&limit=6&addressdetails=1'
+      );
+      final request = await client.getUrl(uri);
+      request.headers.set('user-agent', 'com.example.carematch');
+      final response = await request.close();
+      
+      if (response.statusCode == 200) {
+        final content = await response.transform(utf8.decoder).join();
+        final List<dynamic> data = jsonDecode(content);
+        
+        final List<Map<String, String>> apiResults = [];
+        for (final item in data) {
+          final displayName = item['display_name'] ?? '';
+          final lat = item['lat'] ?? '';
+          final lon = item['lon'] ?? '';
+          
+          final parts = displayName.split(',');
+          final shortName = parts.isNotEmpty ? parts[0].trim() : displayName;
+          final subtitle = parts.length > 1 
+              ? '${parts[1].trim()}, ${parts[parts.length - 2].trim()}' 
+              : 'Sri Lanka';
+          
+          apiResults.add({
+            'city': shortName,
+            'district': subtitle,
+            'lat': lat,
+            'lng': lon,
+          });
+        }
+
+        if (mounted && query == _searchController.text) {
+          setState(() {
+            final seenNames = <String>{};
+            final combined = <Map<String, String>>[];
+            
+            for (final m in localMatches) {
+              final name = m['city']!.toLowerCase();
+              if (!seenNames.contains(name)) {
+                seenNames.add(name);
+                combined.add(m);
+              }
+            }
+            
+            for (final m in apiResults) {
+              final name = m['city']!.toLowerCase();
+              if (!seenNames.contains(name)) {
+                seenNames.add(name);
+                combined.add(m);
+              }
+            }
+
+            _searchResults = combined;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching Nominatim API: $e');
+    }
   }
 
   void _selectSearchResult(Map<String, String> city) {
@@ -437,6 +555,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                     fontFamily: 'Inter',
                   ),
                   decoration: const InputDecoration(
+                    filled: false,
                     hintText: 'Search place or location...',
                     hintStyle: TextStyle(
                       color: _azure65,
@@ -444,6 +563,10 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                       fontWeight: FontWeight.w400,
                     ),
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 10),
                   ),

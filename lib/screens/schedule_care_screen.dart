@@ -20,13 +20,14 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
 
   bool _isAdvanced = false;
+  String _scheduleType = 'Flexible';
   Color get _green45 => _isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen;
   Color get _green8 => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
   Color get _carePeriodBg => _isAdvanced ? const Color(0xFF3DB498).withValues(alpha: 0.18) : const Color(0x2E22C55E);
 
   // ── State variables ──
-  DateTime _focusedMonth = DateTime(2025, 12);
-  DateTime _selectedDate = DateTime(2025, 12, 15);
+  late DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  late DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
   // For Full-time: shifts
   final List<String> _shifts = [
@@ -54,10 +55,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   TimeOfDay _endTime = const TimeOfDay(hour: 17, minute: 0);
 
   // For Flexible: selected dates
-  final Set<DateTime> _flexibleDates = {
-    DateTime(2025, 12, 15),
-    DateTime(2025, 12, 17),
-    DateTime(2025, 12, 19),
+  late final Set<DateTime> _flexibleDates = {
+    _selectedDate,
+    _selectedDate.add(const Duration(days: 2)),
+    _selectedDate.add(const Duration(days: 4)),
   };
 
   // Duration
@@ -164,6 +165,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     if (scheduleType == 'Half-time') {
       scheduleType = 'Part-time';
     }
+    _scheduleType = scheduleType;
 
     return Scaffold(
       backgroundColor: _azure11,
@@ -553,7 +555,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     final int durationDays = _endDate.difference(_selectedDate).inDays;
 
     // Highlight care range starting from selected start date (service dates = user selected duration - 1)
-    final bool inRange = day.isAfter(_selectedDate) &&
+    final bool inRange = _scheduleType != 'Flexible' &&
+        day.isAfter(_selectedDate) &&
         day.isBefore(_selectedDate.add(Duration(days: durationDays)));
 
     final unavailable = _isUnavailable(day);
@@ -841,13 +844,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   Widget _buildSimulatedWheelPicker() {
     // Left, center, and right lists
     // Columns are Hour, Minute, AM/PM
-    return Container(
+    return SizedBox(
       height: 120,
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Stack(
         children: [
           // Middle selected highlights bar
@@ -1478,6 +1477,28 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () {
+              if (scheduleType == 'Flexible') {
+                final startMins = _startTime.hour * 60 + _startTime.minute;
+                final endMins = _endTime.hour * 60 + _endTime.minute;
+                if (endMins <= startMins) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('End time must be after start time.'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                  return;
+                }
+                if (endMins - startMins < 60) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('There must be a minimum gap of 1 hour between start and end times.'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                  return;
+                }
+              }
               Navigator.pushNamed(
                 context,
                 '/location-selection',
