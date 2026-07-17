@@ -3,7 +3,7 @@ import 'theme/app_theme.dart';
 import 'screens/starting_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/role_selection_screen.dart';
-import 'screens/account_details_screen.dart';
+import 'screens/register_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/account_created_screen.dart';
 import 'screens/patient_onboarding1_screen.dart';
@@ -40,6 +40,7 @@ import 'screens/caregiver_settings_screen.dart';
 import 'screens/forgot_password_step1_screen.dart';
 import 'screens/forgot_password_step2_screen.dart';
 import 'screens/forgot_password_step3_screen.dart';
+import 'screens/forgot_password_new_screen.dart';
 import 'screens/location_selection_screen.dart';
 import 'screens/map_selection_screen.dart';
 import 'screens/advanced_match_send_request_screen.dart';
@@ -67,7 +68,7 @@ class CareMatchApp extends StatelessWidget {
         '/welcome': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/role-selection': (context) => const RoleSelectionScreen(),
-        '/account-details': (context) => const AccountDetailsScreen(),
+        '/register': (context) => const RegisterScreen(),
         '/account-created': (context) => const AccountCreatedScreen(),
         '/patient-onboarding-1': (context) => const PatientOnboarding2Screen(),
         '/patient-onboarding-2': (context) => const PatientOnboarding1Screen(),
@@ -121,6 +122,8 @@ class CareMatchApp extends StatelessWidget {
         '/forgot-password': (context) => const ForgotPasswordStep1Screen(),
         '/forgot-password-step2': (context) =>
             const ForgotPasswordStep2Screen(),
+        '/forgot-password-new': (context) =>
+            const ForgotPasswordNewScreen(),
         '/forgot-password-step3': (context) =>
             const ForgotPasswordStep3Screen(),
       },

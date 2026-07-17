@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -9,13 +9,16 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
-  late AnimationController _pulseController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
-  late Animation<double> _buttonsFadeAnimation;
-  late Animation<double> _pulseAnimation;
+
+  static const Color bgColor = Color(0xFFF5EFE1);
+  static const Color brandGreen = Color(0xFF0F3D2E);
+  static const Color linen = Color(0xFFFDFAF3);
+  static const Color dividerLine = Color.fromRGBO(15, 61, 46, 0.25);
+  static const Color orTextColor = Color.fromRGBO(15, 61, 46, 0.6);
 
   @override
   void initState() {
@@ -24,34 +27,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     // Main entrance animation
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 1200),
     );
 
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
     );
 
     _slideAnimation = Tween<double>(begin: 30, end: 0).animate(
       CurvedAnimation(
         parent: _fadeController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+        curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
       ),
-    );
-
-    _buttonsFadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
-    );
-
-    // Subtle pulsing glow animation
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3000),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.08, end: 0.14).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _fadeController.forward();
@@ -60,228 +48,135 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   void dispose() {
     _fadeController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.darkBackground,
-      body: Stack(
-        children: [
-          // Radial green gradient glow at top center
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Positioned(
-                top: -120,
-                left: 0,
-                right: 0,
-                height: MediaQuery.of(context).size.height * 0.55,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.topCenter,
-                      radius: 1.2,
-                      colors: [
-                        AppTheme.primaryGreen
-                            .withValues(alpha: _pulseAnimation.value),
-                        AppTheme.primaryGreen.withValues(alpha: 0.03),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-
-          // Main content
-          SafeArea(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: _fadeController,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, _slideAnimation.value),
+              child: Opacity(
+                opacity: _fadeAnimation.value,
+                child: child,
+              ),
+            );
+          },
+          child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
+              padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Center section with logo, title and subtitle
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: _fadeController,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(0, _slideAnimation.value),
-                          child: Opacity(
-                            opacity: _fadeAnimation.value,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // App icon - green rounded square with caregiving icon
-                          _buildAppIcon(),
-                          const SizedBox(height: 22),
+                  // Mother and daughter embracing in a garden
+                  SizedBox(
+                    height: 360,
+                    width: double.infinity,
+                    child: Image.asset(
+                      'assets/images/screen2_obj.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
 
-                          // App name
-                          const Text(
-                            'CareLink',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 34,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-
-                          // Subtitle
-                          const Text(
-                            'Find the right caregiver for your\nneeds',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                  // Title: Welcome to CareLink
+                  const Padding(
+                    padding: EdgeInsets.only(top: 22),
+                    child: Text(
+                      'Welcome to CareLink',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        fontSize: 27,
+                        fontWeight: FontWeight.w700,
+                        color: brandGreen,
+                        letterSpacing: -0.3,
+                        height: 1.0,
                       ),
                     ),
                   ),
 
-                  // Bottom buttons section
-                  AnimatedBuilder(
-                    animation: _buttonsFadeAnimation,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _buttonsFadeAnimation.value,
-                        child: Transform.translate(
-                          offset:
-                              Offset(0, 20 * (1 - _buttonsFadeAnimation.value)),
-                          child: child,
+                  // Subtitle
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: const Text(
+                        "Tell us what care you need, and we'll rank the caregivers who match you best.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: brandGreen,
+                          height: 21 / 14,
                         ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 36),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Log in button - solid green
-                          _buildLoginButton(),
-                          const SizedBox(height: 12),
-
-                          // Create account button - outlined
-                          _buildCreateAccountButton(),
-                          const SizedBox(height: 12),
-
-                          // Continue with Google button - white/light
-                          _buildGoogleButton(),
-                        ],
                       ),
+                    ),
+                  ),
+
+                  // Buttons
+                  Padding(
+                    padding: const EdgeInsets.only(top: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildPillButton(
+                          text: 'Login',
+                          filled: true,
+                          onTap: () {
+                            Navigator.pushNamed(context, '/login');
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        _buildPillButton(
+                          text: 'Sign in',
+                          filled: true,
+                          onTap: () {
+                            Navigator.pushNamed(context, '/register');
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        _buildOrDivider(),
+                        const SizedBox(height: 14),
+                        _buildGoogleButton(),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppIcon() {
-    return Container(
-      width: 96,
-      height: 96,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: const LinearGradient(
-          begin: Alignment(-0.5, -0.8),
-          end: Alignment(0.5, 0.8),
-          colors: [
-            AppTheme.primaryGreen,
-            AppTheme.primaryGreenDark,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryGreen.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 16),
-            spreadRadius: 0,
-          ),
-        ],
-      ),
-      child: Center(
-        child: CustomPaint(
-          size: const Size(52, 62),
-          painter: _CaregivingIconPainter(),
         ),
       ),
     );
   }
 
-  Widget _buildLoginButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: AppTheme.primaryGreen,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () {
-            Navigator.pushNamed(context, '/login');
-          },
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Log in',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.bottleGreen,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCreateAccountButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () {
-            Navigator.pushNamed(context, '/account-details');
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 17),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppTheme.borderColor,
-                width: 1,
-              ),
-            ),
-            child: const Text(
-              'Create account',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+  Widget _buildPillButton({
+    required String text,
+    required bool filled,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: filled ? brandGreen : Colors.transparent,
+      borderRadius: BorderRadius.circular(32),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(32),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Quattrocento Sans',
+              color: filled ? linen : brandGreen,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -290,112 +185,70 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Widget _buildGoogleButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: AppTheme.textPrimary,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () {
-            // Navigate to account details — Google Sign-In is triggered there
-            Navigator.pushNamed(context, '/account-details',
-                arguments: {'triggerGoogle': true});
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'G',
-                  style: TextStyle(
-                    color: AppTheme.googleBlue,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(32),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(32),
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            '/register',
+            arguments: {'triggerGoogle': true},
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(color: brandGreen, width: 1),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SvgPicture.asset(
+                'assets/images/google_logo.svg',
+                width: 18,
+                height: 18,
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Continue with Google',
+                style: TextStyle(
+                  fontFamily: 'Quattrocento Sans',
+                  color: brandGreen,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Continue with Google',
-                  style: TextStyle(
-                    color: AppTheme.ebony,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
 
-/// Custom painter for the caregiving hand + heart icon
-class _CaregivingIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    final strokePaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Draw the hand (open palm facing up)
-    final handPath = Path();
-
-    // Palm base - curved cup shape
-    handPath.moveTo(cx - 16, cy + 10);
-    handPath.quadraticBezierTo(cx - 18, cy + 18, cx - 10, cy + 20);
-    handPath.lineTo(cx + 10, cy + 20);
-    handPath.quadraticBezierTo(cx + 18, cy + 18, cx + 16, cy + 10);
-
-    // Fingers - slight curves going up on right side
-    handPath.quadraticBezierTo(cx + 20, cy + 2, cx + 14, cy - 2);
-
-    // Back across the top of the hand
-    handPath.quadraticBezierTo(cx + 8, cy + 2, cx, cy + 4);
-    handPath.quadraticBezierTo(cx - 8, cy + 2, cx - 14, cy - 2);
-    handPath.quadraticBezierTo(cx - 20, cy + 2, cx - 16, cy + 10);
-
-    canvas.drawPath(handPath, strokePaint);
-
-    // Draw the heart above the hand
-    final heartSize = 12.0;
-    final heartCx = cx;
-    final heartCy = cy - 12;
-
-    final heartPath = Path();
-    heartPath.moveTo(heartCx, heartCy + heartSize * 0.35);
-
-    // Left half of heart
-    heartPath.cubicTo(
-      heartCx - heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx - heartSize, heartCy + heartSize * 0.05,
-      heartCx, heartCy + heartSize * 0.7,
+  Widget _buildOrDivider() {
+    return Row(
+      children: [
+        const Expanded(
+          child: SizedBox(height: 1, child: ColoredBox(color: dividerLine)),
+        ),
+        const SizedBox(width: 9.8),
+        const Text(
+          'Or',
+          style: TextStyle(
+            fontFamily: 'Quattrocento Sans',
+            color: orTextColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(width: 9.8),
+        const Expanded(
+          child: SizedBox(height: 1, child: ColoredBox(color: dividerLine)),
+        ),
+      ],
     );
-
-    // Right half of heart
-    heartPath.cubicTo(
-      heartCx + heartSize, heartCy + heartSize * 0.05,
-      heartCx + heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx, heartCy + heartSize * 0.35,
-    );
-
-    canvas.drawPath(heartPath, paint);
-    canvas.drawPath(heartPath, strokePaint..strokeWidth = 1.5);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

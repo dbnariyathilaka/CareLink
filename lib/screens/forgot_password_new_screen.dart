@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class ForgotPasswordNewScreen extends StatefulWidget {
+  const ForgotPasswordNewScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<ForgotPasswordNewScreen> createState() =>
+      _ForgotPasswordNewScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _ForgotPasswordNewScreenState extends State<ForgotPasswordNewScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -44,8 +47,8 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _fadeController.dispose();
-    _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -53,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     const Color creamBg = Color(0xFFF6F0E2);
     const Color darkGreen = Color(0xFF06402B);
-    const Color titleGreen = Color(0xFF033724);
 
     return Scaffold(
       backgroundColor: creamBg,
@@ -72,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back Button (arrow icon in forest green)
+              // Back Button
               Padding(
                 padding: const EdgeInsets.only(left: 16, top: 12),
                 child: IconButton(
@@ -92,59 +94,62 @@ class _LoginScreenState extends State<LoginScreen>
               // Form Scrollable Container
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+                  padding: const EdgeInsets.fromLTRB(24, 10, 24, 30),
                   child: Form(
                     key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Hands-holding-heart vector logo in green
-                        Center(
-                          child: SizedBox(
-                            width: 140,
-                            height: 140,
-                            child: CustomPaint(
-                              painter: _CaregivingIconPainter(color: darkGreen),
-                            ),
+                        // Title: New password
+                        const Text(
+                          'New password',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 38,
+                            fontWeight: FontWeight.w800,
+                            color: darkGreen,
+                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 24),
 
-                        // Title: Welcome Back !
-                        const Text(
-                          'Welcome Back !',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 42,
-                            fontWeight: FontWeight.w800,
-                            color: titleGreen,
-                            letterSpacing: -0.5,
+                        // Lock/Shield Vector Art
+                        Center(
+                          child: Container(
+                            width: 150,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              color: darkGreen.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: CustomPaint(
+                              painter: _LockIconPainter(color: darkGreen),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // Subtitle
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            "Enter and confirm your new password to secure your account.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18,
+                              fontWeight: FontWeight.normal,
+                              color: darkGreen,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 32),
 
-                        // Email Field
-                        _buildTextField(
-                          label: 'Email',
-                          hintText: 'nipuni@email.com',
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-
                         // Password Field
                         _buildTextField(
-                          label: 'Password',
+                          label: 'New password',
                           hintText: '••••••••',
                           controller: _passwordController,
                           isPassword: true,
@@ -156,33 +161,41 @@ class _LoginScreenState extends State<LoginScreen>
                           },
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Please enter your password';
+                              return 'Please enter a password';
+                            }
+                            if (value.length < 8) {
+                              return 'Password must be at least 8 characters';
                             }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 20),
 
-                        // Forgot Password Link (centered)
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pushNamed(context, '/forgot-password');
-                            },
-                            child: const Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: darkGreen,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'Inter',
-                              ),
-                            ),
-                          ),
+                        // Confirm Password Field
+                        _buildTextField(
+                          label: 'Confirm new password',
+                          hintText: '••••••••',
+                          controller: _confirmPasswordController,
+                          isPassword: true,
+                          obscureText: _obscureConfirmPassword,
+                          onToggleObscure: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please confirm your password';
+                            }
+                            if (value != _passwordController.text) {
+                              return 'Passwords do not match';
+                            }
+                            return null;
+                          },
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 36),
 
-                        // Login Button (rounded-[15px] matching Figma)
+                        // Reset password Button
                         Container(
                           width: double.infinity,
                           height: 58,
@@ -203,16 +216,15 @@ class _LoginScreenState extends State<LoginScreen>
                               borderRadius: BorderRadius.circular(15),
                               onTap: () {
                                 if (_formKey.currentState!.validate()) {
-                                  Navigator.pushNamedAndRemoveUntil(
+                                  Navigator.pushNamed(
                                     context,
-                                    '/patient-dashboard',
-                                    (route) => false,
+                                    '/forgot-password-step3',
                                   );
                                 }
                               },
                               child: const Center(
                                 child: Text(
-                                  'Login',
+                                  'Reset password',
                                   style: TextStyle(
                                     color: creamBg,
                                     fontSize: 20,
@@ -220,43 +232,6 @@ class _LoginScreenState extends State<LoginScreen>
                                     fontFamily: 'Inter',
                                   ),
                                 ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Footer Link (centered)
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pushReplacementNamed(
-                                context,
-                                '/register',
-                              );
-                            },
-                            child: RichText(
-                              text: const TextSpan(
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontFamily: 'Inter',
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: "Don't have an account? ",
-                                    style: TextStyle(
-                                      color: Color(0xFF94A3B8), // Gull Gray
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: 'Sign in',
-                                    style: TextStyle(
-                                      color: darkGreen,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
@@ -281,7 +256,6 @@ class _LoginScreenState extends State<LoginScreen>
     bool obscureText = true,
     VoidCallback? onToggleObscure,
     String? Function(String?)? validator,
-    TextInputType keyboardType = TextInputType.text,
   }) {
     const Color darkGreen = Color(0xFF06402B);
 
@@ -301,7 +275,6 @@ class _LoginScreenState extends State<LoginScreen>
         TextFormField(
           controller: controller,
           obscureText: isPassword && obscureText,
-          keyboardType: keyboardType,
           validator: validator,
           style: const TextStyle(
             color: Colors.black,
@@ -375,70 +348,42 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-/// Custom painter for the caregiving hand + heart icon in forest green
-class _CaregivingIconPainter extends CustomPainter {
+/// Custom painter for a stylized lock/shield vector icon
+class _LockIconPainter extends CustomPainter {
   final Color color;
-  _CaregivingIconPainter({required this.color});
+  _LockIconPainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
     final strokePaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
 
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    // Draw the hand (open palm facing up)
-    final handPath = Path();
+    // Draw Lock Shackle (arc)
+    final shacklePath = Path();
+    shacklePath.moveTo(cx - 16, cy - 8);
+    shacklePath.quadraticBezierTo(cx - 16, cy - 30, cx, cy - 30);
+    shacklePath.quadraticBezierTo(cx + 16, cy - 30, cx + 16, cy - 8);
+    canvas.drawPath(shacklePath, strokePaint);
 
-    // Palm base - curved cup shape
-    handPath.moveTo(cx - 16, cy + 10);
-    handPath.quadraticBezierTo(cx - 18, cy + 18, cx - 10, cy + 20);
-    handPath.lineTo(cx + 10, cy + 20);
-    handPath.quadraticBezierTo(cx + 18, cy + 18, cx + 16, cy + 10);
+    // Draw Lock Body (rounded rectangle)
+    final rect = Rect.fromCenter(center: Offset(cx, cy + 6), width: 48, height: 36);
+    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(6)), strokePaint);
 
-    // Fingers - slight curves going up on right side
-    handPath.quadraticBezierTo(cx + 20, cy + 2, cx + 14, cy - 2);
-
-    // Back across the top of the hand
-    handPath.quadraticBezierTo(cx + 8, cy + 2, cx, cy + 4);
-    handPath.quadraticBezierTo(cx - 8, cy + 2, cx - 14, cy - 2);
-    handPath.quadraticBezierTo(cx - 20, cy + 2, cx - 16, cy + 10);
-
-    canvas.drawPath(handPath, strokePaint);
-
-    // Draw the heart above the hand
-    final heartSize = 12.0;
-    final heartCx = cx;
-    final heartCy = cy - 12;
-
-    final heartPath = Path();
-    heartPath.moveTo(heartCx, heartCy + heartSize * 0.35);
-
-    // Left half of heart
-    heartPath.cubicTo(
-      heartCx - heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx - heartSize, heartCy + heartSize * 0.05,
-      heartCx, heartCy + heartSize * 0.7,
-    );
-
-    // Right half of heart
-    heartPath.cubicTo(
-      heartCx + heartSize, heartCy + heartSize * 0.05,
-      heartCx + heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx, heartCy + heartSize * 0.35,
-    );
-
-    canvas.drawPath(heartPath, paint);
-    canvas.drawPath(heartPath, strokePaint..strokeWidth = 1.5);
+    // Draw Keyhole (small circle + triangle)
+    canvas.drawCircle(Offset(cx, cy + 3), 4, strokePaint);
+    final holePath = Path();
+    holePath.moveTo(cx - 2.5, cy + 6);
+    holePath.lineTo(cx + 2.5, cy + 6);
+    holePath.lineTo(cx + 4, cy + 14);
+    holePath.lineTo(cx - 4, cy + 14);
+    holePath.close();
+    canvas.drawPath(holePath, strokePaint);
   }
 
   @override

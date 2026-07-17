@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class AccountCreatedScreen extends StatefulWidget {
   const AccountCreatedScreen({super.key});
@@ -11,53 +10,41 @@ class AccountCreatedScreen extends StatefulWidget {
 class _AccountCreatedScreenState extends State<AccountCreatedScreen>
     with TickerProviderStateMixin {
   late AnimationController _mainController;
-  late AnimationController _pulseController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _textFadeAnimation;
   late Animation<double> _buttonFadeAnimation;
-  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    // Main entrance animation sequence
+    // Premium entrance animation sequence
     _mainController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1400),
     );
 
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _mainController,
-        curve: const Interval(0.0, 0.4, curve: Curves.elasticOut),
+        curve: const Interval(0.0, 0.45, curve: Curves.elasticOut),
       ),
     );
 
     _fadeAnimation = CurvedAnimation(
       parent: _mainController,
-      curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
+      curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
     );
 
     _textFadeAnimation = CurvedAnimation(
       parent: _mainController,
-      curve: const Interval(0.4, 0.7, curve: Curves.easeOut),
+      curve: const Interval(0.4, 0.75, curve: Curves.easeOut),
     );
 
     _buttonFadeAnimation = CurvedAnimation(
       parent: _mainController,
-      curve: const Interval(0.6, 1.0, curve: Curves.easeOut),
-    );
-
-    // Subtle glow pulse
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2500),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.10, end: 0.16).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+      curve: const Interval(0.65, 1.0, curve: Curves.easeOut),
     );
 
     _mainController.forward();
@@ -66,7 +53,6 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
   @override
   void dispose() {
     _mainController.dispose();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -77,207 +63,154 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
         ? args['name'].toString()
         : 'Nipuni';
 
+    const Color darkGreen = Color(0xFF06402B);
+    const Color creamColor = Color(0xFFF6F0E2);
+
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
-      body: Stack(
-        children: [
-          // Radial green gradient glow behind the checkmark area
-          AnimatedBuilder(
-            animation: _pulseAnimation,
-            builder: (context, child) {
-              return Positioned(
-                top: MediaQuery.of(context).size.height * 0.2,
-                left: 0,
-                right: 0,
-                height: MediaQuery.of(context).size.height * 0.45,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.center,
-                      radius: 0.8,
-                      colors: [
-                        AppTheme.primaryGreen.withValues(
-                          alpha: _pulseAnimation.value,
-                        ),
-                        AppTheme.primaryGreen.withValues(alpha: 0.03),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.45, 1.0],
+      backgroundColor: darkGreen,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            children: [
+              // Center content area
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // MdiTickDecagram icon scale transition
+                    AnimatedBuilder(
+                      animation: _mainController,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _scaleAnimation.value,
+                          child: Opacity(
+                            opacity: _fadeAnimation.value,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: const Icon(
+                        Icons.verified,
+                        color: Colors.white,
+                        size: 150,
+                      ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
+                    const SizedBox(height: 36),
 
-          // Main content
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                children: [
-                  // Center section with checkmark, title and description
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Checkmark icon with animated entrance
-                        AnimatedBuilder(
-                          animation: _mainController,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: _scaleAnimation.value,
-                              child: Opacity(
-                                opacity: _fadeAnimation.value,
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: _buildCheckmarkIcon(),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Title with fade-in
-                        AnimatedBuilder(
-                          animation: _textFadeAnimation,
-                          builder: (context, child) {
-                            return Opacity(
-                              opacity: _textFadeAnimation.value,
-                              child: Transform.translate(
-                                offset: Offset(
-                                  0,
-                                  15 * (1 - _textFadeAnimation.value),
-                                ),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Account created!',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                            textAlign: TextAlign.center,
+                    // Title: Account created!
+                    AnimatedBuilder(
+                      animation: _textFadeAnimation,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _textFadeAnimation.value,
+                          child: Transform.translate(
+                            offset: Offset(0, 15 * (1 - _textFadeAnimation.value)),
+                            child: child,
                           ),
+                        );
+                      },
+                      child: const Text(
+                        'Account created!',
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 38,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 3,
                         ),
-                        const SizedBox(height: 12),
-
-                        // Description with fade-in
-                        AnimatedBuilder(
-                          animation: _textFadeAnimation,
-                          builder: (context, child) {
-                            return Opacity(
-                              opacity: _textFadeAnimation.value,
-                              child: child,
-                            );
-                          },
-                          child: SizedBox(
-                            width: 275,
-                            child: Text(
-                              "Welcome to CareLink, $userName. Let's set up your profile so we can find your matches.",
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                height: 1.55,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      ],
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
 
-                  // Bottom buttons with fade-in
-                  AnimatedBuilder(
-                    animation: _buttonFadeAnimation,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _buttonFadeAnimation.value,
-                        child: Transform.translate(
-                          offset: Offset(
-                            0,
-                            20 * (1 - _buttonFadeAnimation.value),
-                          ),
+                    // Subtitle: Welcome message
+                    AnimatedBuilder(
+                      animation: _textFadeAnimation,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _textFadeAnimation.value,
                           child: child,
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          "Welcome to CareLink, $userName. Let's set up your profile so we can find your matches.",
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 20,
+                            fontWeight: FontWeight.normal,
+                            color: Colors.white,
+                            height: 1.4,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 30),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Set up my profile button
-                          SizedBox(
-                            width: double.infinity,
-                            child: Material(
-                              color: AppTheme.primaryGreen,
-                              borderRadius: BorderRadius.circular(10),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/role-selection',
-                                  );
-                                },
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  child: Text(
-                                    'Set up my profile',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: AppTheme.bottleGreen,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Bottom Button Section with entrance slide/fade
+              AnimatedBuilder(
+                animation: _buttonFadeAnimation,
+                builder: (context, child) {
+                  return Opacity(
+                    opacity: _buttonFadeAnimation.value,
+                    child: Transform.translate(
+                      offset: Offset(0, 20 * (1 - _buttonFadeAnimation.value)),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Container(
+                    width: double.infinity,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: creamColor,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 4,
+                          offset: const Offset(2, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(15),
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/role-selection',
+                          );
+                        },
+                        child: const Center(
+                          child: Text(
+                            'Set my profile',
+                            style: TextStyle(
+                              color: creamColor,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Builds the checkmark icon matching Figma:
-  /// 110px outer tinted circle + 78px inner solid green circle + white check icon
-  Widget _buildCheckmarkIcon() {
-    return Container(
-      width: 110,
-      height: 110,
-      decoration: BoxDecoration(
-        color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Container(
-          width: 78,
-          height: 78,
-          decoration: const BoxDecoration(
-            color: AppTheme.primaryGreen,
-            shape: BoxShape.circle,
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.check_rounded,
-              color: AppTheme.bottleGreen,
-              size: 40,
-            ),
+            ],
           ),
         ),
       ),
