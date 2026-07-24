@@ -9,24 +9,26 @@ class _NotificationData {
   final Color accentColor;
   final String title;
   final String timeAgo;
-  final String description;
+  final String? description;
   final _NotifCategory category;
   final String? primaryAction;
   final Color? primaryActionColor;
   final Color? primaryActionTextColor;
   final String? secondaryAction;
+  final Color? secondaryActionTextColor;
 
   const _NotificationData({
     required this.icon,
     required this.accentColor,
     required this.title,
     required this.timeAgo,
-    required this.description,
+    this.description,
     required this.category,
     this.primaryAction,
     this.primaryActionColor,
     this.primaryActionTextColor,
     this.secondaryAction,
+    this.secondaryActionTextColor,
   });
 }
 
@@ -44,11 +46,56 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   static const Color _cerulean = Color(0xFF0EA5E9);
   static const Color _indigo = Color(0xFF6366F1);
   static const Color _red = Color(0xFFEF4444);
-  static const Color _teal = Color(0xFF14B8A6);
+  static const Color _teal = Color(0xFF01D3A8); // Caribbean Green — Match brand accent
+  static const Color _tealActionText = Color(0xFF06231D);
+  static const Color _dismissText = Color(0xFF94A3B8);
 
-  static const List<String> _filters = ['All 7', 'Booking', 'Reminders', 'System'];
+  List<String> get _filters => [
+        'All ${_notifications.length}',
+        'Booking',
+        'Reminders',
+        'System',
+      ];
 
   static final List<_NotificationData> _notifications = [
+    _NotificationData(
+      icon: Icons.event_busy_rounded,
+      accentColor: _red,
+      title: 'Shift cancelled by caregiver',
+      timeAgo: 'Now',
+      description: "Nipuni Ariyathilaka cancelled today's 7:00 PM – 9:00 PM "
+          "visit. We can help you find a replacement.",
+      category: _NotifCategory.booking,
+      primaryAction: 'Find replacement',
+      primaryActionColor: _teal,
+      primaryActionTextColor: _tealActionText,
+      secondaryAction: 'View booking',
+    ),
+    _NotificationData(
+      icon: Icons.play_circle_rounded,
+      accentColor: _teal,
+      title: 'Shift starting soon',
+      timeAgo: 'Now',
+      description: "Alice Fernando's visit starts at 8:00 AM. She's on her way.",
+      category: _NotifCategory.booking,
+      primaryAction: 'Track caregiver',
+      primaryActionColor: _teal,
+      primaryActionTextColor: _tealActionText,
+      secondaryAction: 'Message',
+    ),
+    _NotificationData(
+      icon: Icons.alarm_rounded,
+      accentColor: _amber,
+      title: 'Shift ending soon',
+      timeAgo: '15m',
+      description: "Nipuni Ariyathilaka's today 7:00 PM – 9:00 PM visit is "
+          "ending soon. Extend the time or let it wrap up.",
+      category: _NotifCategory.reminders,
+      primaryAction: 'Extend time',
+      primaryActionColor: _teal,
+      primaryActionTextColor: _tealActionText,
+      secondaryAction: 'View details',
+    ),
     _NotificationData(
       icon: Icons.alarm_rounded,
       accentColor: _amber,
@@ -70,32 +117,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       secondaryAction: 'Message Alice',
     ),
     _NotificationData(
-      icon: Icons.chat_bubble_rounded,
+      icon: Icons.waving_hand_rounded,
       accentColor: _indigo,
       title: 'Caregiver reached out',
       timeAgo: '3h',
-      description: '"Brian Kumara: I\'m free now, can I help?"',
+      description: 'Brian Kumara: "I\'m free now, can I help?"',
       category: _NotifCategory.booking,
       primaryAction: 'Accept Brian',
       primaryActionColor: _indigo,
       primaryActionTextColor: Colors.white,
       secondaryAction: 'Dismiss',
+      secondaryActionTextColor: _dismissText,
     ),
     _NotificationData(
       icon: Icons.cancel_rounded,
       accentColor: _red,
       title: 'Request declined',
       timeAgo: '5h',
-      description: "Carol Silva can't take this booking.",
       category: _NotifCategory.booking,
-      secondaryAction: 'Try next caregiver',
+    ),
+    _NotificationData(
+      icon: Icons.task_alt_rounded,
+      accentColor: AppTheme.primaryGreen,
+      title: 'Caregiver checked in',
+      timeAgo: '1d',
+      description: 'Alice Fernando checked in for her scheduled visit.',
+      category: _NotifCategory.booking,
     ),
     _NotificationData(
       icon: Icons.groups_rounded,
       accentColor: _teal,
-      title: 'New top 5 found',
+      title: 'New top 5 matches found',
       timeAgo: '1d',
-      description: 'Your dashboard has been refreshed.',
+      description: 'Your dashboard has been refreshed with new caregiver matches.',
+      category: _NotifCategory.system,
+    ),
+    _NotificationData(
+      icon: Icons.summarize_rounded,
+      accentColor: _cerulean,
+      title: 'Weekly care summary ready',
+      timeAgo: '2d',
+      description: "Review last week's visits, notes, and ratings.",
       category: _NotifCategory.system,
     ),
   ];
@@ -159,7 +221,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
                 itemCount: _filtered.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _buildNotificationCard(_filtered[i]),
+                itemBuilder: (ctx, i) => _buildNotificationCard(ctx, _filtered[i]),
               ),
             ),
             _buildBottomNav(context),
@@ -221,7 +283,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // ── Notification card ─────────────────────────────────────
-  Widget _buildNotificationCard(_NotificationData data) {
+  Widget _buildNotificationCard(BuildContext context, _NotificationData data) {
     final hasActions = data.primaryAction != null || data.secondaryAction != null;
     return Container(
       width: double.infinity,
@@ -271,15 +333,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      data.description,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    if (data.description != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        data.description!,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -297,7 +361,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       borderRadius: BorderRadius.circular(8),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(8),
-                        onTap: () {},
+                        onTap: () {
+                          if (data.primaryAction == 'Extend time') {
+                            _showExtendTimeSheet(context);
+                          }
+                        },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                           child: Text(
@@ -328,8 +396,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                           child: Text(
                             data.secondaryAction!,
-                            style: const TextStyle(
-                              color: Color(0xFFCBD5E1),
+                            style: TextStyle(
+                              color: data.secondaryActionTextColor ?? const Color(0xFFCBD5E1),
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -342,6 +410,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  // ── Extend time popup (P-22b) ─────────────────────────────
+  void _showExtendTimeSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (_) => const _ExtendTimeSheet(
+        patientName: 'Nipuni Ariyathilaka',
+        visitLabel: "today's visit",
+        currentEndTime: TimeOfDay(hour: 21, minute: 0),
       ),
     );
   }
@@ -449,6 +534,312 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+// ── Extend time bottom sheet (P-22b · Extend time (popup)) ────────────────
+enum _ExtendOption { min30, hour1, hour2, custom }
+
+class _ExtendTimeSheet extends StatefulWidget {
+  final String patientName;
+  final String visitLabel;
+  final TimeOfDay currentEndTime;
+
+  const _ExtendTimeSheet({
+    required this.patientName,
+    required this.visitLabel,
+    required this.currentEndTime,
+  });
+
+  @override
+  State<_ExtendTimeSheet> createState() => _ExtendTimeSheetState();
+}
+
+class _ExtendTimeSheetState extends State<_ExtendTimeSheet> {
+  static const Color _teal = Color(0xFF01D3A8);
+  static const Color _tealText = Color(0xFF06231D);
+  static const Color _amber = Color(0xFFF59E0B);
+  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _azure47 = Color(0xFF64748B);
+
+  _ExtendOption _selected = _ExtendOption.hour1;
+  TimeOfDay? _customEndTime;
+
+  TimeOfDay get _newEndTime {
+    if (_selected == _ExtendOption.custom) {
+      return _customEndTime ?? _addMinutes(widget.currentEndTime, 60);
+    }
+    final minutes = switch (_selected) {
+      _ExtendOption.min30 => 30,
+      _ExtendOption.hour1 => 60,
+      _ExtendOption.hour2 => 120,
+      _ExtendOption.custom => 60,
+    };
+    return _addMinutes(widget.currentEndTime, minutes);
+  }
+
+  TimeOfDay _addMinutes(TimeOfDay t, int minutes) {
+    final dt = DateTime(2000, 1, 1, t.hour, t.minute).add(Duration(minutes: minutes));
+    return TimeOfDay(hour: dt.hour, minute: dt.minute);
+  }
+
+  String _formatTime(TimeOfDay t) {
+    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    final minute = t.minute.toString().padLeft(2, '0');
+    return '$hour:$minute $period';
+  }
+
+  Future<void> _pickCustomTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _addMinutes(widget.currentEndTime, 60),
+    );
+    if (picked != null) {
+      setState(() {
+        _customEndTime = picked;
+        _selected = _ExtendOption.custom;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF475569),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.more_time_rounded, color: _teal, size: 24),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Extend time',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${widget.patientName} · ${widget.visitLabel}',
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 14),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardColor,
+                  border: Border.all(color: AppTheme.borderColor),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Current end time',
+                          style: TextStyle(color: _azure47, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatTime(widget.currentEndTime),
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Icon(Icons.arrow_forward_rounded, color: _teal, size: 20),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text(
+                          'New end time',
+                          style: TextStyle(color: _azure47, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatTime(_newEndTime),
+                          style: const TextStyle(color: _teal, fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'ADD TIME',
+                style: TextStyle(
+                  color: _azure47,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: _optionTile('+30 min', _ExtendOption.min30)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _optionTile('+1 hour', _ExtendOption.hour1)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: _optionTile('+2 hours', _ExtendOption.hour2)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _optionTile(
+                      _selected == _ExtendOption.custom ? _formatTime(_newEndTime) : 'Custom…',
+                      _ExtendOption.custom,
+                      onTap: _pickCustomTime,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _amber.withValues(alpha: 0.1),
+                  border: Border.all(color: _amber.withValues(alpha: 0.35)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: _amber, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Extra time is billed at the caregiver's hourly rate and needs their confirmation.",
+                        style: TextStyle(
+                          color: _geyser,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: _teal,
+                  borderRadius: BorderRadius.circular(11),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(11),
+                    onTap: () {
+                      final newEndTime = _formatTime(_newEndTime);
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Extension request sent — new end time $newEndTime.',
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      child: Text(
+                        'Request extension',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: _tealText, fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _optionTile(String label, _ExtendOption option, {VoidCallback? onTap}) {
+    final isSelected = _selected == option;
+    return GestureDetector(
+      onTap: onTap ?? () => setState(() => _selected = option),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected ? _teal.withValues(alpha: 0.15) : AppTheme.cardColor,
+          border: Border.all(color: isSelected ? _teal : AppTheme.borderColor),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected ? _teal : _geyser,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }

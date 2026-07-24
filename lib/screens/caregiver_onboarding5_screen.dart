@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 
+// ─────────────────────────────────────────────────────────────
+//  Caregiver Onboarding — Step 5 of 6
+//  Figma node: 498-6677 · "Police clearance certificate"
+// ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding5Screen extends StatefulWidget {
   const CaregiverOnboarding5Screen({super.key});
 
@@ -10,107 +15,80 @@ class CaregiverOnboarding5Screen extends StatefulWidget {
 }
 
 class _CaregiverOnboarding5ScreenState
-    extends State<CaregiverOnboarding5Screen> with TickerProviderStateMixin {
+    extends State<CaregiverOnboarding5Screen> {
   static const Color _indigo = Color(0xFF6366F1);
-  static const Color _red = Color(0xFFEF4444);
+  static const Color _indigoLight = Color(0xFF818CF8);
+  static const Color _amber = Color(0xFFF59E0B);
+  static const Color _mustard = Color(0xFFFCD34D);
+  static const Color _geyser = Color(0xFFCBD5E1);
 
-  // ── Animation controllers ──────────────────────────────
-  late AnimationController _heroController;
-  late AnimationController _cardsController;
-  late AnimationController _pulseController;
+  XFile? _policeClearance;
+  final List<XFile> _otherDocuments = [];
 
-  late Animation<double> _heroScale;
-  late Animation<double> _heroFade;
-
-  late Animation<double> _textFade;
-  late Animation<double> _textSlide;
-
-  late Animation<double> _card1Fade;
-  late Animation<double> _card2Fade;
-  late Animation<double> _card3Fade;
-
-  late Animation<double> _btnFade;
-
-  late Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _heroController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-
-    _heroScale = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _heroController,
-        curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
+  Future<XFile?> _pickDocument() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppTheme.borderColor,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: _indigo),
+              title: const Text('Take a photo',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: _indigo),
+              title: const Text('Choose from gallery',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+          ],
+        ),
       ),
     );
-    _heroFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _heroController,
-        curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
-      ),
-    );
-    _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _heroController,
-        curve: const Interval(0.45, 0.75, curve: Curves.easeOut),
-      ),
-    );
-    _textSlide = Tween<double>(begin: 18.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _heroController,
-        curve: const Interval(0.45, 0.75, curve: Curves.easeOut),
-      ),
-    );
-    _btnFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _heroController,
-        curve: const Interval(0.80, 1.0, curve: Curves.easeOut),
-      ),
-    );
-
-    _cardsController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _card1Fade = _staggeredFade(0.0, 0.45);
-    _card2Fade = _staggeredFade(0.25, 0.65);
-    _card3Fade = _staggeredFade(0.50, 0.90);
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    );
-    _pulse = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    _heroController.forward().then((_) {
-      _cardsController.forward();
-      _pulseController.repeat(reverse: true);
-    });
-  }
-
-  Animation<double> _staggeredFade(double start, double end) {
-    return Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _cardsController,
-        curve: Interval(start, end, curve: Curves.easeOut),
-      ),
+    if (choice == null || !mounted) return null;
+    return ImagePicker().pickImage(
+      source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      imageQuality: 85,
     );
   }
 
-  @override
-  void dispose() {
-    _heroController.dispose();
-    _cardsController.dispose();
-    _pulseController.dispose();
-    super.dispose();
+  Future<void> _pickPoliceClearance() async {
+    final picked = await _pickDocument();
+    if (picked == null || !mounted) return;
+    setState(() => _policeClearance = picked);
+  }
+
+  Future<void> _pickOtherDocument() async {
+    final picked = await _pickDocument();
+    if (picked == null || !mounted) return;
+    setState(() => _otherDocuments.add(picked));
+  }
+
+  void _submit() {
+    if (_policeClearance == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload your police clearance certificate.')),
+      );
+      return;
+    }
+    Navigator.pushNamed(context, '/caregiver-onboarding-6');
   }
 
   @override
@@ -121,126 +99,253 @@ class _CaregiverOnboarding5ScreenState
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Upper half: hero (centered vertically) ──
+              const SizedBox(height: 8),
+
+              // Top row: back arrow + step indicator
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  ),
+                  const Text(
+                    'Step 5 of 6',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              _buildProgressBar(currentStep: 5, totalSteps: 6),
+
+              const SizedBox(height: 24),
+
+              const Text(
+                'Police clearance certificate',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 23,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 7),
+              const Text(
+                'Upload a valid police clearance / criminal background '
+                'certificate for verification.',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+              ),
+
               Expanded(
-                child: Center(
-                  child: AnimatedBuilder(
-                    animation: _heroController,
-                    builder: (_, _) => Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Opacity(
-                          opacity: _heroFade.value,
-                          child: Transform.scale(
-                            scale: _heroScale.value,
-                            child: _buildCheckIcon(),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+
+                      GestureDetector(
+                        onTap: _pickPoliceClearance,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(25),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.borderColor),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.gavel_rounded, color: _indigo, size: 26),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Tap to upload certificate',
+                                style: TextStyle(
+                                  color: _geyser,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              const Text(
+                                'PDF, JPG or PNG',
+                                style: TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        Opacity(
-                          opacity: _textFade.value,
-                          child: Transform.translate(
-                            offset: Offset(0, _textSlide.value),
-                            child: Column(
-                              children: [
-                                const Text(
-                                  'Profile live!',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 27,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'Families can now find and request you',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      ),
+                      if (_policeClearance != null) ...[
+                        const SizedBox(height: 10),
+                        _buildFileChip(
+                          name: _policeClearance!.name,
+                          onRemove: () => setState(() => _policeClearance = null),
                         ),
                       ],
-                    ),
+
+                      const SizedBox(height: 14),
+
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: _amber.withValues(alpha: 0.1),
+                          border: Border.all(color: _amber.withValues(alpha: 0.35)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.warning_rounded, color: _amber, size: 16),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Once submitted, this certificate cannot be edited or '
+                                'changed. Please review before sending.',
+                                style: TextStyle(
+                                  color: _mustard,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      const Text(
+                        'Other qualification documents',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Add any additional certifications, licenses or awards '
+                        'that support your profile.',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      GestureDetector(
+                        onTap: _pickOtherDocument,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(21),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.borderColor),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.note_add_rounded, color: _indigo, size: 26),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Tap to add a document',
+                                style: TextStyle(
+                                  color: _geyser,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              const Text(
+                                'PDF, JPG or PNG · multiple files allowed',
+                                style: TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (_otherDocuments.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: List.generate(_otherDocuments.length, (i) {
+                            return _buildFileChip(
+                              name: _otherDocuments[i].name,
+                              onRemove: () => setState(() => _otherDocuments.removeAt(i)),
+                            );
+                          }),
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
               ),
 
-              // ── Lower section: info cards + button ──
-              AnimatedBuilder(
-                animation: _cardsController,
-                builder: (_, _) => Column(
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Row(
                   children: [
-                    _buildInfoCard(
-                      icon: Icons.update_rounded,
-                      iconColor: _indigo,
-                      label: 'Keep your availability updated',
-                      fadeAnim: _card1Fade,
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppTheme.borderColor),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: _geyser, fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _buildInfoCard(
-                      icon: Icons.military_tech_outlined,
-                      iconColor: _indigo,
-                      label: 'More skills = more requests',
-                      fadeAnim: _card2Fade,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInfoCard(
-                      icon: Icons.warning_amber_rounded,
-                      iconColor: _red,
-                      label: 'Turn on emergency availability',
-                      fadeAnim: _card3Fade,
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-
-              // ── Go to dashboard button ──
-              AnimatedBuilder(
-                animation: _heroController,
-                builder: (_, _) => Opacity(
-                  opacity: _btnFade.value,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: SizedBox(
-                      width: double.infinity,
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: Material(
                         color: _indigo,
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
-                          onTap: () {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              '/caregiver-dashboard',
-                              (route) => false,
-                            );
-                          },
+                          onTap: _submit,
                           child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
+                            padding: EdgeInsets.symmetric(vertical: 14),
                             child: Text(
-                              'Go to dashboard',
+                              'Submit',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -250,86 +355,54 @@ class _CaregiverOnboarding5ScreenState
     );
   }
 
-  /// Outer translucent glow ring → solid indigo disc → white checkmark
-  Widget _buildCheckIcon() {
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (_, _) => Transform.scale(
-        scale: _pulse.value,
-        child: Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _indigo.withValues(alpha: 0.15),
-          ),
-          child: Center(
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _indigo,
-                boxShadow: [
-                  BoxShadow(
-                    color: _indigo.withValues(alpha: 0.4),
-                    blurRadius: 24,
-                    spreadRadius: 4,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: Colors.white,
-                size: 36,
-              ),
+  Widget _buildFileChip({required String name, required VoidCallback onRemove}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border.all(color: AppTheme.borderColor),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.description_rounded, color: _indigoLight, size: 14),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 140),
+            child: Text(
+              name,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: const TextStyle(color: _geyser, fontSize: 11, fontWeight: FontWeight.w500),
             ),
           ),
-        ),
+          const SizedBox(width: 5),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 14),
+          ),
+        ],
       ),
     );
   }
 
-  /// A single info card row with icon + label
-  Widget _buildInfoCard({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required Animation<double> fadeAnim,
-  }) {
-    return Opacity(
-      opacity: fadeAnim.value,
-      child: Transform.translate(
-        offset: Offset(0, (1 - fadeAnim.value) * 14),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.inputBackground,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFF334155),
-              width: 1,
+  /// Progress bar with segmented steps
+  Widget _buildProgressBar({required int currentStep, required int totalSteps}) {
+    return Row(
+      children: List.generate(totalSteps, (index) {
+        final isActive = index < currentStep;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: index < totalSteps - 1 ? 6 : 0),
+            height: 5,
+            decoration: BoxDecoration(
+              color: isActive ? _indigo : AppTheme.inputBackground,
+              borderRadius: BorderRadius.circular(3),
             ),
           ),
-          child: Row(
-            children: [
-              Icon(icon, color: iconColor, size: 24),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFFCBD5E1),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }

@@ -1,5 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
+
+class _ReviewMedia {
+  final XFile file;
+  final bool isVideo;
+  const _ReviewMedia({required this.file, required this.isVideo});
+}
 
 class AddReviewScreen extends StatefulWidget {
   const AddReviewScreen({super.key});
@@ -16,6 +24,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
   final Set<String> _selectedTags = {'Punctual', 'Very caring'};
   final TextEditingController _reviewController = TextEditingController();
   bool _addToFavourites = true;
+  final List<_ReviewMedia> _media = [];
+  static const int _maxMedia = 5;
 
   static const List<String> _tags = [
     'Punctual',
@@ -64,6 +74,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                         _buildWhatStoodOut(),
                         const SizedBox(height: 22),
                         _buildWriteReview(),
+                        const SizedBox(height: 22),
+                        _buildMediaSection(),
                         const SizedBox(height: 16),
                         _buildFavouritesToggle(),
                       ],
@@ -252,7 +264,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
             ),
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: _reviewController,
-              builder: (_, value, __) => Text(
+              builder: (_, value, _) => Text(
                 '${value.text.length}/300',
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
@@ -300,6 +312,312 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
       ],
     );
   }
+
+  // ── Add photos or video ────────────────────────────────────
+  Future<void> _showMediaPicker() async {
+    if (_media.length >= _maxMedia) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You can add up to 5 photos or videos.')),
+      );
+      return;
+    }
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppTheme.borderColor,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: AppTheme.primaryGreen),
+              title: const Text('Take a photo',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, 'camera_photo'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: AppTheme.primaryGreen),
+              title: const Text('Choose photo from gallery',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, 'gallery_photo'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_rounded, color: AppTheme.primaryGreen),
+              title: const Text('Choose video from gallery',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, 'gallery_video'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    final picker = ImagePicker();
+    XFile? picked;
+    bool isVideo = false;
+    switch (choice) {
+      case 'camera_photo':
+        picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+      case 'gallery_photo':
+        picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      case 'gallery_video':
+        picked = await picker.pickVideo(source: ImageSource.gallery);
+        isVideo = true;
+    }
+    if (picked == null || !mounted) return;
+
+    final sizeBytes = await picked.length();
+    if (sizeBytes > 20 * 1024 * 1024) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('That file is larger than 20 MB.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _media.add(_ReviewMedia(file: picked!, isVideo: isVideo));
+    });
+  }
+
+  Widget _buildMediaSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Add photos or video',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              'Optional · up to $_maxMedia',
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 70,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildAddMediaTile(),
+              for (int i = 0; i < _media.length; i++) ...[
+                const SizedBox(width: 10),
+                _buildMediaThumb(i),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildBrowseDropzone(),
+        const SizedBox(height: 8),
+        _buildMediaHint(),
+      ],
+    );
+  }
+
+  Widget _buildAddMediaTile() {
+    return GestureDetector(
+      onTap: _showMediaPicker,
+      child: Container(
+        width: 70,
+        height: 70,
+        decoration: BoxDecoration(
+          color: const Color(0xFF131F33),
+          border: Border.all(color: AppTheme.borderColor),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_a_photo_rounded, color: AppTheme.primaryGreen, size: 22),
+            SizedBox(height: 3),
+            Text(
+              'Add',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaThumb(int index) {
+    final item = _media[index];
+    return Stack(
+      children: [
+        Container(
+          width: 70,
+          height: 70,
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(10),
+            image: !item.isVideo
+                ? DecorationImage(
+                    image: FileImage(File(item.file.path)),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: item.isVideo
+              ? const Center(
+                  child: Icon(Icons.play_circle_rounded, color: AppTheme.textSecondary, size: 28),
+                )
+              : null,
+        ),
+        if (item.isVideo)
+          Positioned(
+            left: 5,
+            bottom: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Video',
+                style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        Positioned(
+          right: 4,
+          top: 4,
+          child: GestureDetector(
+            onTap: () => setState(() => _media.removeAt(index)),
+            child: Container(
+              width: 17,
+              height: 17,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close_rounded, color: Colors.white, size: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBrowseDropzone() {
+    return GestureDetector(
+      onTap: _showMediaPicker,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          border: Border.all(color: AppTheme.borderColor),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_upload_rounded, color: AppTheme.primaryGreen, size: 20),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Browse files to upload',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 1),
+                  Text(
+                    'or drag & drop from your device',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Material(
+              color: AppTheme.primaryGreen,
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: _showMediaPicker,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  child: Text(
+                    'Browse',
+                    style: TextStyle(
+                      color: AppTheme.bottleGreen,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaHint() {
+    const style = TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.w500);
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 14),
+        const SizedBox(width: 6),
+        const Text('Photos: JPG, PNG, HEIC', style: style),
+        _buildDot(),
+        const Text('Video: MP4, MOV', style: style),
+        _buildDot(),
+        const Text('up to 20 MB each', style: style),
+      ],
+    );
+  }
+
+  Widget _buildDot() => Container(
+        width: 3,
+        height: 3,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.borderColor,
+          borderRadius: BorderRadius.circular(1.5),
+        ),
+      );
 
   // ── Add to favourites toggle ──────────────────────────────
   Widget _buildFavouritesToggle() {

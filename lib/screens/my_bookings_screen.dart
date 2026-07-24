@@ -9,15 +9,21 @@ class MyBookingsScreen extends StatefulWidget {
 }
 
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
-  int _selectedTab = 0; // 0=All, 1=Requested, 2=Past
+  int _selectedTab = 0; // 0=All, 1=Upcoming, 2=Requested, 3=Past, 4=Cancelled
 
-  static const List<String> _tabs = ['All', 'Requested', 'Past'];
+  static const List<String> _tabs = [
+    'All',
+    'Upcoming',
+    'Requested',
+    'Past',
+    'Cancelled',
+  ];
 
   // Colours
   static const Color _amber = Color(0xFFF59E0B);
 
   // ── Booking data ──────────────────────────────────────────
-  static const List<_BookingData> _allBookings = [
+  final List<_BookingData> _allBookings = [
     _BookingData(
       initials: 'AF',
       avatarType: _AvatarType.greenGradient,
@@ -27,17 +33,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       statusType: _StatusType.ongoing,
       bottomLeft: _BottomLeft.activeDot,
       bottomLeftText: 'Active now',
-      hasMessage: true,
-    ),
-    _BookingData(
-      initials: 'BK',
-      avatarType: _AvatarType.blue,
-      name: 'Brian Kumara',
-      detail: 'Post-surgery · Part-time · 21 Dec 2025',
-      statusLabel: 'Upcoming',
-      statusType: _StatusType.upcoming,
-      bottomLeft: _BottomLeft.text,
-      bottomLeftText: 'Starts in 31 days',
       hasMessage: true,
     ),
     _BookingData(
@@ -63,27 +58,54 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       bottomLeftText: 'No review · Cancelled',
       hasMessage: false,
     ),
+    _BookingData(
+      initials: 'FP',
+      avatarType: _AvatarType.greenGradient,
+      name: 'Fathima Perera',
+      detail: 'Elder care · Full-time',
+      statusLabel: 'Requested',
+      statusType: _StatusType.requested,
+      bottomLeft: _BottomLeft.text,
+      bottomLeftText: 'Awaiting response · sent 2h ago',
+      hasMessage: false,
+      hasCancelRequest: true,
+    ),
+    _BookingData(
+      initials: 'BK',
+      avatarType: _AvatarType.blue,
+      name: 'Brian Kumara',
+      detail: 'Post-surgery · Part-time · 21 Dec 2025',
+      statusLabel: 'Upcoming',
+      statusType: _StatusType.upcoming,
+      bottomLeft: _BottomLeft.text,
+      bottomLeftText: 'Starts in 31 days',
+      hasMessage: true,
+    ),
   ];
 
   List<_BookingData> get _filtered {
-    if (_selectedTab == 0) return _allBookings;
-    if (_selectedTab == 1) {
-      // Requested includes Ongoing and Upcoming
-      return _allBookings
-          .where((b) =>
-              b.statusType == _StatusType.ongoing ||
-              b.statusType == _StatusType.upcoming)
-          .toList();
+    switch (_selectedTab) {
+      case 1: // Upcoming — confirmed bookings, active now or scheduled ahead
+        return _allBookings
+            .where((b) =>
+                b.statusType == _StatusType.ongoing ||
+                b.statusType == _StatusType.upcoming)
+            .toList();
+      case 2: // Requested — awaiting caregiver response
+        return _allBookings
+            .where((b) => b.statusType == _StatusType.requested)
+            .toList();
+      case 3: // Past — completed visits
+        return _allBookings
+            .where((b) => b.statusType == _StatusType.completed)
+            .toList();
+      case 4: // Cancelled
+        return _allBookings
+            .where((b) => b.statusType == _StatusType.cancelled)
+            .toList();
+      default: // All
+        return _allBookings;
     }
-    if (_selectedTab == 2) {
-      // Past includes Completed and Cancelled
-      return _allBookings
-          .where((b) =>
-              b.statusType == _StatusType.completed ||
-              b.statusType == _StatusType.cancelled)
-          .toList();
-    }
-    return _allBookings;
   }
 
   @override
@@ -117,7 +139,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
                   itemCount: _filtered.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) => _buildBookingCard(_filtered[i]),
+                  itemBuilder: (ctx, i) => _buildBookingCard(ctx, _filtered[i]),
                 ),
               ),
             ],
@@ -252,7 +274,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   }
 
   // ── Booking card ──────────────────────────────────────────
-  Widget _buildBookingCard(_BookingData data) {
+  Widget _buildBookingCard(BuildContext context, _BookingData data) {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
@@ -309,7 +331,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildBottomLeft(data),
-              _buildBottomRight(data),
+              _buildBottomRight(context, data),
             ],
           ),
         ],
@@ -423,8 +445,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         text = const Color(0xFF22C55E);
         break;
       case _StatusType.upcoming:
-        bg = const Color(0xFF6366F1).withValues(alpha: 0.15);
-        text = const Color(0xFF01D3A8);
+        bg = const Color(0xFF6366F1); // Cornflower Blue, solid
+        text = const Color(0xFF16213A); // Big Stone
+        break;
+      case _StatusType.requested:
+        bg = _amber.withValues(alpha: 0.15);
+        text = _amber;
         break;
       case _StatusType.completed:
         bg = const Color(0xFF94A3B8).withValues(alpha: 0.18);
@@ -489,7 +515,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         return Text(
           data.bottomLeftText,
           style: TextStyle(
-            color: data.statusType == _StatusType.cancelled
+            color: data.statusType == _StatusType.cancelled ||
+                    data.statusType == _StatusType.requested
                 ? const Color(0xFF64748B)
                 : const Color(0xFF94A3B8),
             fontSize: 11,
@@ -500,7 +527,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 
-  Widget _buildBottomRight(_BookingData data) {
+  Widget _buildBottomRight(BuildContext context, _BookingData data) {
+    if (data.hasCancelRequest) {
+      return GestureDetector(
+        onTap: () => _showCancelRequestSheet(context, data),
+        child: const Text(
+          'Cancel request',
+          style: TextStyle(
+            color: Color(0xFFF87171), // Froly
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Inter',
+          ),
+        ),
+      );
+    }
     if (data.hasRebook) {
       return GestureDetector(
         onTap: () {},
@@ -537,6 +578,41 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       );
     }
     return const SizedBox.shrink();
+  }
+
+  // ── Cancel request popup (P-15b · Cancel request (patient)) ──────────────
+  void _showCancelRequestSheet(BuildContext context, _BookingData data) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (_) => _CancelRequestSheet(
+        caregiverName: data.name,
+        detail: data.detail,
+        onConfirm: () => _cancelBooking(data),
+      ),
+    );
+  }
+
+  void _cancelBooking(_BookingData data) {
+    final index = _allBookings.indexOf(data);
+    if (index == -1) return;
+    setState(() {
+      _allBookings[index] = _BookingData(
+        initials: data.initials,
+        avatarType: data.avatarType,
+        name: data.name,
+        detail: data.detail,
+        statusLabel: 'Cancelled',
+        statusType: _StatusType.cancelled,
+        bottomLeft: _BottomLeft.text,
+        bottomLeftText: 'No review · Cancelled',
+        hasMessage: false,
+      );
+    });
   }
 
   // ── Bottom nav (matches dashboard) ────────────────────────
@@ -651,9 +727,175 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   }
 }
 
+// ── Cancel request bottom sheet (P-15b · Cancel request (patient)) ────────
+class _CancelRequestSheet extends StatelessWidget {
+  final String caregiverName;
+  final String detail;
+  final VoidCallback onConfirm;
+
+  const _CancelRequestSheet({
+    required this.caregiverName,
+    required this.detail,
+    required this.onConfirm,
+  });
+
+  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _red = Color(0xFFEF4444);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF475569),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _red.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Icon(Icons.cancel_rounded, color: _red, size: 32),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Cancel this request?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFFF8FAFC),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              const SizedBox(height: 9),
+              Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Inter',
+                    height: 1.5,
+                  ),
+                  children: [
+                    const TextSpan(text: "You're about to cancel your booking request to "),
+                    TextSpan(
+                      text: caregiverName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFF8FAFC),
+                      ),
+                    ),
+                    TextSpan(text: ' · $detail. The caregiver will be notified.'),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  border: Border.all(color: const Color(0xFF334155)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.event_available_rounded, color: Color(0xFF94A3B8), size: 18),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "Free to cancel now — this request hasn't been accepted "
+                        "yet, so no cancellation fee applies.",
+                        style: TextStyle(
+                          color: _geyser,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Inter',
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: _red,
+                  borderRadius: BorderRadius.circular(11),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(11),
+                    onTap: () {
+                      onConfirm();
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Request to $caregiverName cancelled.')),
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      child: Text(
+                        'Yes, cancel request',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Text(
+                      'Keep request',
+                      style: TextStyle(
+                        color: Color(0xFFF8FAFC),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Data models ───────────────────────────────────────────
 enum _AvatarType { greenGradient, blue, amber, grey }
-enum _StatusType { ongoing, upcoming, completed, cancelled }
+enum _StatusType { ongoing, upcoming, requested, completed, cancelled }
 enum _BottomLeft { activeDot, stars, text }
 
 class _BookingData {
@@ -667,6 +909,7 @@ class _BookingData {
   final String bottomLeftText;
   final bool hasMessage;
   final bool hasRebook;
+  final bool hasCancelRequest;
 
   const _BookingData({
     required this.initials,
@@ -679,5 +922,6 @@ class _BookingData {
     required this.bottomLeftText,
     required this.hasMessage,
     this.hasRebook = false,
+    this.hasCancelRequest = false,
   });
 }

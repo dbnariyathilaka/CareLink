@@ -12,4 +12,12 @@ class AppState {
   static final hasActiveMatch = ValueNotifier<bool>(false);
   // Persist the last set of match args so the results screen can reload them.
   static Map<String, dynamic>? lastMatchArgs;
+
+  // Patient care requirements — edited from the single "Edit care
+  // requirements" screen and mirrored on the patient profile card.
+  static final careType = ValueNotifier<String>('Elder care');
+  static final careSchedule = ValueNotifier<String>('Full-time');
+  static final careLocation = ValueNotifier<String>('Negombo, Western Province');
+  static final preferredGender = ValueNotifier<String>('No preference');
+  static final additionalCareNotes = ValueNotifier<String>('');
 }

@@ -76,6 +76,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                         icon: Icons.chat_bubble_outline_rounded,
                         label: 'Messages',
                         badge: '1',
+                        onTap: () => Navigator.pushNamed(context, '/caregiver-messages'),
                       ),
                       const SizedBox(height: 9),
                       _buildMenuRow(

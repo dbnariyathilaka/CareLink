@@ -1,5 +1,6 @@
 // Shared Sri Lankan city / town autocomplete data.
-// Used by patient_onboarding3_screen.dart and caregiver_onboarding4_screen.dart.
+// Used by patient_onboarding2_screen.dart, edit_care_requirements_screen.dart,
+// map_selection_screen.dart, and location_selection_screen.dart.
 // Each entry includes lat/lng for coverage-area radius preview.
 
 import 'dart:math' as math;

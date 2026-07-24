@@ -16,6 +16,7 @@ class CaregiverDashboardScreen extends StatefulWidget {
 class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   static const Color _indigo = Color(0xFF6366F1);
   static const Color _indigoDark = Color(0xFF4F46E5);
+  static const Color _indigoLight = Color(0xFF818CF8);
   static const Color _amber = Color(0xFFF59E0B);
 
   int _selectedNavIndex = 0;
@@ -97,7 +98,11 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                     ] else ...[
                       _buildAvailabilityCard(),
                       const SizedBox(height: 12),
-                      _buildStatsRow(),
+                      _buildStatsGrid(),
+                      const SizedBox(height: 12),
+                      _buildThisWeekCard(),
+                      const SizedBox(height: 12),
+                      _buildOnDutyBanner(),
                       const SizedBox(height: 16),
                       const Text(
                         'Upcoming schedule',
@@ -109,23 +114,27 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                       ),
                       const SizedBox(height: 10),
                       _buildScheduleCard(
-                        initials: 'NA',
+                        initials: 'KP',
                         avatarGradient: const [
                           AppTheme.primaryGreen,
                           AppTheme.primaryGreenDark,
                         ],
-                        title: 'Nipuni Ariyathilaka',
-                        subtitle: '20 Dec · Full-time',
+                        title: 'Kamal Perera',
+                        subtitle: 'Today, 7:00 PM · Post-surgery care',
                         badgeText: 'Confirmed',
                         badgeColor: AppTheme.primaryGreen,
                       ),
                       const SizedBox(height: 10),
                       _buildScheduleCard(
-                        icon: Icons.hourglass_empty_rounded,
-                        title: 'New request pending',
-                        subtitle: 'Awaiting your response',
-                        badgeText: 'Pending',
-                        badgeColor: _amber,
+                        initials: 'IP',
+                        avatarGradient: const [
+                          AppTheme.primaryGreen,
+                          AppTheme.primaryGreenDark,
+                        ],
+                        title: 'Ishara Perera',
+                        subtitle: 'Wed 17 Dec · Dementia care',
+                        badgeText: 'Confirmed',
+                        badgeColor: AppTheme.primaryGreen,
                       ),
                     ],
                   ],
@@ -1155,19 +1164,41 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     );
   }
 
-  // ── Stats row ──────────────────────────────────────────────
-  Widget _buildStatsRow() {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: _statCard('This month', '8', caption: 'bookings')),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _statCard('Your rating', '4.5', caption: 'from 24 reviews', valueColor: _amber),
+  // ── Stats grid (2x2) ──────────────────────────────────────
+  Widget _buildStatsGrid() {
+    return Column(
+      children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _statCard('This month', '8', caption: 'bookings')),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _statCard('Your rating', '4.5', caption: 'from 24 reviews', valueColor: _amber),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _statCard(
+                  'Earned',
+                  '36k',
+                  caption: 'LKR this month',
+                  valueColor: AppTheme.primaryGreen,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: _buildTotalServicesCard()),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1178,7 +1209,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     Color? valueColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         border: Border.all(color: AppTheme.borderColor),
@@ -1191,7 +1222,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             label,
             style: const TextStyle(
               color: AppTheme.textSecondary,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1200,7 +1231,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             value,
             style: TextStyle(
               color: valueColor ?? AppTheme.textPrimary,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1210,11 +1241,253 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               caption,
               style: const TextStyle(
                 color: Color(0xFF64748B),
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTotalServicesCard() {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border.all(color: AppTheme.borderColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total services',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {},
+                child: const Text(
+                  'See all',
+                  style: TextStyle(
+                    color: _indigo,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            '142',
+            style: TextStyle(
+              color: _indigoLight,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'completed all-time',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── This week duty tracker ─────────────────────────────────
+  Widget _buildThisWeekCard() {
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const onDuty = [true, true, false, true, true, false, false];
+    const offHeights = [0.0, 0.0, 18.0, 0.0, 0.0, 18.0, 12.0];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border.all(color: AppTheme.borderColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'This week',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '${onDuty.where((d) => d).length} days on duty',
+                style: const TextStyle(
+                  color: _indigoLight,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            '15 – 21 Dec 2025',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(7, (i) {
+              final active = onDuty[i];
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: i < 6 ? 6 : 0),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 34,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            height: active ? 34 : offHeights[i],
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: active ? _indigo : AppTheme.borderColor,
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        days[i],
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Currently on duty banner ───────────────────────────────
+  Widget _buildOnDutyBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppTheme.primaryGreen, Color(0xFF15803D)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.favorite_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Currently on duty',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Caring for Nipuni Ariyathilaka',
+                      style: TextStyle(
+                        color: Color(0xD9FFFFFF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                'Started 20 Dec, 8:00 AM',
+                style: TextStyle(color: Color(0xE6FFFFFF), fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                'Ends 20 Dec, 6:00 PM',
+                style: TextStyle(color: Color(0xE6FFFFFF), fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: Stack(
+              children: [
+                Container(
+                  height: 5,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 0.62,
+                  child: Container(
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

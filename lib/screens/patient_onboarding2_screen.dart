@@ -30,8 +30,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   String _selectedGender = 'Female';
   final List<String> _genderOptions = ['Female', 'Male', 'Other'];
 
-  String _relation = 'Patient'; // 'Patient' or 'Family member'
-
   List<Map<String, String>> _filteredCities = [];
 
   late AnimationController _fadeController;
@@ -241,31 +239,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                           ),
                           const SizedBox(height: 18),
 
-                          // Relation: "You are the..."
-                          _buildLabel('You are the...'),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildSegmentButton(
-                                  label: 'Patient',
-                                  isSelected: _relation == 'Patient',
-                                  onTap: () => setState(() => _relation = 'Patient'),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildSegmentButton(
-                                  label: 'Family member',
-                                  isSelected: _relation == 'Family member',
-                                  onTap: () =>
-                                      setState(() => _relation = 'Family member'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-
                           // City / Area
                           _buildLabel('City / area'),
                           const SizedBox(height: 8),
@@ -434,39 +407,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
               size: 22,
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSegmentButton({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryGreen.withValues(alpha: 0.15)
-              : AppTheme.inputBackground,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryGreen : AppTheme.borderColor,
-            width: 1,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? AppTheme.primaryGreen : const Color(0xFFCBD5E1),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
         ),
       ),
     );

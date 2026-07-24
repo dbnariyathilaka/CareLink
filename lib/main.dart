@@ -10,6 +10,7 @@ import 'screens/patient_onboarding1_screen.dart';
 import 'screens/patient_onboarding2_screen.dart';
 import 'screens/patient_onboarding3_screen.dart';
 import 'screens/patient_onboarding4_screen.dart';
+import 'screens/patient_family_details_screen.dart';
 import 'screens/patient_dashboard_screen.dart';
 import 'screens/emergency_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
@@ -22,13 +23,18 @@ import 'screens/caregiver_onboarding2_screen.dart';
 import 'screens/caregiver_onboarding3_screen.dart';
 import 'screens/caregiver_onboarding4_screen.dart';
 import 'screens/caregiver_onboarding5_screen.dart';
+import 'screens/caregiver_onboarding6_screen.dart';
+import 'screens/caregiver_registration_success_screen.dart';
 import 'screens/caregiver_dashboard_screen.dart';
 import 'screens/send_request_screen.dart';
 import 'screens/schedule_care_screen.dart';
 import 'screens/confirm_booking_screen.dart';
 import 'screens/patient_profile_screen.dart';
+import 'screens/edit_care_requirements_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/patient_chat_screen.dart';
+import 'screens/caregiver_messages_screen.dart';
+import 'screens/caregiver_chat_screen.dart';
 import 'screens/patient_settings_screen.dart';
 import 'screens/caregiver_schedule_screen.dart';
 import 'screens/caregiver_own_profile_screen.dart';
@@ -72,6 +78,8 @@ class CareMatchApp extends StatelessWidget {
         '/patient-onboarding-2': (context) => const PatientOnboarding1Screen(),
         '/patient-onboarding-3': (context) => const PatientOnboarding3Screen(),
         '/patient-onboarding-4': (context) => const PatientOnboarding4Screen(),
+        '/patient-family-details': (context) =>
+            const PatientFamilyDetailsScreen(),
         '/patient-dashboard': (context) => const PatientDashboardScreen(),
         '/emergency': (context) => const EmergencyScreen(),
         '/caregiver-profile': (context) => const CaregiverProfileScreen(),
@@ -89,6 +97,10 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverOnboarding4Screen(),
         '/caregiver-onboarding-5': (context) =>
             const CaregiverOnboarding5Screen(),
+        '/caregiver-onboarding-6': (context) =>
+            const CaregiverOnboarding6Screen(),
+        '/caregiver-registration-success': (context) =>
+            const CaregiverRegistrationSuccessScreen(),
         '/caregiver-dashboard': (context) => const CaregiverDashboardScreen(),
         '/send-request': (context) => const SendRequestScreen(),
         '/advanced-match-send-request': (context) =>
@@ -104,6 +116,8 @@ class CareMatchApp extends StatelessWidget {
             const AdvancedMatchResultsScreen(),
         '/confirm-booking': (context) => const ConfirmBookingScreen(),
         '/patient-profile': (context) => const PatientProfileScreen(),
+        '/edit-care-requirements': (context) =>
+            const EditCareRequirementsScreen(),
         '/messages': (context) => const MessagesScreen(),
         '/chat': (context) => const PatientChatScreen(),
         '/settings': (context) => const PatientSettingsScreen(),
@@ -117,6 +131,8 @@ class CareMatchApp extends StatelessWidget {
         '/caregiver-notifications': (context) =>
             const CaregiverNotificationsScreen(),
         '/caregiver-settings': (context) => const CaregiverSettingsScreen(),
+        '/caregiver-messages': (context) => const CaregiverMessagesScreen(),
+        '/caregiver-chat': (context) => const CaregiverChatScreen(),
         '/forgot-password': (context) => const ForgotPasswordStep1Screen(),
         '/forgot-password-email-sent': (context) =>
             const ForgotPasswordEmailSentScreen(),

@@ -465,7 +465,15 @@ class ConfirmBookingScreen extends StatelessWidget {
                       arguments: args,
                     );
                   } else {
-                    _showConfirmedDialog(context, isAdvanced, accent, accentText);
+                    final caregiverName =
+                        args?['caregiverName'] as String? ?? 'Alice Fernando';
+                    _showConfirmedDialog(
+                      context,
+                      isAdvanced,
+                      accent,
+                      accentText,
+                      caregiverName,
+                    );
                   }
                 },
                 child: SizedBox(
@@ -526,73 +534,106 @@ class ConfirmBookingScreen extends StatelessWidget {
     bool isAdvanced,
     Color accent,
     Color accentText,
+    String caregiverName,
   ) {
     showDialog<void>(
       context: context,
-      barrierColor: Colors.black54,
+      barrierColor: const Color(0xB802060F), // Black Pearl 72%
       builder: (ctx) => Dialog(
-        backgroundColor: _azure17,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: const Color(0xFF16213A), // Big Stone
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: _azure27, width: 1),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.fromLTRB(25, 23, 25, 27),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(ctx).pop(),
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: _azure11,
+                        border: Border.all(color: _azure27),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          color: _azure65, size: 18),
+                    ),
+                  ),
+                ],
+              ),
               Container(
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(32),
                 ),
-                child: Icon(Icons.check_rounded, color: accent, size: 36),
+                child: Icon(Icons.check_circle, color: accent, size: 34),
               ),
               const SizedBox(height: 18),
               const Text(
-                'Request sent!',
+                'Request confirmed!',
                 style: TextStyle(
                   color: _grey98,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 7),
               Text(
                 isAdvanced
-                    ? 'Matching caregivers have been notified and have 6 hours to accept your request.'
-                    : 'Your caregiver has been notified and has 6 hours to accept your care request.',
+                    ? 'Your booking request has been sent to matching caregivers. '
+                        "We'll notify you as soon as one accepts."
+                    : "Your booking request has been sent to $caregiverName. "
+                        "We'll notify you as soon as she accepts.",
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: _azure65,
                   fontSize: 13,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: FontWeight.w500,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               Material(
                 color: accent,
                 borderRadius: BorderRadius.circular(10),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
                   onTap: () {
-                    Navigator.of(context)
-                      ..pop()
-                      ..pushNamedAndRemoveUntil(
-                          '/patient-dashboard', (r) => false);
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/my-bookings',
+                      (route) => route.settings.name == '/patient-dashboard',
+                    );
                   },
                   child: SizedBox(
                     width: double.infinity,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Text(
-                        'Go to dashboard',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: accentText,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.calendar_month, color: accentText, size: 19),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Go to My bookings',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: accentText,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

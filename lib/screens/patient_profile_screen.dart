@@ -345,34 +345,48 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
 
   // ── Care requirements card ────────────────────────────────
   Widget _buildCareRequirementsCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: _azure17,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _azure27),
-      ),
-      child: Column(
-        children: [
-          _requirementRow('Care type', 'Elder care · Full-time', divider: true),
-          _requirementRow('Location', 'Negombo, Western Province', divider: true),
-          _requirementRow('Preferred gender', 'No preference', divider: false),
-          const SizedBox(height: 10),
-          // Navigate to onboarding to edit preferences
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/patient-onboarding-1'),
-            child: const Text(
-              'Edit requirements',
-              style: TextStyle(
-                color: _green45,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        AppState.careType,
+        AppState.careSchedule,
+        AppState.careLocation,
+        AppState.preferredGender,
+      ]),
+      builder: (context, _) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: _azure17,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _azure27),
           ),
-        ],
-      ),
+          child: Column(
+            children: [
+              _requirementRow(
+                'Care type',
+                '${AppState.careType.value} · ${AppState.careSchedule.value}',
+                divider: true,
+              ),
+              _requirementRow('Location', AppState.careLocation.value, divider: true),
+              _requirementRow('Preferred gender', AppState.preferredGender.value,
+                  divider: false),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/edit-care-requirements'),
+                child: const Text(
+                  'Edit requirements',
+                  style: TextStyle(
+                    color: _green45,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
