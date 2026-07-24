@@ -38,9 +38,7 @@ import 'screens/caregiver_edit_profile_screen.dart';
 import 'screens/caregiver_notifications_screen.dart';
 import 'screens/caregiver_settings_screen.dart';
 import 'screens/forgot_password_step1_screen.dart';
-import 'screens/forgot_password_step2_screen.dart';
-import 'screens/forgot_password_step3_screen.dart';
-import 'screens/forgot_password_new_screen.dart';
+import 'screens/forgot_password_email_sent_screen.dart';
 import 'screens/location_selection_screen.dart';
 import 'screens/map_selection_screen.dart';
 import 'screens/advanced_match_send_request_screen.dart';
@@ -120,12 +118,8 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverNotificationsScreen(),
         '/caregiver-settings': (context) => const CaregiverSettingsScreen(),
         '/forgot-password': (context) => const ForgotPasswordStep1Screen(),
-        '/forgot-password-step2': (context) =>
-            const ForgotPasswordStep2Screen(),
-        '/forgot-password-new': (context) =>
-            const ForgotPasswordNewScreen(),
-        '/forgot-password-step3': (context) =>
-            const ForgotPasswordStep3Screen(),
+        '/forgot-password-email-sent': (context) =>
+            const ForgotPasswordEmailSentScreen(),
       },
     );
   }

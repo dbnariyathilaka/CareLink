@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
-import 'patient_search_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -17,7 +16,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   static const Color emergencyRedStart = Color(0xFFEF4444);
   static const Color emergencyRedEnd = Color(0xFFDC2626);
-  static const Color bkAvatarColor = Color(0xFF058CD0);
   static const Color starAmber = Color(0xFFF59E0B);
 
   @override
@@ -49,23 +47,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                       name: 'Alice Fernando',
                       matchScore: '92%',
                       subtitle: 'Elder care · 7 yrs exp',
-                      tags: const ['Mobility', 'Medication', 'Dementia'],
                       distance: '2.3 km',
-                      rating: '4.8',
-                      available: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildMatchCard(
-                      initials: 'BK',
-                      avatarFlat: true,
-                      avatarColor: bkAvatarColor,
-                      avatarGradient: const [],
-                      initialsColor: Colors.white,
-                      name: 'Brian Kumara',
-                      matchScore: '88%',
-                      subtitle: 'Post-surgery · 5 yrs exp',
-                      tags: const ['Elder care', 'Medication', 'Dementia'],
-                      distance: '3 km',
                       rating: '4.8',
                       available: true,
                     ),
@@ -81,15 +63,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  void _showFiltersSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const FiltersSheet(),
-    );
-  }
-
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -100,15 +73,15 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           colors: [AppTheme.primaryGreenDark, Color(0xFF15803D)],
         ),
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
       ),
       child: Column(
         children: [
           // Greeting + avatar
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 6, 22, 16),
+            padding: const EdgeInsets.fromLTRB(22, 6, 22, 18),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -177,51 +150,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               ],
             ),
           ),
-          // Search/filter bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
-            child: GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/search'),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF64748B),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Search caregivers...',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        _showFiltersSheet(context);
-                      },
-                      child: const Icon(
-                        Icons.tune_rounded,
-                        color: AppTheme.primaryGreen,
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -278,11 +206,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _statCard('Your match score', '85%', greenValue: true, labelFontSize: 13, valueFontSize: 32),
+            child: _statCard('Your match score', '85%', greenValue: true),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: _statCard('Available now', '12', caption: 'near you', labelFontSize: 12, valueFontSize: 26),
+            child: _statCard('Available now', '12', caption: 'near you'),
           ),
         ],
       ),
@@ -361,7 +289,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     required String name,
     required String matchScore,
     required String subtitle,
-    required List<String> tags,
     required String distance,
     required String rating,
     required bool available,
@@ -439,12 +366,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ],
           ),
           const SizedBox(height: 11),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: tags.map((tag) => _buildTagChip(tag)).toList(),
-          ),
-          const SizedBox(height: 11),
           Row(
             children: [
               const Icon(Icons.place_outlined, color: AppTheme.textSecondary, size: 14),
@@ -517,21 +438,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTagChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w500),
       ),
     );
   }

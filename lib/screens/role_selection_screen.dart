@@ -1,5 +1,8 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+const Color _cardSubtitleColor = Color.fromRGBO(0, 0, 0, 0.5);
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -10,11 +13,16 @@ class RoleSelectionScreen extends StatefulWidget {
 
 class _RoleSelectionScreenState extends State<RoleSelectionScreen>
     with SingleTickerProviderStateMixin {
-  String _selectedRole = 'patient';
-
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
+
+  static const Color bgColor = Color(0xFFF5EEDE);
+  static const Color titleColor = Color(0xFF033724);
+  static const Color patientCardBg = Color.fromRGBO(111, 70, 26, 0.3);
+  static const Color caregiverCardBg = Color.fromRGBO(26, 62, 111, 0.3);
+  static const Color patientAccent = Color(0xFFC04B42);
+  static const Color caregiverAccent = Color(0xFF073360);
 
   @override
   void initState() {
@@ -42,7 +50,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _fadeController,
@@ -56,129 +64,91 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
             );
           },
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back button
-              Padding(
-                padding: const EdgeInsets.only(left: 16, top: 5),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
+              // Back button + title on a single line
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  IconButton(
                     icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppTheme.textPrimary,
-                      size: 24,
+                      Icons.arrow_back_ios_new_rounded,
+                      color: titleColor,
+                      size: 22,
                     ),
                     onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 34,
-                      minHeight: 34,
+                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: Text(
+                      'Select User Type',
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor,
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 16),
+                ],
               ),
 
-              // Scrollable content
+              // Cards - scaled to fit the remaining space, no scrolling
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 30),
-
-                      // Title
-                      const Text(
-                        'Who are you registering\nas?',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Subtitle
-                      const Text(
-                        'You can change this later in settings',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      // Patient / Family card
-                      _RoleCard(
-                        title: 'Patient / Family',
-                        subtitle: 'I need a caregiver',
-                        icon: Icons.person_outline_rounded,
-                        iconColor: AppTheme.primaryGreen,
-                        iconBgColor: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                        isSelected: _selectedRole == 'patient',
-                        onTap: () {
-                          setState(() => _selectedRole = 'patient');
-                        },
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Caregiver card
-                      _RoleCard(
-                        title: 'Caregiver',
-                        subtitle: 'I provide care',
-                        icon: Icons.favorite_outline_rounded,
-                        iconColor: const Color(0xFF6366F1),
-                        iconBgColor: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                        isSelected: _selectedRole == 'caregiver',
-                        onTap: () {
-                          setState(() => _selectedRole = 'caregiver');
-                        },
-                      ),
-
-                      const Spacer(),
-
-                      // Continue button
-                      SizedBox(
-                        width: double.infinity,
-                        child: Material(
-                          color: AppTheme.primaryGreen,
-                          borderRadius: BorderRadius.circular(10),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: 393,
+                      height: 369 + 7 + 322,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Patient or Family card
+                          _RoleCard(
+                            groupHeight: 369,
+                            pokeOut: 81,
+                            cardBg: patientCardBg,
+                            title: 'Patient or Family',
+                            subtitle:
+                                "Tell us what care you need. We'll find the caregivers who fit.",
+                            accentColor: patientAccent,
+                            illustrationAsset:
+                                'assets/images/patient_illustration.png',
+                            illustrationLeft: 60,
+                            illustrationWidth: 183,
+                            illustrationHeight: 209,
                             onTap: () {
-                              if (_selectedRole == 'caregiver') {
-                                Navigator.pushNamed(
-                                  context,
-                                  '/caregiver-onboarding-1',
-                                );
-                              } else {
-                                Navigator.pushNamed(
-                                  context,
-                                  '/patient-onboarding-1',
-                                );
-                              }
+                              Navigator.pushNamed(context, '/patient-onboarding-1');
                             },
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Text(
-                                'Continue',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: AppTheme.bottleGreen,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
                           ),
-                        ),
+                          const SizedBox(height: 7),
+
+                          // Caregiver card
+                          _RoleCard(
+                            groupHeight: 322,
+                            pokeOut: 34,
+                            cardBg: caregiverCardBg,
+                            title: 'Caregiver',
+                            subtitle:
+                                "Share your skills and schedule. We'll match you with families who need them.",
+                            accentColor: caregiverAccent,
+                            illustrationAsset:
+                                'assets/images/caregiver_illustration.png',
+                            illustrationLeft: 58,
+                            illustrationWidth: 200,
+                            illustrationHeight: 216,
+                            onTap: () {
+                              Navigator.pushNamed(context, '/caregiver-onboarding-1');
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 36),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -190,117 +160,147 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   }
 }
 
-/// A role selection card matching the Figma design:
-/// Horizontal layout with icon square, text column, and radio indicator.
+/// A role selection card matching the Figma design: an illustration that
+/// pokes out above a translucent rounded box, with title/subtitle/CTA
+/// inside. The whole card is tappable.
 class _RoleCard extends StatelessWidget {
+  final double groupHeight;
+  final double pokeOut;
+  final Color cardBg;
   final String title;
   final String subtitle;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBgColor;
-  final bool isSelected;
+  final Color accentColor;
+  final String illustrationAsset;
+  final double illustrationLeft;
+  final double illustrationWidth;
+  final double illustrationHeight;
   final VoidCallback onTap;
 
   const _RoleCard({
+    required this.groupHeight,
+    required this.pokeOut,
+    required this.cardBg,
     required this.title,
     required this.subtitle,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBgColor,
-    required this.isSelected,
+    required this.accentColor,
+    required this.illustrationAsset,
+    required this.illustrationLeft,
+    required this.illustrationWidth,
+    required this.illustrationHeight,
     required this.onTap,
   });
 
+  static const double cardWidth = 333;
+  static const double boxHeight = 288;
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        padding: EdgeInsets.all(isSelected ? 22 : 21),
-        decoration: BoxDecoration(
-          color: AppTheme.inputBackground,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryGreen : AppTheme.borderColor,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            // Icon container - 54px rounded square
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: iconBgColor,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 28,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: SizedBox(
+          width: cardWidth,
+          height: groupHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Translucent rounded box
+              Positioned(
+                top: pokeOut,
+                left: 0,
+                child: Container(
+                  width: cardWidth,
+                  height: boxHeight,
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
 
-            // Text column
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Radio indicator
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected
-                      ? AppTheme.primaryGreen
-                      : const Color(0xFF475569),
-                  width: isSelected ? 2 : 1.5,
+              // Illustration - poking out above the box
+              Positioned(
+                top: 0,
+                left: illustrationLeft,
+                child: Image.asset(
+                  illustrationAsset,
+                  width: illustrationWidth,
+                  height: illustrationHeight,
+                  fit: BoxFit.contain,
                 ),
               ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primaryGreen,
-                          shape: BoxShape.circle,
+
+              // Title
+              Positioned(
+                top: pokeOut + 144,
+                left: 24,
+                right: 24,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: 'Quattrocento Sans',
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+
+              // Subtitle
+              Positioned(
+                top: pokeOut + 193,
+                left: 24,
+                width: 287,
+                child: Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontFamily: 'Quattrocento Sans',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    color: _cardSubtitleColor,
+                    letterSpacing: 0.3,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+
+              // Get start + arrow
+              Positioned(
+                top: pokeOut + 244,
+                left: 24,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Get start',
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: accentColor,
+                        letterSpacing: 0.32,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Transform.rotate(
+                      angle: math.pi / 2,
+                      child: SvgPicture.asset(
+                        'assets/images/arrow_icon.svg',
+                        width: 16,
+                        height: 16,
+                        colorFilter: ColorFilter.mode(
+                          accentColor,
+                          BlendMode.srcIn,
                         ),
                       ),
-                    )
-                  : null,
-            ),
-          ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -32,9 +32,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
 
   String _relation = 'Patient'; // 'Patient' or 'Family member'
 
-  String _selectedCaregiverGender = 'No preference';
-  final List<String> _caregiverGenderOptions = ['No preference', 'Female', 'Male'];
-
   List<Map<String, String>> _filteredCities = [];
 
   late AnimationController _fadeController;
@@ -130,41 +127,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                   : null,
               onTap: () {
                 setState(() => _selectedGender = g);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  void _showCaregiverGenderPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _caregiverGenderOptions.map((cg) {
-            final selected = cg == _selectedCaregiverGender;
-            return ListTile(
-              title: Text(
-                cg,
-                style: TextStyle(
-                  color: selected ? AppTheme.primaryGreen : AppTheme.textPrimary,
-                  fontSize: 15,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-              trailing: selected
-                  ? const Icon(Icons.check_rounded, color: AppTheme.primaryGreen)
-                  : null,
-              onTap: () {
-                setState(() => _selectedCaregiverGender = cg);
                 Navigator.pop(context);
               },
             );
@@ -309,15 +271,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                           const SizedBox(height: 8),
                           _buildCityField(),
                           _buildSuggestionsList(),
-                          const SizedBox(height: 18),
-
-                          // Preferred caregiver gender
-                          _buildLabel('Preferred caregiver gender'),
-                          const SizedBox(height: 8),
-                          _buildDropdownSelector(
-                            value: _selectedCaregiverGender,
-                            onTap: _showCaregiverGenderPicker,
-                          ),
                           const SizedBox(height: 18),
 
                           // Special medical conditions

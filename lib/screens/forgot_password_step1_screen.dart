@@ -129,7 +129,7 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 10),
                           child: Text(
-                            "Enter the email linked to your account and we'll send you a code to reset your password.",
+                            "Enter the email linked to your account and we'll send you a link to reset your password.",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: 'Inter',
@@ -183,14 +183,14 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
                                 if (_formKey.currentState!.validate()) {
                                   Navigator.pushNamed(
                                     context,
-                                    '/forgot-password-step2',
+                                    '/forgot-password-email-sent',
                                     arguments: _emailController.text.trim(),
                                   );
                                 }
                               },
                               child: const Center(
                                 child: Text(
-                                  'Send reset code',
+                                  'Send reset link',
                                   style: TextStyle(
                                     color: creamBg,
                                     fontSize: 20,

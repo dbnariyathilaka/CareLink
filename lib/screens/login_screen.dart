@@ -18,6 +18,13 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
 
+  static const Color bgColor = Color(0xFFF5EEDE);
+  static const Color titleColor = Color(0xFF033724);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color buttonTextColor = Color(0xFFF6F0E2);
+  static const Color labelColor = Color.fromRGBO(0, 0, 0, 0.85);
+  static const Color borderColor = Color.fromRGBO(0, 0, 0, 0.3);
+
   @override
   void initState() {
     super.initState();
@@ -51,12 +58,8 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    const Color creamBg = Color(0xFFF6F0E2);
-    const Color darkGreen = Color(0xFF06402B);
-    const Color titleGreen = Color(0xFF033724);
-
     return Scaffold(
-      backgroundColor: creamBg,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _fadeController,
@@ -92,37 +95,34 @@ class _LoginScreenState extends State<LoginScreen>
               // Form Scrollable Container
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+                  padding: const EdgeInsets.fromLTRB(23, 0, 23, 30),
                   child: Form(
                     key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Hands-holding-heart vector logo in green
+                        // Hands + heart CareLink icon
                         Center(
-                          child: SizedBox(
-                            width: 140,
-                            height: 140,
-                            child: CustomPaint(
-                              painter: _CaregivingIconPainter(color: darkGreen),
-                            ),
+                          child: Image.asset(
+                            'assets/images/login_icon.png',
+                            width: 150,
+                            height: 159,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 17),
 
                         // Title: Welcome Back !
                         const Text(
                           'Welcome Back !',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 42,
-                            fontWeight: FontWeight.w800,
-                            color: titleGreen,
-                            letterSpacing: -0.5,
+                            fontFamily: 'Quattrocento Sans',
+                            fontSize: 48,
+                            fontWeight: FontWeight.w700,
+                            color: titleColor,
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 39),
 
                         // Email Field
                         _buildTextField(
@@ -140,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen>
                             return null;
                           },
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 17),
 
                         // Password Field
                         _buildTextField(
@@ -161,10 +161,11 @@ class _LoginScreenState extends State<LoginScreen>
                             return null;
                           },
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 16),
 
-                        // Forgot Password Link (centered)
-                        Center(
+                        // Forgot Password Link (right-aligned)
+                        Align(
+                          alignment: Alignment.centerRight,
                           child: GestureDetector(
                             onTap: () {
                               Navigator.pushNamed(context, '/forgot-password');
@@ -172,28 +173,28 @@ class _LoginScreenState extends State<LoginScreen>
                             child: const Text(
                               'Forgot Password?',
                               style: TextStyle(
-                                color: darkGreen,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                color: labelColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
                                 fontFamily: 'Inter',
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 61),
 
-                        // Login Button (rounded-[15px] matching Figma)
+                        // Login Button
                         Container(
                           width: double.infinity,
-                          height: 58,
+                          height: 59,
                           decoration: BoxDecoration(
                             color: darkGreen,
                             borderRadius: BorderRadius.circular(15),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF06402B).withValues(alpha: 0.25),
-                                blurRadius: 6,
-                                offset: const Offset(2, 4),
+                                color: darkGreen.withValues(alpha: 0.5),
+                                blurRadius: 2,
+                                offset: const Offset(2, 2),
                               ),
                             ],
                           ),
@@ -214,17 +215,17 @@ class _LoginScreenState extends State<LoginScreen>
                                 child: Text(
                                   'Login',
                                   style: TextStyle(
-                                    color: creamBg,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Inter',
+                                    fontFamily: 'Quattrocento Sans',
+                                    color: buttonTextColor,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
 
                         // Footer Link (centered)
                         Center(
@@ -253,7 +254,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     text: 'Sign in',
                                     style: TextStyle(
                                       color: darkGreen,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -283,21 +284,19 @@ class _LoginScreenState extends State<LoginScreen>
     String? Function(String?)? validator,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    const Color darkGreen = Color(0xFF06402B);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: const TextStyle(
-            color: darkGreen,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+            color: labelColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
             fontFamily: 'Inter',
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         TextFormField(
           controller: controller,
           obscureText: isPassword && obscureText,
@@ -305,35 +304,32 @@ class _LoginScreenState extends State<LoginScreen>
           validator: validator,
           style: const TextStyle(
             color: Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
             fontFamily: 'Inter',
+            letterSpacing: 3,
           ),
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(
-              color: Colors.black.withValues(alpha: 0.3),
-              fontSize: 16,
+            hintStyle: const TextStyle(
+              color: borderColor,
+              fontSize: 15,
               fontWeight: FontWeight.w400,
+              fontFamily: 'Inter',
+              letterSpacing: 3,
             ),
             filled: false,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 16,
+              horizontal: 17,
+              vertical: 17,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide(
-                color: Colors.black.withValues(alpha: 0.3),
-                width: 1,
-              ),
+              borderSide: const BorderSide(color: borderColor, width: 1),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide(
-                color: Colors.black.withValues(alpha: 0.3),
-                width: 1,
-              ),
+              borderSide: const BorderSide(color: borderColor, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
@@ -362,8 +358,8 @@ class _LoginScreenState extends State<LoginScreen>
                       obscureText
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      color: Colors.black.withValues(alpha: 0.4),
-                      size: 22,
+                      color: borderColor,
+                      size: 20,
                     ),
                     onPressed: onToggleObscure,
                   )
@@ -373,74 +369,4 @@ class _LoginScreenState extends State<LoginScreen>
       ],
     );
   }
-}
-
-/// Custom painter for the caregiving hand + heart icon in forest green
-class _CaregivingIconPainter extends CustomPainter {
-  final Color color;
-  _CaregivingIconPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final strokePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Draw the hand (open palm facing up)
-    final handPath = Path();
-
-    // Palm base - curved cup shape
-    handPath.moveTo(cx - 16, cy + 10);
-    handPath.quadraticBezierTo(cx - 18, cy + 18, cx - 10, cy + 20);
-    handPath.lineTo(cx + 10, cy + 20);
-    handPath.quadraticBezierTo(cx + 18, cy + 18, cx + 16, cy + 10);
-
-    // Fingers - slight curves going up on right side
-    handPath.quadraticBezierTo(cx + 20, cy + 2, cx + 14, cy - 2);
-
-    // Back across the top of the hand
-    handPath.quadraticBezierTo(cx + 8, cy + 2, cx, cy + 4);
-    handPath.quadraticBezierTo(cx - 8, cy + 2, cx - 14, cy - 2);
-    handPath.quadraticBezierTo(cx - 20, cy + 2, cx - 16, cy + 10);
-
-    canvas.drawPath(handPath, strokePaint);
-
-    // Draw the heart above the hand
-    final heartSize = 12.0;
-    final heartCx = cx;
-    final heartCy = cy - 12;
-
-    final heartPath = Path();
-    heartPath.moveTo(heartCx, heartCy + heartSize * 0.35);
-
-    // Left half of heart
-    heartPath.cubicTo(
-      heartCx - heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx - heartSize, heartCy + heartSize * 0.05,
-      heartCx, heartCy + heartSize * 0.7,
-    );
-
-    // Right half of heart
-    heartPath.cubicTo(
-      heartCx + heartSize, heartCy + heartSize * 0.05,
-      heartCx + heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx, heartCy + heartSize * 0.35,
-    );
-
-    canvas.drawPath(heartPath, paint);
-    canvas.drawPath(heartPath, strokePaint..strokeWidth = 1.5);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

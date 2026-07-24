@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -14,11 +13,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
 
-  static const Color bgColor = Color(0xFFF5EFE1);
-  static const Color brandGreen = Color(0xFF0F3D2E);
-  static const Color linen = Color(0xFFFDFAF3);
-  static const Color dividerLine = Color.fromRGBO(15, 61, 46, 0.25);
-  static const Color orTextColor = Color.fromRGBO(15, 61, 46, 0.6);
+  static const Color bgColor = Color(0xFFF5EEDE);
+  static const Color titleColor = Color(0xFF033724);
+  static const Color textColor = Color(0xFF06402B);
+  static const Color buttonTextColor = Color(0xFFF6F0E2);
 
   @override
   void initState() {
@@ -68,87 +66,90 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             );
           },
           child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Mother and daughter embracing in a garden
-                  SizedBox(
-                    height: 360,
-                    width: double.infinity,
-                    child: Image.asset(
-                      'assets/images/screen2_obj.png',
-                      fit: BoxFit.cover,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // MAMÁ Y LA HIJA 1 - full-bleed square illustration
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: Image.asset(
+                    'assets/images/screen2_obj.png',
+                    fit: BoxFit.cover,
                   ),
+                ),
+                const SizedBox(height: 15),
 
-                  // Title: Welcome to CareLink
-                  const Padding(
-                    padding: EdgeInsets.only(top: 22),
-                    child: Text(
-                      'Welcome to CareLink',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Quattrocento Sans',
-                        fontSize: 27,
-                        fontWeight: FontWeight.w700,
-                        color: brandGreen,
-                        letterSpacing: -0.3,
-                        height: 1.0,
-                      ),
+                // Title: Welcome to CareLink
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'Welcome to CareLink',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
                     ),
                   ),
+                ),
+                const SizedBox(height: 20),
 
-                  // Subtitle
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      child: const Text(
-                        "Tell us what care you need, and we'll rank the caregivers who match you best.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: brandGreen,
-                          height: 21 / 14,
-                        ),
-                      ),
+                // Subtitle
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 19),
+                  child: Text(
+                    "Tell us what care you need, and we'll rank the caregivers who match you best.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      height: 1.35,
                     ),
                   ),
+                ),
+                const SizedBox(height: 20),
 
-                  // Buttons
-                  Padding(
-                    padding: const EdgeInsets.only(top: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildPillButton(
-                          text: 'Login',
-                          filled: true,
-                          onTap: () {
-                            Navigator.pushNamed(context, '/login');
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        _buildPillButton(
-                          text: 'Sign in',
-                          filled: true,
-                          onTap: () {
-                            Navigator.pushNamed(context, '/register');
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        _buildOrDivider(),
-                        const SizedBox(height: 14),
-                        _buildGoogleButton(),
-                      ],
-                    ),
+                // Login button - darkGreen capsule, cream text
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildPillButton(
+                    text: 'Login',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/login');
+                    },
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+
+                // Sign in button - darkGreen capsule, cream text
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildPillButton(
+                    text: 'Sign in',
+                    onTap: () {
+                      Navigator.pushNamed(context, '/register');
+                    },
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Or divider
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 37),
+                  child: _buildOrDivider(),
+                ),
+                const SizedBox(height: 18),
+
+                // Continue with google - outlined capsule, no icon
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildGoogleButton(context),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
         ),
@@ -158,25 +159,36 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   Widget _buildPillButton({
     required String text,
-    required bool filled,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: filled ? brandGreen : Colors.transparent,
-      borderRadius: BorderRadius.circular(32),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(32),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Quattrocento Sans',
-              color: filled ? linen : brandGreen,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+    return Container(
+      width: double.infinity,
+      height: 50,
+      decoration: BoxDecoration(
+        color: textColor,
+        borderRadius: BorderRadius.circular(50),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withValues(alpha: 0.5),
+            blurRadius: 2,
+            offset: const Offset(2, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(50),
+          onTap: onTap,
+          child: Center(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontFamily: 'Quattrocento Sans',
+                color: buttonTextColor,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),
@@ -184,44 +196,35 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildGoogleButton() {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(32),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(32),
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/register',
-            arguments: {'triggerGoogle': true},
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: brandGreen, width: 1),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgPicture.asset(
-                'assets/images/google_logo.svg',
-                width: 18,
-                height: 18,
+  Widget _buildGoogleButton(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 50,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: textColor, width: 1.0),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(50),
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/register',
+              arguments: {'triggerGoogle': true},
+            );
+          },
+          child: const Center(
+            child: Text(
+              'Continue with google',
+              style: TextStyle(
+                fontFamily: 'Quattrocento Sans',
+                color: textColor,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(width: 10),
-              const Text(
-                'Continue with Google',
-                style: TextStyle(
-                  fontFamily: 'Quattrocento Sans',
-                  color: brandGreen,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -231,22 +234,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget _buildOrDivider() {
     return Row(
       children: [
-        const Expanded(
-          child: SizedBox(height: 1, child: ColoredBox(color: dividerLine)),
+        Expanded(
+          child: Container(height: 1, color: Colors.black.withValues(alpha: 0.3)),
         ),
-        const SizedBox(width: 9.8),
-        const Text(
-          'Or',
-          style: TextStyle(
-            fontFamily: 'Quattrocento Sans',
-            color: orTextColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            'Or',
+            style: TextStyle(
+              fontFamily: 'Quattrocento Sans',
+              color: Color.fromRGBO(0, 0, 0, 0.5),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
-        const SizedBox(width: 9.8),
-        const Expanded(
-          child: SizedBox(height: 1, child: ColoredBox(color: dividerLine)),
+        Expanded(
+          child: Container(height: 1, color: Colors.black.withValues(alpha: 0.3)),
         ),
       ],
     );
