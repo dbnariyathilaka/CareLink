@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'who_needs_care_sheet.dart';
 
-class AccountCreatedScreen extends StatefulWidget {
-  const AccountCreatedScreen({super.key});
+class ForgotPasswordResetSuccessScreen extends StatefulWidget {
+  const ForgotPasswordResetSuccessScreen({super.key});
 
   @override
-  State<AccountCreatedScreen> createState() => _AccountCreatedScreenState();
+  State<ForgotPasswordResetSuccessScreen> createState() =>
+      _ForgotPasswordResetSuccessScreenState();
 }
 
-class _AccountCreatedScreenState extends State<AccountCreatedScreen>
+class _ForgotPasswordResetSuccessScreenState
+    extends State<ForgotPasswordResetSuccessScreen>
     with TickerProviderStateMixin {
   late AnimationController _mainController;
   late Animation<double> _scaleAnimation;
@@ -20,7 +21,6 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
   void initState() {
     super.initState();
 
-    // Premium entrance animation sequence
     _mainController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -59,20 +59,15 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments;
-    final userName = (args is Map && args['name'] != null && args['name'].toString().isNotEmpty)
-        ? args['name'].toString()
-        : 'Nipuni';
-    final role = (args is Map && args['role'] is String) ? args['role'] as String : null;
-
     const Color darkGreen = Color(0xFF06402B);
     const Color creamColor = Color(0xFFF6F0E2);
+    const Color offWhite = Color(0xFFFCF9F2);
 
     return Scaffold(
       backgroundColor: darkGreen,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 21, vertical: 20),
           child: Column(
             children: [
               // Center content area
@@ -80,7 +75,7 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // MdiTickDecagram icon scale transition
+                    // Tick decagram icon scale transition
                     AnimatedBuilder(
                       animation: _mainController,
                       builder: (context, child) {
@@ -98,9 +93,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                         size: 150,
                       ),
                     ),
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 40),
 
-                    // Title: Account created!
+                    // Title: Password Reset!
                     AnimatedBuilder(
                       animation: _textFadeAnimation,
                       builder: (context, child) {
@@ -113,20 +108,20 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                         );
                       },
                       child: const Text(
-                        'Account created!',
+                        'Password Reset!',
                         style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 38,
-                          fontWeight: FontWeight.w800,
+                          fontFamily: 'Quattrocento Sans',
+                          fontSize: 40,
+                          fontWeight: FontWeight.w700,
                           color: Colors.white,
                           letterSpacing: 3,
                         ),
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // Subtitle: Welcome message
+                    // Subtitle
                     AnimatedBuilder(
                       animation: _textFadeAnimation,
                       builder: (context, child) {
@@ -135,16 +130,16 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                           child: child,
                         );
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
                         child: Text(
-                          "Welcome to CareLink, $userName. Let's set up your profile so we can find your matches.",
-                          style: const TextStyle(
+                          'Your password has been updated. Use your new password the next time you log in.',
+                          style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 20,
-                            fontWeight: FontWeight.normal,
-                            color: Colors.white,
-                            height: 1.4,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: offWhite,
+                            height: 1.38,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -154,7 +149,7 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                 ),
               ),
 
-              // Bottom Button Section with entrance slide/fade
+              // Back to login button with entrance slide/fade
               AnimatedBuilder(
                 animation: _buttonFadeAnimation,
                 builder: (context, child) {
@@ -170,19 +165,19 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                   padding: const EdgeInsets.only(bottom: 24),
                   child: Container(
                     width: double.infinity,
-                    height: 58,
+                    height: 59,
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
                         color: creamColor,
-                        width: 1.5,
+                        width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
+                          color: darkGreen.withValues(alpha: 0.5),
                           blurRadius: 4,
-                          offset: const Offset(2, 4),
+                          offset: const Offset(4, 4),
                         ),
                       ],
                     ),
@@ -191,22 +186,20 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                       child: InkWell(
                         borderRadius: BorderRadius.circular(15),
                         onTap: () {
-                          if (role == 'caregiver') {
-                            Navigator.pushNamed(context, '/caregiver-onboarding-1');
-                          } else if (role == 'patient') {
-                            showWhoNeedsCareSheet(context);
-                          } else {
-                            Navigator.pushNamed(context, '/role-selection');
-                          }
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/login',
+                            (route) => false,
+                          );
                         },
                         child: const Center(
                           child: Text(
-                            'Set my profile',
+                            'Back to login',
                             style: TextStyle(
                               color: creamColor,
-                              fontSize: 20,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
+                              fontFamily: 'Quattrocento Sans',
                             ),
                           ),
                         ),

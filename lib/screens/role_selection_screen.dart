@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'who_needs_care_sheet.dart';
 
 const Color _cardSubtitleColor = Color.fromRGBO(0, 0, 0, 0.5);
 
@@ -124,7 +123,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                             illustrationWidth: 183,
                             illustrationHeight: 209,
                             onTap: () {
-                              showWhoNeedsCareSheet(context);
+                              Navigator.pushNamed(
+                                context,
+                                '/register',
+                                arguments: {'role': 'patient'},
+                              );
                             },
                           ),
                           const SizedBox(height: 7),
@@ -144,7 +147,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                             illustrationWidth: 200,
                             illustrationHeight: 216,
                             onTap: () {
-                              Navigator.pushNamed(context, '/caregiver-onboarding-1');
+                              Navigator.pushNamed(
+                                context,
+                                '/register',
+                                arguments: {'role': 'caregiver'},
+                              );
                             },
                           ),
                         ],

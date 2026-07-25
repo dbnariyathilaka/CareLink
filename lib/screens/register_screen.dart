@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _googleSignedIn = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  String? _role;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -51,6 +52,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.didChangeDependencies();
     // If welcome screen passed triggerGoogle: true, auto-trigger sign-in
     final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['role'] is String) {
+      _role = args['role'] as String;
+    }
     if (args is Map && args['triggerGoogle'] == true && !_googleSignedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _handleGoogleSignIn());
     }
@@ -322,7 +326,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   Navigator.pushNamed(
                                     context,
                                     '/account-created',
-                                    arguments: {'name': _fullNameController.text},
+                                    arguments: {
+                                      'name': _fullNameController.text,
+                                      'role': _role,
+                                    },
                                   );
                                 }
                               },

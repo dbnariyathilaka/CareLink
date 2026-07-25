@@ -12,6 +12,15 @@ class PatientSearchScreen extends StatefulWidget {
 class _PatientSearchScreenState extends State<PatientSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
 
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color buttonNeutral = Color(0xFF554F42);
+  static const Color matchBadgeBg = Color.fromRGBO(64, 64, 6, 0.3);
+  static const Color matchBadgeText = Color(0xFF33440A);
+  static const Color navHomeLabel = Color(0xFFFEE269);
+  static const Color navMatchLabel = Color(0xFFFFA722);
+  static const Color starGold = Color(0xFFF5B301);
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -20,59 +29,66 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
 
   static const List<_CaregiverData> _caregivers = [
     _CaregiverData(
-      initials: 'AF',
-      avatarType: _AvatarType.greenGradient,
-      name: 'Alice Fernando',
-      detail: 'Elder care · 7 yrs · 2.3 km · ★4.8',
-    ),
-    _CaregiverData(
-      initials: 'BK',
-      avatarType: _AvatarType.blue,
-      name: 'Brian Kumara',
-      detail: 'Post-surgery · 5 yrs · 3.1 km · ★4.6',
+      initials: 'RF',
+      avatarBg: Color(0xFFE9C368),
+      initialsColor: darkGreen,
+      name: 'Rayan Fernando',
+      matchScore: '95%',
+      careType: 'Elder care',
+      experience: '7 yrs exp',
+      distance: '2.5 km',
+      rating: '4.8',
+      available: true,
+      cardBg: Color.fromRGBO(100, 86, 57, 0.25),
     ),
     _CaregiverData(
       initials: 'NS',
-      avatarType: _AvatarType.amber,
-      name: 'Nadeesha Silva',
-      detail: 'Elder care · 9 yrs · 4.6 km · ★4.9',
+      avatarBg: Color(0xFFB9C2E8),
+      initialsColor: Color(0xFF0A2447),
+      name: 'Navodya Sankalpa',
+      matchScore: '89%',
+      careType: 'Elder care',
+      experience: '5 yrs exp',
+      distance: '3.6 km',
+      rating: '4.8',
+      available: true,
+      cardBg: Color(0xFFD1C8B4),
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: bgCream,
       body: SafeArea(
+        bottom: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 14, 22, 10),
-              child: Row(
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
                 children: [
-                  Text(
-                    '${_caregivers.length} caregivers found',
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'Inter',
+                  const Text(
+                    'Top matches for you',
+                    style: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: darkGreen,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ..._caregivers.map(
+                    (c) => Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: _buildCaregiverCard(c),
                     ),
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 18),
-                itemCount: _caregivers.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (_, i) => _buildCaregiverCard(_caregivers[i]),
-              ),
-            ),
-            _buildBottomNav(context),
+            _buildBottomBar(),
           ],
         ),
       ),
@@ -88,158 +104,155 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     );
   }
 
-  // ── Header (matches dashboard style) ──────────────────────
+  // ── Header (matches dashboard style, plus search bar) ─────
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF16A34A), Color(0xFF15803D)],
-        ),
+        color: darkGreen,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
         ),
       ),
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Greeting + avatar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Good morning',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Nipuni 👋',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        fontFamily: 'Inter',
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.pushNamed(context, '/patient-profile'),
-                  child: ValueListenableBuilder<String?>(
-                    valueListenable: AppState.profileImagePath,
-                    builder: (_, imagePath, _) {
-                      return Container(
-                        width: 46,
-                        height: 46,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.2),
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.5), width: 2),
-                        ),
-                        child: imagePath != null
-                            ? ClipOval(
-                                child: Image.file(
-                                  File(imagePath),
-                                  width: 42,
-                                  height: 42,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : const Center(
-                                child: Text(
-                                  'NA',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      fontFamily: 'Inter'),
-                                ),
-                              ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Search/filter bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 14),
-                    child: Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF0F172A),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      style: const TextStyle(
-                        color: Color(0xFF0F172A),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        fontFamily: 'Inter',
-                      ),
-                      decoration: const InputDecoration(
-                        filled: false,
-                        hintText: 'Search caregivers...',
-                        hintStyle: TextStyle(
-                          color: Color(0xFF0F172A),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          fontFamily: 'Inter',
+                  Row(
+                    children: const [
+                      Text(
+                        'Good morning',
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
                         ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 13),
                       ),
-                      onChanged: (val) {
-                        setState(() {});
-                      },
-                    ),
+                      SizedBox(width: 8),
+                      Icon(Icons.wb_sunny_rounded, color: Color(0xFFFFC940), size: 18),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: () => _showFiltersSheet(context),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                      child: Icon(
-                        Icons.tune_rounded,
-                        color: Color(0xFF22C55E),
-                        size: 20,
-                      ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Nipuni Ariyathilaka',
+                    style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.pushNamed(context, '/patient-profile'),
+                child: ValueListenableBuilder<String?>(
+                  valueListenable: AppState.profileImagePath,
+                  builder: (_, imagePath, _) {
+                    return Container(
+                      width: 50,
+                      height: 50,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                      child: imagePath != null
+                          ? ClipOval(
+                              child: Image.file(
+                                File(imagePath),
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : const Center(
+                              child: Text(
+                                'NA',
+                                style: TextStyle(
+                                  fontFamily: 'Quattrocento Sans',
+                                  color: darkGreen,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          // Search/filter bar
+          Container(
+            width: double.infinity,
+            height: 43,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF6E3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(left: 16),
+                  child: Icon(
+                    Icons.search_rounded,
+                    color: Color.fromRGBO(6, 64, 43, 0.6),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: darkGreen,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    decoration: const InputDecoration(
+                      filled: false,
+                      isDense: true,
+                      hintText: 'Search caregivers....',
+                      hintStyle: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        color: Color.fromRGBO(6, 64, 43, 0.6),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (val) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _showFiltersSheet(context),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      color: darkGreen,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -251,11 +264,10 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   Widget _buildCaregiverCard(_CaregiverData data) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        border: Border.all(color: const Color(0xFF334155)),
-        borderRadius: BorderRadius.circular(14),
+        color: data.cardBg,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,56 +275,175 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildAvatar(data),
+              Column(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: data.avatarBg,
+                    ),
+                    child: Center(
+                      child: Text(
+                        data.initials,
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: data.initialsColor,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.place_rounded, color: Colors.black, size: 12),
+                      const SizedBox(width: 3),
+                      Text(
+                        data.distance,
+                        style: const TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      data.name,
-                      style: const TextStyle(
-                        color: Color(0xFFF8FAFC),
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            data.name,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: matchBadgeBg,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            data.matchScore,
+                            style: const TextStyle(
+                              fontFamily: 'Quattrocento Sans',
+                              color: matchBadgeText,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      data.detail,
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'Inter',
-                      ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          data.careType,
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Colors.black,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Text(
+                          data.experience,
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Colors.black,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, color: starGold, size: 14),
+                        const SizedBox(width: 3),
+                        Text(
+                          data.rating,
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: data.available ? const Color(0xFF22C55E) : Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          data.available ? 'Available' : 'Unavailable',
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: Material(
-                  color: const Color(0xFF22C55E),
-                  borderRadius: BorderRadius.circular(8),
+                  color: buttonNeutral,
+                  borderRadius: BorderRadius.circular(10),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     onTap: () => Navigator.pushNamed(context, '/send-request'),
                     child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 10),
+                      padding: EdgeInsets.symmetric(vertical: 11),
                       child: Text(
                         'Request',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Color(0xFF06240F),
+                          fontFamily: 'Open Sans',
+                          color: Colors.white,
                           fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -321,22 +452,27 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF334155)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Profile',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0xFFF8FAFC),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Inter',
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: buttonNeutral),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'Profile',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: buttonNeutral,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -349,167 +485,65 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     );
   }
 
-  Widget _buildAvatar(_CaregiverData data) {
-    switch (data.avatarType) {
-      case _AvatarType.greenGradient:
-        return Container(
-          width: 44,
-          height: 44,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
-            ),
-          ),
-          child: Center(
-            child: Text(
-              data.initials,
-              style: const TextStyle(
-                color: Color(0xFF06240F),
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'Inter',
-              ),
-            ),
-          ),
-        );
-      case _AvatarType.blue:
-        return Container(
-          width: 44,
-          height: 44,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
-            ),
-          ),
-          child: Center(
-            child: Text(
-              data.initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'Inter',
-              ),
-            ),
-          ),
-        );
-      case _AvatarType.amber:
-        return Container(
-          width: 44,
-          height: 44,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF59E0B), Color(0xFFD97606)],
-            ),
-          ),
-          child: Center(
-            child: Text(
-              data.initials,
-              style: const TextStyle(
-                color: Color(0xFF3B2406),
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'Inter',
-              ),
-            ),
-          ),
-        );
-    }
+  // ── Bottom nav (matches dashboard, Search tab highlighted) ─
+  Widget _buildBottomBar() {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        _buildBottomNav(),
+        const Positioned(
+          top: -22,
+          child: _MatchFab(),
+        ),
+      ],
+    );
   }
 
-  // ── Bottom nav (matches dashboard) ────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
+  Widget _buildBottomNav() {
     final items = [
-      (icon: Icons.home_rounded, label: 'Home'),
-      (icon: Icons.search_rounded, label: 'Search'),
-      (icon: null, label: 'Match'),
-      (icon: Icons.calendar_month_rounded, label: 'Bookings'),
-      (icon: Icons.notifications_none_rounded, label: 'Alerts'),
+      (icon: Icons.home_rounded, label: 'Home', route: null),
+      (icon: Icons.search_rounded, label: 'Search', route: null),
+      (icon: null, label: 'Match', route: null),
+      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/my-bookings'),
+      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/notifications'),
     ];
-    const selectedIndex = 1; // Search is active
-
     return Container(
-      height: 68,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        border: Border(top: BorderSide(color: Color(0xFF1E293B), width: 1.0)),
-      ),
+      width: double.infinity,
+      height: 67,
+      color: darkGreen,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(items.length, (index) {
           final item = items[index];
-          final isSelected = index == selectedIndex;
 
           if (index == 2) {
-            return GestureDetector(
-              onTap: () {
-                if (AppState.hasActiveMatch.value) {
-                  Navigator.pushNamed(context, '/advanced-match-results');
-                } else {
-                  Navigator.pushNamed(context, '/advanced-match-send-request');
-                }
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF01D3A8), // Caribbean Green
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF0F172A), width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF01D3A8).withValues(alpha: 0.5),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.diversity_3_rounded,
-                      color: Color(0xFF06240F),
-                      size: 24,
-                    ),
+            return const SizedBox(
+              width: 60,
+              child: Padding(
+                padding: EdgeInsets.only(top: 41),
+                child: Text(
+                  'Match',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Quattrocento Sans',
+                    color: navMatchLabel,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Match',
-                    style: TextStyle(
-                      color: Color(0xFF01D3A8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           }
 
-          final color = isSelected
-              ? const Color(0xFF22C55E)
-              : const Color(0xFF64748B);
+          final color = index == 1 ? navHomeLabel : Colors.white;
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
               if (index == 0) {
                 Navigator.popUntil(context, ModalRoute.withName('/patient-dashboard'));
-              } else if (index == 3) {
-                Navigator.pushNamed(context, '/my-bookings');
-              } else if (index == 4) {
-                Navigator.pushNamed(context, '/notifications');
+              } else if (item.route != null) {
+                Navigator.pushNamed(context, item.route!);
               }
             },
             child: SizedBox(
@@ -517,15 +551,15 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(item.icon, color: color, size: 22),
+                  Icon(item.icon, color: color, size: 25),
                   const SizedBox(height: 4),
                   Text(
                     item.label,
                     style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
                       color: color,
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -538,20 +572,74 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   }
 }
 
-// ── Data model ────────────────────────────────────────────
-enum _AvatarType { greenGradient, blue, amber }
+class _MatchFab extends StatelessWidget {
+  const _MatchFab();
 
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color navMatchLabel = Color(0xFFFFA722);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (AppState.hasActiveMatch.value) {
+          Navigator.pushNamed(context, '/advanced-match-results');
+        } else {
+          Navigator.pushNamed(context, '/advanced-match-send-request');
+        }
+      },
+      child: Container(
+        width: 65,
+        height: 65,
+        decoration: BoxDecoration(
+          color: darkGreen,
+          shape: BoxShape.circle,
+          border: Border.all(color: bgCream, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.crop_free_rounded,
+          color: navMatchLabel,
+          size: 26,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Data model ────────────────────────────────────────────
 class _CaregiverData {
   final String initials;
-  final _AvatarType avatarType;
+  final Color avatarBg;
+  final Color initialsColor;
   final String name;
-  final String detail;
+  final String matchScore;
+  final String careType;
+  final String experience;
+  final String distance;
+  final String rating;
+  final bool available;
+  final Color cardBg;
 
   const _CaregiverData({
     required this.initials,
-    required this.avatarType,
+    required this.avatarBg,
+    required this.initialsColor,
     required this.name,
-    required this.detail,
+    required this.matchScore,
+    required this.careType,
+    required this.experience,
+    required this.distance,
+    required this.rating,
+    required this.available,
+    required this.cardBg,
   });
 }
 
@@ -568,6 +656,9 @@ class FiltersSheet extends StatefulWidget {
 }
 
 class _FiltersSheetState extends State<FiltersSheet> {
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color borderTan = Color.fromRGBO(6, 64, 43, 0.2);
+
   _CareType _careType = _CareType.fullTime;
   _SortBy _sortBy = _SortBy.bestMatch;
   double _maxDistance = 15;
@@ -589,8 +680,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(22, 17, 22, 20),
         decoration: const BoxDecoration(
-          color: Color(0xFF1E293B),
-          border: Border(top: BorderSide(color: Color(0xFF334155))),
+          color: Color(0xFFF5EEDE),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -606,7 +696,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF475569),
+                  color: darkGreen.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -619,15 +709,15 @@ class _FiltersSheetState extends State<FiltersSheet> {
                 const Text(
                   'Filters',
                   style: TextStyle(
-                    color: Color(0xFFF8FAFC),
+                    fontFamily: 'Quattrocento Sans',
+                    color: darkGreen,
                     fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close_rounded, color: Color(0xFFF8FAFC), size: 24),
+                  child: const Icon(Icons.close_rounded, color: darkGreen, size: 24),
                 ),
               ],
             ),
@@ -709,17 +799,17 @@ class _FiltersSheetState extends State<FiltersSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF334155)),
+                          border: Border.all(color: darkGreen.withValues(alpha: 0.3)),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
                           'Clear all',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Color(0xFFF8FAFC),
+                            fontFamily: 'Quattrocento Sans',
+                            color: darkGreen,
                             fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -730,7 +820,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
                 Expanded(
                   flex: 2,
                   child: Material(
-                    color: const Color(0xFF22C55E),
+                    color: darkGreen,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
@@ -741,10 +831,10 @@ class _FiltersSheetState extends State<FiltersSheet> {
                           'Apply filters',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Color(0xFF06240F),
+                            fontFamily: 'Quattrocento Sans',
+                            color: Colors.white,
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            fontFamily: 'Inter',
                           ),
                         ),
                       ),
@@ -762,11 +852,11 @@ class _FiltersSheetState extends State<FiltersSheet> {
   Widget _sectionLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        color: Color(0xFF94A3B8),
+      style: TextStyle(
+        fontFamily: 'Quattrocento Sans',
+        color: darkGreen.withValues(alpha: 0.6),
         fontSize: 11,
         fontWeight: FontWeight.w700,
-        fontFamily: 'Inter',
         letterSpacing: 0.5,
       ),
     );
@@ -782,10 +872,10 @@ class _FiltersSheetState extends State<FiltersSheet> {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFFCBD5E1),
+              fontFamily: 'Quattrocento Sans',
+              color: darkGreen,
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              fontFamily: 'Inter',
             ),
           ),
           Container(
@@ -794,7 +884,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: selected ? const Color(0xFF22C55E) : const Color(0xFF334155),
+                color: selected ? darkGreen : borderTan,
                 width: 2,
               ),
             ),
@@ -805,7 +895,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
                       height: 11,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFF22C55E),
+                        color: darkGreen,
                       ),
                     ),
                   )
@@ -830,9 +920,9 @@ class _FiltersSheetState extends State<FiltersSheet> {
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
               trackHeight: 5,
-              activeTrackColor: const Color(0xFF22C55E),
-              inactiveTrackColor: const Color(0xFF0F172A),
-              thumbColor: const Color(0xFF22C55E),
+              activeTrackColor: darkGreen,
+              inactiveTrackColor: darkGreen.withValues(alpha: 0.15),
+              thumbColor: darkGreen,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
               overlayShape: SliderComponentShape.noOverlay,
             ),
@@ -849,10 +939,10 @@ class _FiltersSheetState extends State<FiltersSheet> {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFFF8FAFC),
+            fontFamily: 'Quattrocento Sans',
+            color: darkGreen,
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            fontFamily: 'Inter',
           ),
         ),
       ],

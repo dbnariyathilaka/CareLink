@@ -37,6 +37,7 @@ import 'screens/caregiver_messages_screen.dart';
 import 'screens/caregiver_chat_screen.dart';
 import 'screens/patient_settings_screen.dart';
 import 'screens/caregiver_schedule_screen.dart';
+import 'screens/caregiver_directions_screen.dart';
 import 'screens/caregiver_own_profile_screen.dart';
 import 'screens/caregiver_earnings_screen.dart';
 import 'screens/caregiver_reviews_screen.dart';
@@ -45,6 +46,7 @@ import 'screens/caregiver_notifications_screen.dart';
 import 'screens/caregiver_settings_screen.dart';
 import 'screens/forgot_password_step1_screen.dart';
 import 'screens/forgot_password_email_sent_screen.dart';
+import 'screens/forgot_password_reset_success_screen.dart';
 import 'screens/location_selection_screen.dart';
 import 'screens/map_selection_screen.dart';
 import 'screens/advanced_match_send_request_screen.dart';
@@ -122,6 +124,7 @@ class CareMatchApp extends StatelessWidget {
         '/chat': (context) => const PatientChatScreen(),
         '/settings': (context) => const PatientSettingsScreen(),
         '/caregiver-schedule': (context) => const CaregiverScheduleScreen(),
+        '/caregiver-directions': (context) => const CaregiverDirectionsScreen(),
         '/caregiver-own-profile': (context) =>
             const CaregiverOwnProfileScreen(),
         '/caregiver-earnings': (context) => const CaregiverEarningsScreen(),
@@ -136,6 +139,8 @@ class CareMatchApp extends StatelessWidget {
         '/forgot-password': (context) => const ForgotPasswordStep1Screen(),
         '/forgot-password-email-sent': (context) =>
             const ForgotPasswordEmailSentScreen(),
+        '/forgot-password-reset-success': (context) =>
+            const ForgotPasswordResetSuccessScreen(),
       },
     );
   }

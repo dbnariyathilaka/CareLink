@@ -1,0 +1,515 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+import '../theme/app_theme.dart';
+import '../data/patient_locations.dart';
+
+// ─────────────────────────────────────────────────────────────
+//  Get Directions Screen (Caregiver)
+//  Figma node: 498-7630 · "Directions to {patient}"
+//
+//  Renders a real OpenStreetMap of Sri Lanka and requests an
+//  actual driving route (via the public OSRM routing engine)
+//  from the caregiver's current GPS position to the patient's
+//  saved care address — real road geometry, distance and ETA,
+//  not a mocked line.
+// ─────────────────────────────────────────────────────────────
+class CaregiverDirectionsScreen extends StatefulWidget {
+  const CaregiverDirectionsScreen({super.key});
+
+  @override
+  State<CaregiverDirectionsScreen> createState() => _CaregiverDirectionsScreenState();
+}
+
+class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
+  static const Color _indigo = Color(0xFF6366F1);
+  static const Color _green = AppTheme.primaryGreen;
+  static const Color _red = Color(0xFFEF4444);
+  static const Color _geyser = Color(0xFFCBD5E1);
+
+  // Reasonable default origin (Colombo Fort) used only if GPS is
+  // unavailable/denied, so the screen still shows a real route.
+  static const LatLng _fallbackOrigin = LatLng(6.9344, 79.8428);
+
+  final MapController _mapController = MapController();
+  bool _didReadArgs = false;
+
+  String _patientName = 'Nipuni Ariyathilaka';
+  late PatientLocation _destination;
+
+  LatLng? _origin;
+  List<LatLng> _routePoints = [];
+  double? _distanceMeters;
+  double? _durationSeconds;
+  String _instruction = '';
+  IconData _instructionIcon = Icons.straight_rounded;
+  bool _loading = true;
+  bool _usedFallbackRoute = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didReadArgs) return;
+    _didReadArgs = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      _patientName = args['name'] as String? ?? _patientName;
+    }
+    _destination = patientLocations[_patientName] ?? defaultPatientLocation;
+    _loadRoute();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  Future<LatLng> _resolveOrigin() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return _fallbackOrigin;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return _fallbackOrigin;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 6),
+      );
+      return LatLng(position.latitude, position.longitude);
+    } catch (_) {
+      return _fallbackOrigin;
+    }
+  }
+
+  Future<void> _loadRoute() async {
+    setState(() {
+      _loading = true;
+    });
+
+    final origin = await _resolveOrigin();
+    final destLatLng = LatLng(_destination.lat, _destination.lng);
+
+    try {
+      final uri = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${origin.longitude},${origin.latitude};'
+        '${destLatLng.longitude},${destLatLng.latitude}'
+        '?overview=full&geometries=geojson&steps=true',
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        throw Exception('Routing service returned ${response.statusCode}');
+      }
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final routes = body['routes'] as List?;
+      if (routes == null || routes.isEmpty) {
+        throw Exception('No route found');
+      }
+      final route = routes.first as Map<String, dynamic>;
+      final geometry = route['geometry'] as Map<String, dynamic>;
+      final coords = geometry['coordinates'] as List;
+      final points = coords
+          .map((c) => LatLng((c as List)[1] as double, c[0] as double))
+          .toList();
+
+      final legs = route['legs'] as List;
+      final steps = (legs.first as Map<String, dynamic>)['steps'] as List;
+      final instructionData = _buildInstruction(steps, (route['distance'] as num).toDouble());
+
+      if (!mounted) return;
+      setState(() {
+        _origin = origin;
+        _routePoints = points;
+        _distanceMeters = (route['distance'] as num).toDouble();
+        _durationSeconds = (route['duration'] as num).toDouble();
+        _instruction = instructionData.$1;
+        _instructionIcon = instructionData.$2;
+        _usedFallbackRoute = false;
+        _loading = false;
+      });
+      _fitToRoute();
+    } catch (e) {
+      // Routing service unreachable — fall back to a straight-line
+      // estimate so the screen still shows something useful.
+      if (!mounted) return;
+      final distance = const Distance().as(LengthUnit.Meter, origin, destLatLng);
+      setState(() {
+        _origin = origin;
+        _routePoints = [origin, destLatLng];
+        _distanceMeters = distance;
+        _durationSeconds = distance / (30 * 1000 / 3600); // ~30 km/h estimate
+        _instruction = 'Head toward ${_destination.address}';
+        _instructionIcon = Icons.straight_rounded;
+        _usedFallbackRoute = true;
+        _loading = false;
+      });
+      _fitToRoute();
+    }
+  }
+
+  (String, IconData) _buildInstruction(List steps, double totalDistanceMeters) {
+    if (steps.length < 2) {
+      return ('Head toward ${_destination.address}', Icons.straight_rounded);
+    }
+    final step = steps[1] as Map<String, dynamic>;
+    final maneuver = step['maneuver'] as Map<String, dynamic>;
+    final modifier = maneuver['modifier'] as String?;
+    final type = maneuver['type'] as String?;
+    final roadName = (step['name'] as String?)?.trim();
+
+    String verb;
+    switch (type) {
+      case 'turn':
+        verb = modifier != null ? 'Turn ${modifier.replaceAll('_', ' ')}' : 'Turn';
+      case 'merge':
+        verb = 'Merge';
+      case 'roundabout':
+      case 'rotary':
+        verb = 'Enter the roundabout';
+      case 'fork':
+        verb = 'Keep ${modifier ?? 'straight'}';
+      case 'arrive':
+        verb = 'Arrive at destination';
+      default:
+        verb = 'Continue';
+    }
+    final ontoPart = (roadName != null && roadName.isNotEmpty) ? ' onto $roadName' : '';
+    final remainingKm = (totalDistanceMeters / 1000).toStringAsFixed(1);
+    final text = '$verb$ontoPart, then continue $remainingKm km';
+    return (text, _iconForModifier(modifier));
+  }
+
+  IconData _iconForModifier(String? modifier) {
+    switch (modifier) {
+      case 'left':
+        return Icons.turn_left_rounded;
+      case 'right':
+        return Icons.turn_right_rounded;
+      case 'slight left':
+        return Icons.turn_slight_left_rounded;
+      case 'slight right':
+        return Icons.turn_slight_right_rounded;
+      case 'sharp left':
+        return Icons.turn_sharp_left_rounded;
+      case 'sharp right':
+        return Icons.turn_sharp_right_rounded;
+      case 'uturn':
+        return Icons.u_turn_left_rounded;
+      default:
+        return Icons.straight_rounded;
+    }
+  }
+
+  void _fitToRoute() {
+    if (_routePoints.length < 2) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final bounds = LatLngBounds.fromPoints(_routePoints);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.fromLTRB(50, 160, 50, 260),
+          ),
+        );
+      } catch (_) {
+        // Map not attached yet — ignore, initial center already covers it.
+      }
+    });
+  }
+
+  Future<void> _startNavigation() async {
+    if (_origin == null) return;
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&origin=${_origin!.latitude},${_origin!.longitude}'
+      '&destination=${_destination.lat},${_destination.lng}'
+      '&travelmode=driving',
+    );
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open a maps app on this device.')),
+      );
+    }
+  }
+
+  String get _durationLabel {
+    if (_durationSeconds == null) return '--';
+    final minutes = (_durationSeconds! / 60).round();
+    if (minutes < 60) return '$minutes min';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return '${h}h ${m}m';
+  }
+
+  String get _distanceLabel {
+    if (_distanceMeters == null) return '--';
+    return '${(_distanceMeters! / 1000).toStringAsFixed(1)} km';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final center = _origin != null
+        ? LatLng(
+            (_origin!.latitude + _destination.lat) / 2,
+            (_origin!.longitude + _destination.lng) / 2,
+          )
+        : LatLng(_destination.lat, _destination.lng);
+
+    return Scaffold(
+      backgroundColor: AppTheme.surfaceColor,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: center,
+                initialZoom: 13,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.carematch',
+                ),
+                if (_routePoints.length >= 2)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: _routePoints,
+                        strokeWidth: 5,
+                        color: _indigo,
+                        borderStrokeWidth: 2,
+                        borderColor: Colors.white.withValues(alpha: 0.6),
+                      ),
+                    ],
+                  ),
+                MarkerLayer(
+                  markers: [
+                    if (_origin != null)
+                      Marker(
+                        point: _origin!,
+                        width: 22,
+                        height: 22,
+                        child: _buildDot(_green),
+                      ),
+                    Marker(
+                      point: LatLng(_destination.lat, _destination.lng),
+                      width: 22,
+                      height: 22,
+                      child: _buildDot(_red),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          if (_loading)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0x660F172A),
+                child: Center(child: CircularProgressIndicator(color: _indigo)),
+              ),
+            ),
+
+          // Header card
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 0,
+            child: SafeArea(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardColor.withValues(alpha: 0.95),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Directions to $_patientName',
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _destination.address,
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom sheet
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: AppTheme.surfaceColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(22),
+                  topRight: Radius.circular(22),
+                ),
+                boxShadow: [
+                  BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, -6)),
+                ],
+              ),
+              padding: EdgeInsets.fromLTRB(20, 18, 20, MediaQuery.of(context).padding.bottom + 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _durationLabel,
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _usedFallbackRoute
+                                  ? '$_distanceLabel · Estimated route'
+                                  : '$_distanceLabel · Fastest route',
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cardColor,
+                      border: Border.all(color: AppTheme.borderColor),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_instructionIcon, color: _indigo, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _instruction,
+                            style: const TextStyle(
+                              color: _geyser,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Material(
+                      color: _indigo,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: _loading ? null : _startNavigation,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.navigation_rounded, color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Start navigation',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDot(Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: [
+          BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1),
+        ],
+      ),
+    );
+  }
+}

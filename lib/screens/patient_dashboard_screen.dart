@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../app_state.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
@@ -12,51 +11,59 @@ class PatientDashboardScreen extends StatefulWidget {
 }
 
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
-  int _selectedNavIndex = 0;
-
-  static const Color emergencyRedStart = Color(0xFFEF4444);
-  static const Color emergencyRedEnd = Color(0xFFDC2626);
-  static const Color starAmber = Color(0xFFF59E0B);
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color borderDark = Color(0xFF033724);
+  static const Color emergencyRed = Color(0xFF9E0606);
+  static const Color statCardBg = Color(0xFFE9D3B3);
+  static const Color matchScorePurple = Color(0xFF3D1678);
+  static const Color deltaRedBg = Color.fromRGBO(158, 6, 6, 0.3);
+  static const Color deltaRedText = Color(0xFF9E0606);
+  static const Color deltaTealBg = Color.fromRGBO(6, 155, 158, 0.3);
+  static const Color deltaTealText = Color(0xFF225753);
+  static const Color matchCardBg = Color(0xFFD1C8B4);
+  static const Color matchBadgeBg = Color.fromRGBO(64, 64, 6, 0.3);
+  static const Color matchBadgeText = Color(0xFF33440A);
+  static const Color navHomeLabel = Color(0xFFFEE269);
+  static const Color navMatchLabel = Color(0xFFFFA722);
+  static const Color starGold = Color(0xFFF5B301);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bgCream,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildEmergencyBanner(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     _buildStatsRow(),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 20),
                     _buildSectionHeader(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     _buildMatchCard(
-                      initials: 'AF',
-                      avatarFlat: false,
-                      avatarColor: AppTheme.primaryGreen,
-                      avatarGradient: const [Color(0xFF22C55E), AppTheme.primaryGreenDark],
-                      initialsColor: AppTheme.bottleGreen,
-                      name: 'Alice Fernando',
-                      matchScore: '92%',
-                      subtitle: 'Elder care · 7 yrs exp',
-                      distance: '2.3 km',
+                      initials: 'RF',
+                      name: 'Rayan Fernando',
+                      matchScore: '95%',
+                      careType: 'Elder care',
+                      experience: '7 yrs exp',
+                      distance: '2.5 km',
                       rating: '4.8',
                       available: true,
                     ),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
-            _buildBottomNav(),
+            _buildBottomBar(),
           ],
         ),
       ),
@@ -66,88 +73,84 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
+      height: 140,
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppTheme.primaryGreenDark, Color(0xFF15803D)],
-        ),
+        color: darkGreen,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
         ),
       ),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Greeting + avatar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 6, 22, 18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Good morning',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Text(
+                    'Good morning',
+                    style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Nipuni 👋',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.pushNamed(context, '/patient-profile'),
-                  child: ValueListenableBuilder<String?>(
-                    valueListenable: AppState.profileImagePath,
-                    builder: (_, imagePath, _) {
-                      return Container(
-                        width: 46,
-                        height: 46,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.2),
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.5), width: 2),
-                        ),
-                        child: imagePath != null
-                            ? ClipOval(
-                                child: Image.file(
-                                  File(imagePath),
-                                  width: 42,
-                                  height: 42,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : const Center(
-                                child: Text(
-                                  'NA',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                      );
-                    },
                   ),
+                  SizedBox(width: 8),
+                  Icon(Icons.wb_sunny_rounded, color: Color(0xFFFFC940), size: 18),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Nipuni Ariyathilaka',
+                style: TextStyle(
+                  fontFamily: 'Quattrocento Sans',
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
+              ),
+            ],
+          ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.pushNamed(context, '/patient-profile'),
+            child: ValueListenableBuilder<String?>(
+              valueListenable: AppState.profileImagePath,
+              builder: (_, imagePath, _) {
+                return Container(
+                  width: 50,
+                  height: 50,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: imagePath != null
+                      ? ClipOval(
+                          child: Image.file(
+                            File(imagePath),
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : const Center(
+                          child: Text(
+                            'NA',
+                            style: TextStyle(
+                              fontFamily: 'Quattrocento Sans',
+                              color: darkGreen,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                );
+              },
             ),
           ),
         ],
@@ -160,34 +163,36 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       onTap: () => Navigator.pushNamed(context, '/emergency'),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [emergencyRedStart, emergencyRedEnd],
-          ),
+          color: emergencyRed,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           children: [
-            const Icon(Icons.warning_rounded, color: Colors.white, size: 26),
-            const SizedBox(width: 12),
-            Expanded(
+            const Icon(Icons.campaign_rounded, color: Colors.white, size: 32),
+            const SizedBox(width: 14),
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Emergency — find a caregiver now',
-                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                  Text(
+                    'Emergency - Find a caregiver now',
+                    style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 4),
                   Text(
                     'Top 3 nearest available caregivers',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Quattrocento Sans',
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
@@ -206,56 +211,109 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: _statCard('Your match score', '85%', greenValue: true),
+            child: _statCard(
+              label: 'Your match score',
+              value: '85%',
+              valueColor: matchScorePurple,
+              valueFontSize: 35,
+              deltaText: '↓2.1%',
+              deltaBg: deltaRedBg,
+              deltaTextColor: deltaRedText,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
-            child: _statCard('Available now', '12', caption: 'near you'),
+            child: _statCard(
+              label: 'Available now',
+              value: '12',
+              valueColor: darkGreen,
+              valueFontSize: 30,
+              caption: 'Near you',
+              deltaText: '↑2.1%',
+              deltaBg: deltaTealBg,
+              deltaTextColor: deltaTealText,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _statCard(
-    String label,
-    String value, {
+  Widget _statCard({
+    required String label,
+    required String value,
+    required Color valueColor,
+    required double valueFontSize,
+    required String deltaText,
+    required Color deltaBg,
+    required Color deltaTextColor,
     String? caption,
-    bool greenValue = false,
-    double labelFontSize = 11,
-    double valueFontSize = 24,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 14),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
+        color: statCardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             label,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: labelFontSize, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontFamily: 'Quattrocento Sans',
+              color: darkGreen,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-              color: greenValue ? AppTheme.primaryGreen : AppTheme.textPrimary,
+              fontFamily: 'Quattrocento Sans',
+              color: valueColor,
               fontSize: valueFontSize,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          if (caption != null) ...[
-            const SizedBox(height: 2),
+          if (caption != null)
             Text(
               caption,
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontFamily: 'Quattrocento Sans',
+                color: darkGreen,
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
             ),
-          ],
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: deltaBg,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                deltaText,
+                style: TextStyle(
+                  fontFamily: 'Quattrocento Sans',
+                  color: deltaTextColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -267,13 +325,23 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       children: [
         const Text(
           'Top matches for you',
-          style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontFamily: 'Open Sans',
+            color: darkGreen,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         GestureDetector(
           onTap: () => Navigator.pushNamed(context, '/search'),
           child: const Text(
             'See all',
-            style: TextStyle(color: AppTheme.primaryGreen, fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontFamily: 'Quattrocento Sans',
+              color: darkGreen,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -282,24 +350,20 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
 
   Widget _buildMatchCard({
     required String initials,
-    required bool avatarFlat,
-    required Color avatarColor,
-    required List<Color> avatarGradient,
-    required Color initialsColor,
     required String name,
     required String matchScore,
-    required String subtitle,
+    required String careType,
+    required String experience,
     required String distance,
     required String rating,
     required bool available,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
+        color: matchCardBg,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,26 +371,45 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: avatarFlat ? avatarColor : null,
-                  gradient: avatarFlat
-                      ? null
-                      : LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: avatarGradient,
+              Column(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFFF3E9D2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: darkGreen,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
                         ),
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: TextStyle(color: initialsColor, fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.place_rounded, color: Colors.black, size: 12),
+                      const SizedBox(width: 3),
+                      Text(
+                        distance,
+                        style: const TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -334,79 +417,130 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
                             name,
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                              fontFamily: 'Quattrocento Sans',
+                              color: Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(999),
+                            color: matchBadgeBg,
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             matchScore,
-                            style: const TextStyle(color: AppTheme.primaryGreen, fontSize: 11, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                              fontFamily: 'Quattrocento Sans',
+                              color: matchBadgeText,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          careType,
+                          style: const TextStyle(
+                            fontFamily: 'Quattrocento Sans',
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Text(
+                          experience,
+                          style: const TextStyle(
+                            fontFamily: 'Quattrocento Sans',
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, color: starGold, size: 14),
+                        const SizedBox(width: 3),
+                        Text(
+                          rating,
+                          style: const TextStyle(
+                            fontFamily: 'Quattrocento Sans',
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: available ? const Color(0xFF22C55E) : Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          available ? 'Available' : 'Unavailable',
+                          style: const TextStyle(
+                            fontFamily: 'Quattrocento Sans',
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 11),
-          Row(
-            children: [
-              const Icon(Icons.place_outlined, color: AppTheme.textSecondary, size: 14),
-              const SizedBox(width: 3),
-              Text(distance, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
-              const SizedBox(width: 14),
-              const Icon(Icons.star_rounded, color: starAmber, size: 14),
-              const SizedBox(width: 3),
-              Text(rating, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
-              const SizedBox(width: 14),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: available ? AppTheme.primaryGreen : AppTheme.textSecondary,
-                  borderRadius: BorderRadius.circular(3.5),
-                ),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                available ? 'Available' : 'Unavailable',
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          const SizedBox(height: 11),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: Material(
-                  color: AppTheme.primaryGreen,
-                  borderRadius: BorderRadius.circular(8),
+                  color: darkGreen,
+                  borderRadius: BorderRadius.circular(10),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     onTap: () => Navigator.pushNamed(context, '/send-request'),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 11),
                       child: Text(
                         'Request',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.bottleGreen, fontSize: 13, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -416,20 +550,25 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
               Expanded(
                 child: Material(
                   color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
                       decoration: BoxDecoration(
-                        border: Border.all(color: AppTheme.borderColor),
-                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: borderDark),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Text(
                         'Profile',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: borderDark,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -442,102 +581,78 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
+  Widget _buildBottomBar() {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        _buildBottomNav(),
+        Positioned(
+          top: -22,
+          child: _buildMatchFab(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBottomNav() {
     final items = [
-      (icon: Icons.home_rounded, label: 'Home'),
-      (icon: Icons.search_rounded, label: 'Search'),
-      (icon: null, label: 'Match'),
-      (icon: Icons.calendar_month_rounded, label: 'Bookings'),
-      (icon: Icons.notifications_none_rounded, label: 'Alerts'),
+      (icon: Icons.home_rounded, label: 'Home', route: null),
+      (icon: Icons.search_rounded, label: 'Search', route: '/search'),
+      (icon: null, label: 'Match', route: null),
+      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/my-bookings'),
+      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/notifications'),
     ];
     return Container(
-      height: 68,
-      decoration: const BoxDecoration(
-        color: AppTheme.surfaceColor,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
-      ),
+      width: double.infinity,
+      height: 67,
+      color: darkGreen,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(items.length, (index) {
           final item = items[index];
-          final isSelected = index == _selectedNavIndex;
 
           if (index == 2) {
-            return GestureDetector(
-              onTap: () {
-                // Route based on whether an active match exists
-                if (AppState.hasActiveMatch.value) {
-                  Navigator.pushNamed(context, '/advanced-match-results');
-                } else {
-                  Navigator.pushNamed(context, '/advanced-match-send-request');
-                }
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF01D3A8), // Caribbean Green
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.surfaceColor, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF01D3A8).withValues(alpha: 0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.diversity_3_rounded,
-                      color: Color(0xFF06240F), // Bottle green
-                      size: 24,
-                    ),
+            // Empty slot reserved for the floating Match button; only the
+            // label is drawn here so it sits centered beneath the FAB.
+            return const SizedBox(
+              width: 60,
+              child: Padding(
+                padding: EdgeInsets.only(top: 41),
+                child: Text(
+                  'Match',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Quattrocento Sans',
+                    color: navMatchLabel,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Match',
-                    style: TextStyle(
-                      color: Color(0xFF01D3A8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           }
 
-          final color = isSelected ? AppTheme.primaryGreen : const Color(0xFF64748B);
+          final color = index == 0 ? navHomeLabel : Colors.white;
           return GestureDetector(
-            onTap: () {
-              if (index == 1) {
-                Navigator.pushNamed(context, '/search');
-              } else if (index == 3) {
-                Navigator.pushNamed(context, '/my-bookings');
-              } else if (index == 4) {
-                Navigator.pushNamed(context, '/notifications');
-              } else {
-                setState(() => _selectedNavIndex = index);
-              }
-            },
+            onTap: item.route != null
+                ? () => Navigator.pushNamed(context, item.route!)
+                : null,
             behavior: HitTestBehavior.opaque,
             child: SizedBox(
               width: 60,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(item.icon, color: color, size: 22),
+                  Icon(item.icon, color: color, size: 25),
                   const SizedBox(height: 4),
                   Text(
                     item.label,
                     style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
                       color: color,
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -545,6 +660,39 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+
+  Widget _buildMatchFab() {
+    return GestureDetector(
+      onTap: () {
+        if (AppState.hasActiveMatch.value) {
+          Navigator.pushNamed(context, '/advanced-match-results');
+        } else {
+          Navigator.pushNamed(context, '/advanced-match-send-request');
+        }
+      },
+      child: Container(
+        width: 65,
+        height: 65,
+        decoration: BoxDecoration(
+          color: darkGreen,
+          shape: BoxShape.circle,
+          border: Border.all(color: bgCream, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.crop_free_rounded,
+          color: navMatchLabel,
+          size: 26,
+        ),
       ),
     );
   }

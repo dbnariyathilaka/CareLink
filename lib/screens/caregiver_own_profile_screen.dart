@@ -6,7 +6,7 @@ import '../app_state.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver's own "My profile" screen
-//  Figma node: 160-2021
+//  Figma node: 498-7738 · P-27 · My Profile (Caregiver)
 // ─────────────────────────────────────────────────────────────
 class CaregiverOwnProfileScreen extends StatefulWidget {
   const CaregiverOwnProfileScreen({super.key});
@@ -18,7 +18,9 @@ class CaregiverOwnProfileScreen extends StatefulWidget {
 class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   static const Color _indigo = Color(0xFF6366F1);
   static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _amber = Color(0xFFF59E0B);
+  static const Color _indigoLighter = Color(0xFFC7D2FE);
+  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _red71 = Color(0xFFF87171);
 
   @override
   Widget build(BuildContext context) {
@@ -34,70 +36,59 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'My profile',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => Navigator.pushNamed(context, '/caregiver-settings'),
-                            child: const Icon(
-                              Icons.settings_outlined,
-                              color: AppTheme.textPrimary,
-                              size: 24,
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildHeader(context),
                       const SizedBox(height: 10),
                       _buildAvatarSection(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       _buildStatsRow(),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Earnings', actionLabel: 'View details', onAction: () {
+                        Navigator.pushNamed(context, '/caregiver-earnings');
+                      }),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Care profile',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      _buildEarningsCard(),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Contact'),
                       const SizedBox(height: 8),
-                      _buildCareProfileCard(context),
-                      const SizedBox(height: 6),
-                      _buildMenuRow(
-                        context,
-                        icon: Icons.chat_bubble_outline_rounded,
-                        label: 'Messages',
-                        badge: '1',
-                        onTap: () => Navigator.pushNamed(context, '/caregiver-messages'),
+                      _buildContactCard(),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Care type'),
+                      const SizedBox(height: 8),
+                      _buildPillsWrap(const ['Part-time', 'Full-time'], selected: true),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Skills'),
+                      const SizedBox(height: 8),
+                      _buildPillsWrap(
+                        const ['Mobility assistance', 'Medication management', 'Dementia care'],
+                        selected: false,
                       ),
-                      const SizedBox(height: 9),
-                      _buildMenuRow(
-                        context,
-                        icon: Icons.account_balance_wallet_outlined,
-                        label: 'Earnings',
-                        onTap: () => Navigator.pushNamed(context, '/caregiver-earnings'),
-                      ),
-                      const SizedBox(height: 9),
-                      _buildMenuRow(
-                        context,
-                        icon: Icons.star_outline_rounded,
-                        label: 'Reviews received',
-                        onTap: () => Navigator.pushNamed(context, '/caregiver-reviews'),
-                      ),
-                      const SizedBox(height: 9),
-                      _buildMenuRow(
-                        context,
-                        icon: Icons.help_outline_rounded,
-                        label: 'Help & FAQ',
-                      ),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Education & languages'),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(const [
+                        'Diploma · Formal caregiving training: Not set',
+                        'Speaks Sinhala, English',
+                      ]),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Bio'),
+                      const SizedBox(height: 8),
+                      _buildInfoCard(const [
+                        'Compassionate elder-care nurse with 5 years supporting '
+                            'families across the Western Province. I specialise in '
+                            'dementia and post-surgery recovery.',
+                      ]),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Certifications'),
+                      const SizedBox(height: 8),
+                      _buildCertRow('Caregiving Diploma.pdf'),
+                      const SizedBox(height: 10),
+                      _buildCertRow('First Aid Certificate.pdf'),
+                      const SizedBox(height: 18),
+                      _buildSectionTitle('Settings'),
+                      const SizedBox(height: 8),
+                      _buildSettingsCard(context),
+                      const SizedBox(height: 12),
+                      _buildLogoutButton(context),
                     ],
                   ),
                 ),
@@ -113,6 +104,43 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   void _comingSoon(BuildContext context, String label) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$label coming soon!')),
+    );
+  }
+
+  // ── Header row: title + Requests pill + edit icon ─────────
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'My profile',
+          style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w800),
+        ),
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/caregiver-schedule'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardColor,
+                  border: Border.all(color: AppTheme.borderColor),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Requests',
+                  style: TextStyle(color: _geyser, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/caregiver-edit-profile'),
+              child: const Icon(Icons.edit_outlined, color: AppTheme.textSecondary, size: 22),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -180,7 +208,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     }
   }
 
-  // ── Avatar + name + verified badge ────────────────────────
+  // ── Avatar + name + email + badges ────────────────────────
   Widget _buildAvatarSection() {
     return ValueListenableBuilder<String?>(
       valueListenable: AppState.caregiverProfileImagePath,
@@ -202,7 +230,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                             ? const LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+                                colors: [_indigo, Color(0xFF4F46E5)],
                               )
                             : null,
                         color: imagePath != null ? Colors.transparent : null,
@@ -221,7 +249,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                                 'BK',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 28,
+                                  fontSize: 26,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -246,43 +274,52 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
               const SizedBox(height: 10),
               const Text(
                 'Brian Kumara',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               const Text(
-                'brian@email.com · +94 71 456 7890',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+                'brian.kumara@email.com',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _indigo.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.verified_rounded, color: _indigoLight, size: 15),
-                    SizedBox(width: 5),
-                    Text(
-                      'Verified caregiver',
-                      style: TextStyle(
-                        color: _indigoLight,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.verified_rounded, color: AppTheme.primaryGreen, size: 13),
+                        SizedBox(width: 4),
+                        Text(
+                          'Identity verified',
+                          style: TextStyle(
+                            color: AppTheme.primaryGreen,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _indigo.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'Male · Caregiver',
+                      style: TextStyle(color: _indigoLight, fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -291,23 +328,21 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
-  // ── Stats row: Bookings · Rating · Years exp ─────────────
+  // ── Stats row: Experience · NIC number ────────────────────
   Widget _buildStatsRow() {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _statCard('8', 'Bookings')),
+          Expanded(child: _statCard('Experience', '5 years', valueFontSize: 18)),
           const SizedBox(width: 10),
-          Expanded(child: _statCard('4.5', 'Rating', valueColor: _amber)),
-          const SizedBox(width: 10),
-          Expanded(child: _statCard('5', 'Years exp')),
+          Expanded(child: _statCard('NIC number', 'Not provided', valueFontSize: 15)),
         ],
       ),
     );
   }
 
-  Widget _statCard(String value, String label, {Color? valueColor}) {
+  Widget _statCard(String label, String value, {required double valueFontSize}) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -316,23 +351,19 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
         border: Border.all(color: AppTheme.borderColor),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            value,
-            style: TextStyle(
-              color: valueColor ?? AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+            label,
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
           Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+            value,
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: valueFontSize,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -340,129 +371,262 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
-  // ── Care profile card ─────────────────────────────────────
-  Widget _buildCareProfileCard(BuildContext context) {
+  // ── Reusable section title (+ optional action link) ───────
+  Widget _buildSectionTitle(String title, {String? actionLabel, VoidCallback? onAction}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+        ),
+        if (actionLabel != null)
+          GestureDetector(
+            onTap: onAction,
+            child: Text(
+              actionLabel,
+              style: const TextStyle(color: _indigoLight, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── Earnings gradient card ─────────────────────────────────
+  Widget _buildEarningsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_indigo, Color(0xFF4338CA)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'This month',
+                style: TextStyle(color: _indigoLighter, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              const Text(
+                'LKR 36,000',
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(color: Color(0x33FFFFFF), height: 1),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total earned',
+                style: TextStyle(color: _indigoLighter, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              const Text(
+                'LKR 412,500',
+                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Contact card ────────────────────────────────────────────
+  Widget _buildContactCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppTheme.borderColor),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _profileRow('Care type', 'Part-time · Full-time', divider: true),
-          _profileRow('Service area', 'Negombo · 10 km', divider: true),
-          _profileRow(
-            'Availability',
-            'Available now',
-            divider: false,
-            valueColor: AppTheme.primaryGreen,
-          ),
-          const SizedBox(height: 10),
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/caregiver-edit-profile'),
-            child: const Text(
-              'Edit profile',
-              style: TextStyle(
-                color: _indigo,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+          _contactRow(Icons.call_rounded, '077 123 4567'),
+          const SizedBox(height: 12),
+          _contactRow(Icons.contact_phone_rounded, 'Reference: Not provided'),
+          const SizedBox(height: 12),
+          _contactRow(Icons.location_on_rounded, 'Negombo, Western Province · 10 km radius'),
         ],
       ),
     );
   }
 
-  Widget _profileRow(String label, String value, {required bool divider, Color? valueColor}) {
-    return Container(
-      height: 35,
-      decoration: divider
-          ? const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppTheme.borderColor, width: 1)),
-            )
-          : null,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+  Widget _contactRow(IconData icon, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: _indigo, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500),
           ),
-          Text(
-            value,
+        ),
+      ],
+    );
+  }
+
+  // ── Generic pill wrap (Care type / Skills) ─────────────────
+  Widget _buildPillsWrap(List<String> items, {required bool selected}) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items.map((label) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? _indigo.withValues(alpha: 0.15) : AppTheme.cardColor,
+            border: Border.all(color: selected ? _indigo : AppTheme.borderColor),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
             style: TextStyle(
-              color: valueColor ?? AppTheme.textPrimary,
-              fontSize: 13,
+              color: selected ? _indigoLight : _geyser,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Generic info card (Education / Bio) ────────────────────
+  Widget _buildInfoCard(List<String> lines) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border.all(color: AppTheme.borderColor),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < lines.length; i++) ...[
+            if (i > 0) const SizedBox(height: 6),
+            Text(
+              lines[i],
+              style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500, height: 1.5),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // ── Menu list row ──────────────────────────────────────────
-  Widget _buildMenuRow(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    String? badge,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap ?? () => _comingSoon(context, label),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderColor),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppTheme.textPrimary, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+  // ── Certification file row ─────────────────────────────────
+  Widget _buildCertRow(String filename) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border.all(color: AppTheme.borderColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_rounded, color: AppTheme.primaryGreen, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              filename,
+              style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Settings grouped card ──────────────────────────────────
+  Widget _buildSettingsCard(BuildContext context) {
+    final rows = [
+      (icon: Icons.chat_bubble_outline_rounded, label: 'Messages', onTap: () => Navigator.pushNamed(context, '/caregiver-messages')),
+      (icon: Icons.notifications_none_rounded, label: 'Notification preferences', onTap: () => _comingSoon(context, 'Notification preferences')),
+      (icon: Icons.lock_outline_rounded, label: 'Privacy & security', onTap: () => _comingSoon(context, 'Privacy & security')),
+      (icon: Icons.help_outline_rounded, label: 'Help & support', onTap: () => _comingSoon(context, 'Help & support')),
+    ];
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border.all(color: AppTheme.borderColor),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: List.generate(rows.length, (i) {
+          final row = rows[i];
+          final isLast = i == rows.length - 1;
+          return GestureDetector(
+            onTap: row.onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              decoration: isLast
+                  ? null
+                  : const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppTheme.borderColor, width: 1)),
+                    ),
+              child: Row(
+                children: [
+                  Icon(row.icon, color: AppTheme.textSecondary, size: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      row.label,
+                      style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B), size: 18),
+                ],
               ),
             ),
-            if (badge != null) ...[
-              Container(
-                height: 20,
-                constraints: const BoxConstraints(minWidth: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                decoration: BoxDecoration(
-                  color: _indigo,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  badge,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-            ],
-            const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary, size: 20),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ── Log out button ─────────────────────────────────────────
+  Widget _buildLogoutButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/role-selection', (route) => false),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: _red71.withValues(alpha: 0.1),
+          border: Border.all(color: _red71.withValues(alpha: 0.4)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded, color: _red71, size: 18),
+            SizedBox(width: 8),
+            Text(
+              'Log out',
+              style: TextStyle(color: _red71, fontSize: 13, fontWeight: FontWeight.w700),
+            ),
           ],
         ),
       ),

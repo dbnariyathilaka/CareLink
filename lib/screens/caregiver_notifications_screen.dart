@@ -8,6 +8,7 @@ class _CaregiverNotifData {
   final String timeAgo;
   final Color timeColor;
   final String? description;
+  final Color descriptionColor;
   final InlineSpan? richDescription;
   final String? primaryAction;
   final String? secondaryAction;
@@ -20,6 +21,7 @@ class _CaregiverNotifData {
     required this.timeAgo,
     required this.timeColor,
     this.description,
+    this.descriptionColor = AppTheme.textSecondary,
     this.richDescription,
     this.primaryAction,
     this.secondaryAction,
@@ -29,19 +31,94 @@ class _CaregiverNotifData {
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Notifications Screen
-//  Figma node: 46-4739
+//  Figma node: 498-7036 · Notifications (Caregiver)
 // ─────────────────────────────────────────────────────────────
 class CaregiverNotificationsScreen extends StatelessWidget {
   const CaregiverNotificationsScreen({super.key});
 
   static const Color _indigo = Color(0xFF6366F1);
   static const Color _amber = Color(0xFFF59E0B);
+  static const Color _yellow = Color(0xFFFCD34D);
   static const Color _cyan = Color(0xFF0EA5E9);
   static const Color _red = Color(0xFFEF4444);
+  static const Color _redLight = Color(0xFFFCA5A5);
+  static const Color _grey47 = Color(0xFF64748B);
 
   static const List<_CaregiverNotifData> _notifications = [
     _CaregiverNotifData(
-      icon: Icons.event_note_rounded,
+      icon: Icons.schedule_rounded,
+      accentColor: _amber,
+      title: 'Shift starting soon',
+      timeAgo: 'Now',
+      timeColor: _amber,
+      description: 'You have only 1 hour left to serve Nipuni '
+          'Ariyathilaka. Please get ready.',
+      descriptionColor: _yellow,
+    ),
+    _CaregiverNotifData(
+      icon: Icons.schedule_rounded,
+      accentColor: _red,
+      title: 'Shift starting soon',
+      timeAgo: 'Now',
+      timeColor: _red,
+      description: 'You have only 30 minutes left to serve Nipuni '
+          'Ariyathilaka. Please get ready.',
+      descriptionColor: _redLight,
+    ),
+    _CaregiverNotifData(
+      icon: Icons.update_rounded,
+      accentColor: _indigo,
+      title: 'Extend service request',
+      timeAgo: 'Now',
+      timeColor: Color(0xFF818CF8),
+      description: "Nipuni Ariyathilaka has requested to extend "
+          "today's service time. Do you agree?",
+      primaryAction: 'Agree',
+      secondaryAction: 'Decline',
+    ),
+    _CaregiverNotifData(
+      icon: Icons.event_busy_rounded,
+      accentColor: _red,
+      title: 'Shift cancelled',
+      timeAgo: 'Now',
+      timeColor: _red,
+      description: "Nipuni Ariyathilaka has cancelled today's 7:00 "
+          "PM – 9:00 PM shift.",
+      descriptionColor: _redLight,
+    ),
+    _CaregiverNotifData(
+      icon: Icons.schedule_rounded,
+      accentColor: _amber,
+      title: 'Service starting soon',
+      timeAgo: 'Now',
+      timeColor: _amber,
+      description: 'You have only 1 hour left to start your service '
+          'with Nipuni Ariyathilaka. Please get ready.',
+      descriptionColor: _yellow,
+    ),
+    _CaregiverNotifData(
+      icon: Icons.schedule_rounded,
+      accentColor: _red,
+      title: 'Service ending soon',
+      timeAgo: 'Now',
+      timeColor: _red,
+      description: 'You have only 30 minutes left to end your service '
+          'with Nipuni Ariyathilaka. Please start wrapping up.',
+      descriptionColor: _redLight,
+    ),
+    _CaregiverNotifData(
+      icon: Icons.emergency_rounded,
+      accentColor: _red,
+      title: 'Emergency request!',
+      timeAgo: 'Urgent · 2m',
+      timeColor: _red,
+      description: 'Immediate care needed · 3.4 km away',
+      descriptionColor: _redLight,
+      primaryAction: 'Accept',
+      secondaryAction: 'Decline',
+    ),
+    _CaregiverNotifData(
+      icon: Icons.inbox_rounded,
       accentColor: _indigo,
       title: 'New booking request',
       timeAgo: '5h 42m',
@@ -55,7 +132,7 @@ class CaregiverNotificationsScreen extends StatelessWidget {
       accentColor: AppTheme.primaryGreen,
       title: 'Booking confirmed',
       timeAgo: '2h',
-      timeColor: Color(0xFF64748B),
+      timeColor: _grey47,
       description: 'Kamal Perera accepted your reach-back.',
       primaryAction: 'View booking',
       secondaryAction: 'Message patient',
@@ -65,11 +142,11 @@ class CaregiverNotificationsScreen extends StatelessWidget {
       accentColor: _cyan,
       title: 'Appointment reminder',
       timeAgo: '4h',
-      timeColor: Color(0xFF64748B),
+      timeColor: _grey47,
       description: 'Your job starts tomorrow.',
     ),
     _CaregiverNotifData(
-      icon: Icons.warning_amber_rounded,
+      icon: Icons.history_toggle_off_rounded,
       accentColor: _amber,
       title: 'Missed request',
       timeAgo: '1h 42m',
@@ -78,11 +155,19 @@ class CaregiverNotificationsScreen extends StatelessWidget {
       soloAction: 'Send reach-back message',
     ),
     _CaregiverNotifData(
-      icon: Icons.cancel_rounded,
+      icon: Icons.timer_off_rounded,
+      accentColor: _grey47,
+      title: 'Request expired',
+      timeAgo: '6h',
+      timeColor: _grey47,
+      description: "Ishara Perera's booking request timed out.",
+    ),
+    _CaregiverNotifData(
+      icon: Icons.event_busy_rounded,
       accentColor: _red,
       title: 'Booking cancelled',
       timeAgo: '1d',
-      timeColor: Color(0xFF64748B),
+      timeColor: _grey47,
       description: 'Sunil Mendis cancelled the booking.',
     ),
     _CaregiverNotifData(
@@ -90,7 +175,7 @@ class CaregiverNotificationsScreen extends StatelessWidget {
       accentColor: _amber,
       title: 'New review',
       timeAgo: '2d',
-      timeColor: Color(0xFF64748B),
+      timeColor: _grey47,
       richDescription: TextSpan(
         children: [
           TextSpan(
@@ -113,11 +198,11 @@ class CaregiverNotificationsScreen extends StatelessWidget {
       ),
     ),
     _CaregiverNotifData(
-      icon: Icons.account_balance_wallet_rounded,
+      icon: Icons.payments_rounded,
       accentColor: AppTheme.primaryGreen,
       title: 'Payment received',
       timeAgo: '3d',
-      timeColor: Color(0xFF64748B),
+      timeColor: _grey47,
       description: 'LKR 12,000 has been paid out.',
     ),
   ];
@@ -230,8 +315,8 @@ class CaregiverNotificationsScreen extends StatelessWidget {
                     else
                       Text(
                         data.description ?? '',
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
+                        style: TextStyle(
+                          color: data.descriptionColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -267,7 +352,7 @@ class CaregiverNotificationsScreen extends StatelessWidget {
                   : Row(
                       children: [
                         Material(
-                          color: _indigo,
+                          color: data.accentColor,
                           borderRadius: BorderRadius.circular(8),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(8),

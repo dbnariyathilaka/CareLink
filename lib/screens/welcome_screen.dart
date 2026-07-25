@@ -87,7 +87,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Quattrocento Sans',
-                      fontSize: 36,
+                      fontSize: 30,
                       fontWeight: FontWeight.w700,
                       color: titleColor,
                     ),
@@ -103,7 +103,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Quattrocento Sans',
-                      fontSize: 15,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: textColor,
                       height: 1.35,
@@ -124,29 +124,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 ),
                 const SizedBox(height: 8),
 
-                // Sign in button - darkGreen capsule, cream text
+                // Sign in button - outlined darkGreen capsule
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildPillButton(
+                  child: _buildOutlinedPillButton(
                     text: 'Sign in',
                     onTap: () {
-                      Navigator.pushNamed(context, '/register');
+                      Navigator.pushNamed(context, '/role-selection');
                     },
                   ),
-                ),
-                const SizedBox(height: 18),
-
-                // Or divider
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 37),
-                  child: _buildOrDivider(),
-                ),
-                const SizedBox(height: 18),
-
-                // Continue with google - outlined capsule, no icon
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildGoogleButton(context),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -186,7 +172,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               style: const TextStyle(
                 fontFamily: 'Quattrocento Sans',
                 color: buttonTextColor,
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -196,63 +182,42 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildGoogleButton(BuildContext context) {
+  Widget _buildOutlinedPillButton({
+    required String text,
+    required VoidCallback onTap,
+  }) {
     return Container(
       width: double.infinity,
       height: 50,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: textColor, width: 1.0),
+        border: Border.all(color: textColor, width: 3.0),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withValues(alpha: 0.5),
+            blurRadius: 4,
+            offset: const Offset(2, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(50),
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/register',
-              arguments: {'triggerGoogle': true},
-            );
-          },
-          child: const Center(
+          onTap: onTap,
+          child: Center(
             child: Text(
-              'Continue with google',
-              style: TextStyle(
+              text,
+              style: const TextStyle(
                 fontFamily: 'Quattrocento Sans',
                 color: textColor,
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildOrDivider() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(height: 1, color: Colors.black.withValues(alpha: 0.3)),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14),
-          child: Text(
-            'Or',
-            style: TextStyle(
-              fontFamily: 'Quattrocento Sans',
-              color: Color.fromRGBO(0, 0, 0, 0.5),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(height: 1, color: Colors.black.withValues(alpha: 0.3)),
-        ),
-      ],
     );
   }
 }

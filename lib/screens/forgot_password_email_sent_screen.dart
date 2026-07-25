@@ -79,11 +79,11 @@ class _ForgotPasswordEmailSentScreenState
         (ModalRoute.of(context)?.settings.arguments as String?) ??
             'nipuni@email.com';
 
-    const Color creamBg = Color(0xFFF6F0E2);
     const Color darkGreen = Color(0xFF06402B);
+    const Color darkGreenBorder = Color(0xFF033724);
 
     return Scaffold(
-      backgroundColor: creamBg,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _fadeController,
@@ -128,42 +128,37 @@ class _ForgotPasswordEmailSentScreenState
                         'Check your email',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 38,
-                          fontWeight: FontWeight.w800,
+                          fontFamily: 'Quattrocento Sans',
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
                           color: darkGreen,
                           letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
 
-                      // Envelope Vector Art
+                      // Envelope illustration
                       Center(
-                        child: Container(
-                          width: 150,
-                          height: 150,
-                          decoration: BoxDecoration(
-                            color: darkGreen.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: CustomPaint(
-                            painter: _EnvelopeIconPainter(color: darkGreen),
-                          ),
+                        child: Image.asset(
+                          'assets/images/check_email_envelope.png',
+                          width: 300,
+                          height: 276,
+                          fit: BoxFit.contain,
                         ),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 12),
 
                       // Subtitle
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: RichText(
                           textAlign: TextAlign.center,
                           text: TextSpan(
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 18,
-                              color: darkGreen,
-                              height: 1.4,
+                              color: darkGreen.withValues(alpha: 0.9),
+                              height: 1.6,
                             ),
                             children: [
                               const TextSpan(
@@ -173,6 +168,7 @@ class _ForgotPasswordEmailSentScreenState
                                 text: email,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
+                                  color: darkGreen,
                                 ),
                               ),
                               const TextSpan(
@@ -183,7 +179,7 @@ class _ForgotPasswordEmailSentScreenState
                           ),
                         ),
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 32),
 
                       // Resend link Button
                       Container(
@@ -193,15 +189,18 @@ class _ForgotPasswordEmailSentScreenState
                           color: _resendCooldown > 0
                               ? darkGreen.withValues(alpha: 0.4)
                               : darkGreen,
+                          border: Border.all(
+                            color: darkGreenBorder,
+                            width: 2,
+                          ),
                           borderRadius: BorderRadius.circular(15),
                           boxShadow: _resendCooldown > 0
                               ? null
                               : [
                                   BoxShadow(
-                                    color: const Color(0xFF06402B)
-                                        .withValues(alpha: 0.25),
-                                    blurRadius: 6,
-                                    offset: const Offset(2, 4),
+                                    color: darkGreen.withValues(alpha: 0.5),
+                                    blurRadius: 2,
+                                    offset: const Offset(2, 2),
                                   ),
                                 ],
                         ),
@@ -216,8 +215,8 @@ class _ForgotPasswordEmailSentScreenState
                                     ? 'Resend link in ${_resendCooldown}s'
                                     : 'Resend link',
                                 style: const TextStyle(
-                                  color: creamBg,
-                                  fontSize: 20,
+                                  color: Colors.white,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   fontFamily: 'Inter',
                                 ),
@@ -241,22 +240,21 @@ class _ForgotPasswordEmailSentScreenState
                           child: RichText(
                             text: const TextSpan(
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                                 fontFamily: 'Inter',
+                                fontWeight: FontWeight.w600,
                               ),
                               children: [
                                 TextSpan(
                                   text: 'Remembered your password? ',
                                   style: TextStyle(
                                     color: Color(0xFF94A3B8), // Gull Gray
-                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 TextSpan(
                                   text: 'Back to log in',
                                   style: TextStyle(
                                     color: darkGreen,
-                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
@@ -274,45 +272,4 @@ class _ForgotPasswordEmailSentScreenState
       ),
     );
   }
-}
-
-/// Custom painter for a stylized envelope icon in vector lines
-class _EnvelopeIconPainter extends CustomPainter {
-  final Color color;
-  _EnvelopeIconPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final strokePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Draw outer envelope rectangle
-    final rect = Rect.fromCenter(center: Offset(cx, cy), width: 70, height: 48);
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(6)), strokePaint);
-
-    // Draw envelope folds (triangle)
-    final foldPath = Path();
-    foldPath.moveTo(cx - 35, cy - 24);
-    foldPath.lineTo(cx, cy + 4);
-    foldPath.lineTo(cx + 35, cy - 24);
-    canvas.drawPath(foldPath, strokePaint);
-
-    // Draw bottom corner folds
-    final bottomFolds = Path();
-    bottomFolds.moveTo(cx - 35, cy + 24);
-    bottomFolds.lineTo(cx - 10, cy + 4);
-    bottomFolds.moveTo(cx + 35, cy + 24);
-    bottomFolds.lineTo(cx + 10, cy + 4);
-    canvas.drawPath(bottomFolds, strokePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

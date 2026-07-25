@@ -233,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen>
                             onTap: () {
                               Navigator.pushReplacementNamed(
                                 context,
-                                '/register',
+                                '/role-selection',
                               );
                             },
                             child: RichText(

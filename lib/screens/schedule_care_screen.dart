@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class ScheduleCareScreen extends StatefulWidget {
   const ScheduleCareScreen({super.key});
@@ -9,21 +8,48 @@ class ScheduleCareScreen extends StatefulWidget {
 }
 
 class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
-  // Colors (Figma tokens mapped to AppTheme)
-  static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
-  static const Color _azure17 = AppTheme.cardColor;    // #1E293B
-  static const Color _azure27 = AppTheme.borderColor;  // #334155
-  static const Color _azure35 = Color(0xFF475569);
-  static const Color _azure47 = Color(0xFF64748B);
-  static const Color _azure65 = AppTheme.textSecondary; // #94A3B8
-  static const Color _azure84 = Color(0xFFCBD5E1);
-  static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
+  // ── Light-cream design tokens (Figma) ──
+  static const Color bgCream = Color(0xFFF5E8DE);
+  static const Color titleGreen = Color(0xFF033724);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color scheduleTypeAccent = Color(0xFFA94813);
+  static const Color stepInactiveBg = Color(0xFFDCD9CF);
+  static const Color stepLineInactive = Color(0xFFD9D9D9);
+  static const Color calendarCardBg = Color.fromRGBO(40, 65, 101, 0.23);
+  static const Color calendarHeaderText = Color(0xFF284165);
+  static const Color calendarDayText = Color(0xFF25467E);
+  static const Color calendarRangeBg = Color(0xFF7CA093);
+  static const Color calendarRangeText = Color(0xFF033724);
+  static const Color calendarCompletedBg = Color(0xFFA1A0A7);
+  static const Color legendText = Color.fromRGBO(2, 5, 24, 0.68);
+  static const Color shiftInactiveBg = Color(0xFFE1D5C6);
+  static const Color shiftInactiveText = Color(0xFF0F172A);
+  static const Color durationInactiveBg = Color.fromRGBO(51, 65, 85, 0.51);
+  static const Color durationInactiveText = Color(0xFF071F40);
+  static const Color creamButtonText = Color(0xFFF6F0E2);
+
+  // Kept dark — Figma leaves the "Custom duration" trigger and the date
+  // range summary card on the old dark panel treatment.
+  static const Color darkCardBg = Color(0xFF1E293B);
+  static const Color darkBorder = Color(0xFF334155);
+  static const Color darkBorderDashed = Color(0xFF475569);
+  static const Color darkTextPrimary = Color(0xFFF8FAFC);
+  static const Color darkTextSecondary = Color(0xFFCBD5E1);
+  static const Color darkTextMuted = Color(0xFF64748B);
+  static const Color goldAccent = Color(0xFFFBBC05);
 
   bool _isAdvanced = false;
   String _scheduleType = 'Flexible';
-  Color get _green45 => _isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen;
-  Color get _green8 => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
-  Color get _carePeriodBg => _isAdvanced ? const Color(0xFF3DB498).withValues(alpha: 0.18) : const Color(0x2E22C55E);
+
+  // Primary accent — dark green normally, teal for the "advanced match" flow.
+  Color get _accent => _isAdvanced ? const Color(0xFF3DB498) : darkGreen;
+  Color get _accentOnColor => _isAdvanced ? const Color(0xFF06291F) : Colors.white;
+  Color get _shiftActiveBg => _isAdvanced ? _accent : const Color(0xFF0F3D2E);
+  Color get _durationActiveBg => _isAdvanced ? _accent : const Color(0xFF071F40);
+  Color get _calendarSelectedBg => _isAdvanced ? _accent : darkGreen;
+  // Part-time's time-picker card keeps the old dark panel treatment with a
+  // spring-green highlight, matching the Figma reference exactly.
+  Color get _timePickerAccent => _isAdvanced ? _accent : const Color(0xFF22C55E);
 
   // ── State variables ──
   late DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
@@ -39,6 +65,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     'Day shift',
     'Evening shift',
     'Overnight shift',
+  ];
+  final List<IconData> _shiftIcons = [
+    Icons.wb_sunny_rounded,
+    Icons.wb_twilight_rounded,
+    Icons.bedtime_rounded,
   ];
   int _selectedShiftIndex = 0;
 
@@ -168,7 +199,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     _scheduleType = scheduleType;
 
     return Scaffold(
-      backgroundColor: _azure11,
+      backgroundColor: bgCream,
       body: Stack(
         children: [
           SafeArea(
@@ -184,8 +215,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     child: Text(
                       scheduleType,
                       style: TextStyle(
-                        color: _green45,
-                        fontSize: 13,
+                        fontFamily: 'Open Sans',
+                        color: _isAdvanced ? _accent : scheduleTypeAccent,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -194,7 +226,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 const SizedBox(height: 12),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 14, 22, 110),
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 110),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -224,20 +256,21 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   // ── 1. Title Row ──
   Widget _buildTitleRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 14),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: _grey98, size: 24),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: titleGreen, size: 22),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 16),
           const Text(
-            'Schedule care',
+            'Schedule Care',
             style: TextStyle(
-              color: _grey98,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontFamily: 'Open Sans',
+              color: titleGreen,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -245,7 +278,6 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     );
   }
 
-  // ── 2. 4-step progress indicator ──
   // ── 2. Progress step indicator ──
   Widget _buildStepIndicator(bool isAdvanced) {
     final steps = isAdvanced
@@ -263,16 +295,20 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             _StepInfo('4', 'Confirm', _StepState.inactive),
           ];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
+            final leftDone = steps[i ~/ 2].state != _StepState.inactive;
             return Expanded(
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 1.5,
-                color: i < 2 ? _green45.withValues(alpha: 0.35) : _azure27,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: leftDone ? _accent : stepLineInactive,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
             );
           }
@@ -283,39 +319,36 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   Widget _buildStepBubble(_StepInfo s) {
-    final isActive = s.state == _StepState.active;
-    final isDone = s.state == _StepState.done;
+    final isFilled = s.state != _StepState.inactive;
 
     return Column(
       children: [
         Container(
-          width: 22,
-          height: 22,
+          width: 35,
+          height: 35,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? _green45 : _azure17,
-            border: Border.all(
-              color: isActive || isDone ? _green45 : _azure27,
-              width: 1,
-            ),
+            color: isFilled ? _accent : stepInactiveBg,
           ),
           child: Center(
             child: Text(
               s.number,
               style: TextStyle(
-                color: isActive ? _green8 : (isDone ? _green45 : _azure47),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontFamily: 'Open Sans',
+                color: isFilled ? _accentOnColor : Colors.black,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           s.label,
-          style: TextStyle(
-            color: isActive || isDone ? _green45 : _azure47,
-            fontSize: 8,
+          style: const TextStyle(
+            fontFamily: 'Open Sans',
+            color: titleGreen,
+            fontSize: 9,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -329,11 +362,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   List<Widget> _buildFullTimeLayout() {
     return [
       _buildCalendar(multiSelect: false),
-      const SizedBox(height: 18),
+      const SizedBox(height: 22),
       _buildChooseShiftSection(),
       const SizedBox(height: 24),
       _buildDurationSection(),
-      const SizedBox(height: 16),
+      const SizedBox(height: 14),
       _buildCustomDurationToggleOrChip(),
       const SizedBox(height: 12),
       _buildDateRangeSummaryCard(),
@@ -344,12 +377,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   List<Widget> _buildPartTimeLayout() {
     return [
       _buildCalendar(multiSelect: false),
-      const SizedBox(height: 18),
+      const SizedBox(height: 22),
       const Text(
         'Start time',
         style: TextStyle(
-          color: _azure65,
-          fontSize: 13,
+          fontFamily: 'Open Sans',
+          color: Colors.black,
+          fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -359,7 +393,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       _buildPartTimeEndTimeCard(),
       const SizedBox(height: 24),
       _buildDurationSection(),
-      const SizedBox(height: 16),
+      const SizedBox(height: 14),
       _buildCustomDurationToggleOrChip(),
       const SizedBox(height: 12),
       _buildDateRangeSummaryCard(),
@@ -370,7 +404,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   List<Widget> _buildFlexibleLayout() {
     return [
       _buildCalendar(multiSelect: false),
-      const SizedBox(height: 18),
+      const SizedBox(height: 22),
       _buildTimeCard(
         label: 'Start time',
         time: _startTime,
@@ -389,30 +423,27 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   List<Widget> _buildLiveInLayout() {
     return [
       _buildCalendar(multiSelect: false),
-      const SizedBox(height: 18),
+      const SizedBox(height: 22),
       Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: _azure17,
+          color: const Color(0xFF0F3D2E),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _azure27),
+          border: Border.all(color: darkBorder),
         ),
-        child: Row(
+        child: const Row(
           children: [
-            Icon(
-              Icons.home_work_rounded,
-              color: _green45,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
+            Icon(Icons.home_rounded, color: Color(0xFFFFA722), size: 22),
+            SizedBox(width: 11),
+            Expanded(
               child: Text(
                 'Caregiver stays on-site, day and night',
                 style: TextStyle(
-                  color: _azure84,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Open Sans',
+                  color: darkTextSecondary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -421,7 +452,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       ),
       const SizedBox(height: 24),
       _buildDurationSection(),
-      const SizedBox(height: 16),
+      const SizedBox(height: 14),
       _buildCustomDurationToggleOrChip(),
       const SizedBox(height: 12),
       _buildDateRangeSummaryCard(),
@@ -433,19 +464,25 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   Widget _buildCalendar({required bool multiSelect}) {
     return Container(
       decoration: BoxDecoration(
-        color: _azure17,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _azure27),
+        color: calendarCardBg,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 4, offset: const Offset(4, 4)),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(15, 21, 15, 15),
       child: Column(
         children: [
           _buildCalendarHeader(),
+          const SizedBox(height: 10),
+          Divider(color: calendarHeaderText.withValues(alpha: 0.2), height: 1),
           const SizedBox(height: 8),
           _buildDayLabels(),
           const SizedBox(height: 4),
           _buildCalendarGrid(multiSelect: multiSelect),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          Divider(color: calendarHeaderText.withValues(alpha: 0.2), height: 1),
+          const SizedBox(height: 12),
           _buildLegend(),
         ],
       ),
@@ -474,14 +511,15 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               : null,
           child: Icon(
             Icons.chevron_left,
-            color: canGoBack ? _azure84 : _azure35,
+            color: canGoBack ? calendarHeaderText : calendarHeaderText.withValues(alpha: 0.3),
             size: 22,
           ),
         ),
         Text(
           '$monthName ${_focusedMonth.year}',
           style: const TextStyle(
-            color: _grey98,
+            fontFamily: 'Open Sans',
+            color: calendarHeaderText,
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -491,7 +529,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             _focusedMonth =
                 DateTime(_focusedMonth.year, _focusedMonth.month + 1);
           }),
-          child: const Icon(Icons.chevron_right, color: _azure84, size: 22),
+          child: const Icon(Icons.chevron_right, color: calendarHeaderText, size: 22),
         ),
       ],
     );
@@ -507,8 +545,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 child: Text(
                   l,
                   style: const TextStyle(
-                    color: _azure47,
-                    fontSize: 10,
+                    fontFamily: 'Open Sans',
+                    color: calendarDayText,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -541,7 +580,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       crossAxisCount: 7,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 4,
+      mainAxisSpacing: 6,
       crossAxisSpacing: 4,
       childAspectRatio: 1.55,
       children: cells,
@@ -584,25 +623,28 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: isSelected
-              ? _green45
+              ? _calendarSelectedBg
               : inRange
-                  ? _carePeriodBg
-                  : Colors.transparent,
-          borderRadius: BorderRadius.circular((isSelected || inRange) ? 13 : 6),
+                  ? calendarRangeBg
+                  : unavailable
+                      ? calendarCompletedBg
+                      : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
         ),
         alignment: Alignment.center,
         child: Text(
           '${day.day}',
           style: TextStyle(
+            fontFamily: 'Open Sans',
             color: isSelected
-                ? _green8
+                ? _accentOnColor
                 : inRange
-                    ? _green45
+                    ? calendarRangeText
                     : unavailable
-                        ? const Color(0xFF3F4B5E)
-                        : _azure84,
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        ? calendarDayText
+                        : calendarDayText,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
             decoration: TextDecoration.none,
           ),
         ),
@@ -611,14 +653,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   Widget _buildLegend() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
+    return Wrap(
+      spacing: 14,
+      runSpacing: 4,
       children: [
-        _legendDot(_green45, 'Selected'),
-        const SizedBox(width: 14),
-        _legendDot(_carePeriodBg, 'Booked period'),
-        const SizedBox(width: 14),
-        _legendDot(_azure35, 'Completed'),
+        _legendDot(_calendarSelectedBg, 'Selected'),
+        _legendDot(calendarRangeBg, 'Booked period'),
+        _legendDot(calendarCompletedBg, 'Completed'),
       ],
     );
   }
@@ -635,11 +676,12 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             borderRadius: BorderRadius.circular(4.5),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 5),
         Text(
           label,
           style: const TextStyle(
-            color: _azure65,
+            fontFamily: 'Inter',
+            color: legendText,
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
@@ -650,20 +692,15 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   // Shift selection for Full-time
   Widget _buildChooseShiftSection() {
-    const shiftIcons = [
-      Icons.wb_sunny_rounded,
-      Icons.wb_twilight_rounded,
-      Icons.nightlight_round,
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Choose a shift',
           style: TextStyle(
-            color: _azure65,
-            fontSize: 13,
+            fontFamily: 'Open Sans',
+            color: Colors.black,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -677,20 +714,23 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 onTap: () => setState(() => _selectedShiftIndex = index),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: active ? _green45.withValues(alpha: 0.15) : _azure17,
+                    color: active ? _shiftActiveBg : shiftInactiveBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: active ? _green45 : _azure27,
-                      width: 1,
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: active ? 0.3 : 0.2),
+                        blurRadius: 2,
+                        offset: const Offset(3, 3),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        shiftIcons[index],
-                        color: active ? _green45 : _azure84,
+                        _shiftIcons[index],
+                        color: active ? Colors.white : shiftInactiveText,
                         size: 22,
                       ),
                       const SizedBox(width: 12),
@@ -701,30 +741,27 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                             Text(
                               _shifts[index],
                               style: TextStyle(
-                                color: active ? _green45 : _grey98,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Open Sans',
+                                color: active ? Colors.white : shiftInactiveText,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               _shiftLabels[index],
-                              style: const TextStyle(
-                                color: _azure65,
+                              style: TextStyle(
+                                fontFamily: 'Open Sans',
+                                color: active ? Colors.white : shiftInactiveText,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      if (active) ...[
-                        Icon(
-                          Icons.check_circle_rounded,
-                          color: _green45,
-                          size: 22,
-                        ),
-                      ],
+                      if (active)
+                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
                     ],
                   ),
                 ),
@@ -742,20 +779,19 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _azure17,
+        color: darkCardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _azure27),
+        border: Border.all(color: darkBorder),
       ),
       padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Centered 'Time' text
           const Center(
             child: Text(
               'Time',
               style: TextStyle(
-                color: _grey98,
+                color: darkTextPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.2,
@@ -763,24 +799,21 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Custom simulated Wheel Picker
           _buildSimulatedWheelPicker(),
           const SizedBox(height: 16),
-          // Presets label
           const Text(
             'Presets',
             style: TextStyle(
-              color: _azure65,
+              fontFamily: 'Open Sans',
+              color: darkTextMuted,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
-          // Presets row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: _ptPresets.map((preset) {
-              // check if preset matches active selection
               bool isPresetSelected = false;
               if (preset == '9 AM' && _ptHour == 9 && _ptMinute == 0 && _ptPeriod == 'AM') {
                 isPresetSelected = true;
@@ -812,12 +845,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: isPresetSelected
-                            ? _green45.withValues(alpha: 0.15)
-                            : _azure11,
+                        color: isPresetSelected ? _timePickerAccent.withValues(alpha: 0.15) : const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isPresetSelected ? _green45 : _azure27,
+                          color: isPresetSelected ? _timePickerAccent : darkBorder,
                           width: 1,
                         ),
                       ),
@@ -825,7 +856,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                       child: Text(
                         preset.toLowerCase(),
                         style: TextStyle(
-                          color: isPresetSelected ? _green45 : _azure84,
+                          color: isPresetSelected ? _timePickerAccent : darkTextSecondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -842,30 +873,23 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   Widget _buildSimulatedWheelPicker() {
-    // Left, center, and right lists
-    // Columns are Hour, Minute, AM/PM
     return SizedBox(
       height: 120,
       width: double.infinity,
       child: Stack(
         children: [
-          // Middle selected highlights bar
           Center(
             child: Container(
               height: 38,
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: _green45.withValues(alpha: 0.15),
+                color: _timePickerAccent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _green45.withValues(alpha: 0.4),
-                  width: 1,
-                ),
+                border: Border.all(color: _timePickerAccent.withValues(alpha: 0.4), width: 1),
               ),
             ),
           ),
-          // Scroll widgets
           ShaderMask(
             shaderCallback: (rect) {
               return const LinearGradient(
@@ -883,7 +907,6 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             blendMode: BlendMode.dstIn,
             child: Row(
               children: [
-                // 1. Hour Column
                 Expanded(
                   child: ListWheelScrollView.useDelegate(
                     itemExtent: 32,
@@ -904,7 +927,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           child: Text(
                             '$itemHour',
                             style: TextStyle(
-                              color: isSelected ? _grey98 : _azure35,
+                              color: isSelected ? darkTextPrimary : darkBorder,
                               fontSize: isSelected ? 19 : 13,
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                             ),
@@ -914,7 +937,6 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     ),
                   ),
                 ),
-                // 2. Minute Column
                 Expanded(
                   child: ListWheelScrollView.useDelegate(
                     itemExtent: 32,
@@ -935,7 +957,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           child: Text(
                             itemMinute.toString().padLeft(2, '0'),
                             style: TextStyle(
-                              color: isSelected ? _grey98 : _azure35,
+                              color: isSelected ? darkTextPrimary : darkBorder,
                               fontSize: isSelected ? 19 : 13,
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                             ),
@@ -945,7 +967,6 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     ),
                   ),
                 ),
-                // 3. Period Column
                 Expanded(
                   child: ListWheelScrollView.useDelegate(
                     itemExtent: 32,
@@ -966,7 +987,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           child: Text(
                             itemPeriod.toLowerCase(),
                             style: TextStyle(
-                              color: isSelected ? _grey98 : _azure35,
+                              color: isSelected ? darkTextPrimary : darkBorder,
                               fontSize: isSelected ? 19 : 13,
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                             ),
@@ -989,17 +1010,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
       decoration: BoxDecoration(
-        color: _azure17,
+        color: darkCardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _azure27),
+        border: Border.all(color: darkBorder),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.access_time_filled_rounded,
-            color: _green45,
-            size: 18,
-          ),
+          const Icon(Icons.access_time_filled_rounded, color: goldAccent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1008,7 +1025,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 const Text(
                   'End time (4 hr shift)',
                   style: TextStyle(
-                    color: _azure65,
+                    color: darkTextMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1017,7 +1034,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 Text(
                   _ptEndTimeFormatted,
                   style: const TextStyle(
-                    color: _grey98,
+                    color: darkTextPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1043,7 +1060,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: _azure65,
+            fontFamily: 'Open Sans',
+            color: Colors.black,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -1055,9 +1073,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
             decoration: BoxDecoration(
-              color: _azure17,
+              color: darkCardBg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _azure27),
+              border: Border.all(color: darkBorder),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1065,16 +1083,12 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 Text(
                   _formatTime(time),
                   style: const TextStyle(
-                    color: _grey98,
+                    color: darkTextPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Icon(
-                  Icons.access_time_rounded,
-                  color: _azure84,
-                  size: 22,
-                ),
+                const Icon(Icons.expand_more_rounded, color: darkTextMuted, size: 22),
               ],
             ),
           ),
@@ -1091,8 +1105,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         const Text(
           'How long is care needed?',
           style: TextStyle(
-            color: _azure65,
-            fontSize: 13,
+            fontFamily: 'Open Sans',
+            color: Colors.black,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1118,12 +1133,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 decoration: BoxDecoration(
-                  color: active ? _green45.withValues(alpha: 0.15) : _azure17,
+                  color: active ? _durationActiveBg : durationInactiveBg,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: active ? _green45 : _azure27,
-                    width: 1,
-                  ),
                 ),
                 child: Stack(
                   children: [
@@ -1132,21 +1143,18 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                         label,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: active ? _green45 : _grey98,
+                          fontFamily: 'Open Sans',
+                          color: active ? Colors.white : durationInactiveText,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                     if (active)
-                      Positioned(
-                        top: 6,
+                      const Positioned(
+                        top: 8,
                         right: 8,
-                        child: Icon(
-                          Icons.check_circle_rounded,
-                          color: _green45,
-                          size: 15,
-                        ),
+                        child: Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
                       ),
                   ],
                 ),
@@ -1160,14 +1168,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   Widget _buildCustomDurationToggleOrChip() {
     if (_isCustomDurationActive) {
-      // Display active green custom chip with close 'x' icon
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
         decoration: BoxDecoration(
-          color: _green45.withValues(alpha: 0.1),
+          color: darkCardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _green45, width: 1),
+          border: Border.all(color: _accent, width: 1),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1175,7 +1182,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             Text(
               _selectedDuration,
               style: TextStyle(
-                color: _green45,
+                color: _accent,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -1187,39 +1194,37 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                   _isCustomDurationActive = false;
                 });
               },
-              child: Icon(Icons.close_rounded, color: _green45, size: 20),
+              child: Icon(Icons.close_rounded, color: _accent, size: 20),
             ),
           ],
         ),
       );
     }
 
-    // Default dashed custom button
+    // Dark dashed "Custom duration" trigger — Figma keeps this panel on the
+    // old dark treatment even though the rest of the screen is light.
     return GestureDetector(
       onTap: _showCustomDurationDialog,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
         decoration: BoxDecoration(
-          color: _azure17,
+          color: darkCardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFF475569),
-            style: BorderStyle.solid,
-          ),
+          border: Border.all(color: darkBorderDashed, style: BorderStyle.solid),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
+          children: [
             Text(
               'Custom duration',
               style: TextStyle(
-                color: _azure84,
-                fontSize: 14,
+                color: darkTextSecondary,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            Icon(Icons.tune_rounded, color: _azure84, size: 20),
+            Icon(Icons.tune_rounded, color: darkTextSecondary, size: 20),
           ],
         ),
       ),
@@ -1236,7 +1241,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Dialog(
-              backgroundColor: const Color(0xFF1E293B),
+              backgroundColor: darkCardBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -1258,7 +1263,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8)),
+                          icon: const Icon(Icons.close_rounded, color: darkTextSecondary),
                           onPressed: () => Navigator.pop(context),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -1282,14 +1287,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? (_isAdvanced ? _green45.withValues(alpha: 0.18) : const Color(0x2EF59E0B))
-                                      : const Color(0xFF0F172A),
+                                  color: isSelected ? _accent.withValues(alpha: 0.18) : const Color(0xFF0F172A),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: isSelected
-                                        ? (_isAdvanced ? _green45 : const Color(0xFFF59E0B))
-                                        : const Color(0xFF334155),
+                                    color: isSelected ? _accent : darkBorder,
                                     width: 1.2,
                                   ),
                                 ),
@@ -1297,9 +1298,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                 child: Text(
                                   unit,
                                   style: TextStyle(
-                                    color: isSelected
-                                        ? (_isAdvanced ? _green45 : const Color(0xFFF59E0B))
-                                        : const Color(0xFF94A3B8),
+                                    color: isSelected ? _accent : darkTextMuted,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1315,7 +1314,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     const Text(
                       'Amount',
                       style: TextStyle(
-                        color: Color(0xFF94A3B8),
+                        color: darkTextMuted,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1348,7 +1347,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                 onTap: () {
                                   setDialogState(() => tempAmount++);
                                 },
-                                child: const Icon(Icons.keyboard_arrow_up_rounded, color: Color(0xFF94A3B8), size: 20),
+                                child: const Icon(Icons.keyboard_arrow_up_rounded, color: darkTextMuted, size: 20),
                               ),
                               const SizedBox(height: 4),
                               GestureDetector(
@@ -1357,7 +1356,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                     setDialogState(() => tempAmount--);
                                   }
                                 },
-                                child: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF94A3B8), size: 20),
+                                child: const Icon(Icons.keyboard_arrow_down_rounded, color: darkTextMuted, size: 20),
                               ),
                             ],
                           ),
@@ -1370,7 +1369,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _green45,
+                          backgroundColor: _accent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -1386,10 +1385,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           });
                           Navigator.pop(context);
                         },
-                        child: const Text(
+                        child: Text(
                           'Apply',
                           style: TextStyle(
-                            color: Color(0xFF06240F),
+                            color: _accentOnColor,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1410,7 +1409,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                         child: const Text(
                           'Reset to default',
                           style: TextStyle(
-                            color: Color(0xFF94A3B8),
+                            color: darkTextMuted,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1432,21 +1431,31 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
       decoration: BoxDecoration(
-        color: _azure17,
+        color: darkCardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _azure27),
+        border: Border.all(color: darkBorder),
       ),
       child: Row(
         children: [
-          Icon(Icons.calendar_today_rounded,
-              color: _green45, size: 18),
+          const Icon(Icons.calendar_month_rounded, color: goldAccent, size: 18),
           const SizedBox(width: 10),
           Text(
-            '${_formatDate(_selectedDate)}  →  ${_formatDate(_endDate)}',
+            _formatDate(_selectedDate),
             style: const TextStyle(
-              color: _grey98,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              color: darkTextPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.arrow_forward_rounded, color: darkTextMuted, size: 15),
+          const SizedBox(width: 8),
+          Text(
+            _formatDate(_endDate),
+            style: const TextStyle(
+              color: darkTextPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -1462,69 +1471,78 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            _azure11.withValues(alpha: 0),
-            _azure11,
+            bgCream.withValues(alpha: 0),
+            bgCream,
           ],
           stops: const [0.0, 0.3],
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
       child: SafeArea(
         top: false,
-        child: Material(
-          color: _green45,
-          borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () {
-              if (scheduleType == 'Flexible') {
-                final startMins = _startTime.hour * 60 + _startTime.minute;
-                final endMins = _endTime.hour * 60 + _endTime.minute;
-                if (endMins <= startMins) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('End time must be after start time.'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                  return;
+        child: Container(
+          decoration: BoxDecoration(
+            color: darkGreen,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(color: darkGreen.withValues(alpha: 0.5), blurRadius: 2, offset: const Offset(2, 2)),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
+              onTap: () {
+                if (scheduleType == 'Flexible') {
+                  final startMins = _startTime.hour * 60 + _startTime.minute;
+                  final endMins = _endTime.hour * 60 + _endTime.minute;
+                  if (endMins <= startMins) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('End time must be after start time.'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+                  if (endMins - startMins < 60) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('There must be a minimum gap of 1 hour between start and end times.'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
                 }
-                if (endMins - startMins < 60) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('There must be a minimum gap of 1 hour between start and end times.'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                  return;
-                }
-              }
-              Navigator.pushNamed(
-                context,
-                '/location-selection',
-                arguments: {
-                  'isAdvanced': isAdvanced,
-                  'schedule': scheduleType,
-                  'startDate': _formatDate(_selectedDate),
-                  'startTime': _formatTime(scheduleType == 'Part-time'
-                      ? TimeOfDay(hour: _ptHour, minute: _ptMinute)
-                      : _startTime),
-                  'endTime': _formatTime(_endTime),
-                  'duration': scheduleType == 'Flexible' ? '1 day' : _selectedDuration,
-                  'endDate': _formatDate(scheduleType == 'Flexible' ? _selectedDate : _endDate),
-                  'careType': 'Elder · $scheduleType',
-                },
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                'Continue',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _green8,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                Navigator.pushNamed(
+                  context,
+                  '/location-selection',
+                  arguments: {
+                    'isAdvanced': isAdvanced,
+                    'schedule': scheduleType,
+                    'startDate': _formatDate(_selectedDate),
+                    'startTime': _formatTime(scheduleType == 'Part-time'
+                        ? TimeOfDay(hour: _ptHour, minute: _ptMinute)
+                        : _startTime),
+                    'endTime': _formatTime(_endTime),
+                    'duration': scheduleType == 'Flexible' ? '1 day' : _selectedDuration,
+                    'endDate': _formatDate(scheduleType == 'Flexible' ? _selectedDate : _endDate),
+                    'careType': 'Elder · $scheduleType',
+                  },
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 18),
+                child: Text(
+                  'Continue',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: creamButtonText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
