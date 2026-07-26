@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -54,6 +57,71 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final credential = await AuthService.signInWithEmail(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      final uid = credential.user!.uid;
+      final profile = await AuthService.getUserProfile(uid);
+      final role = profile?['role'] as String?;
+
+      if (!mounted) return;
+
+      if (role == 'caregiver') {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/caregiver-dashboard',
+          (route) => false,
+        );
+      } else if (role == 'patient') {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/patient-dashboard',
+          (route) => false,
+        );
+      } else {
+        // Account exists but hasn't finished choosing a role yet.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Your account setup is incomplete. Please choose a role to continue.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/role-selection',
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AuthService.messageForSignInError(e)),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -202,25 +270,28 @@ class _LoginScreenState extends State<LoginScreen>
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(15),
-                              onTap: () {
-                                if (_formKey.currentState!.validate()) {
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/patient-dashboard',
-                                    (route) => false,
-                                  );
-                                }
-                              },
-                              child: const Center(
-                                child: Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    fontFamily: 'Quattrocento Sans',
-                                    color: buttonTextColor,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                              onTap: _isSubmitting ? null : _handleLogin,
+                              child: Center(
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  buttonTextColor),
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Login',
+                                        style: TextStyle(
+                                          fontFamily: 'Quattrocento Sans',
+                                          color: buttonTextColor,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                               ),
                             ),
                           ),

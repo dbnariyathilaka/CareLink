@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
+import '../services/auth_service.dart';
 
 enum _DutyStatus { available, busy, offDuty }
 
@@ -22,6 +23,23 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   int _selectedNavIndex = 0;
   int _selectedStateTab = 0;
   _DutyStatus _dutyStatus = _DutyStatus.available;
+  String _userName = 'there';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    final profile = await AuthService.getUserProfile(user.uid);
+    final name = profile?['name'] as String?;
+    if (mounted && name != null && name.isNotEmpty) {
+      setState(() => _userName = name);
+    }
+  }
 
   static const List<String> _stateTabs = [
     'Idle',
@@ -180,9 +198,9 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 2),
-              const Text(
-                'Brian Kumara',
-                style: TextStyle(
+              Text(
+                _userName,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,

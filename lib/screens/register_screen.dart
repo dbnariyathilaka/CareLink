@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,7 +22,9 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _googleSignedIn = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isSubmitting = false;
   String? _role;
+  UserCredential? _googleUserCredential;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -75,9 +79,20 @@ class _RegisterScreenState extends State<RegisterScreen>
   Future<void> _handleGoogleSignIn() async {
     try {
       final account = await _googleSignIn.signIn();
-      if (account != null && mounted) {
+      if (account == null) return;
+
+      final googleAuth = await account.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCredential =
+          await AuthService.signInWithGoogleCredential(credential);
+
+      if (mounted) {
         setState(() {
           _googleSignedIn = true;
+          _googleUserCredential = userCredential;
           _fullNameController.text = account.displayName ?? '';
           _emailController.text = account.email;
         });
@@ -85,6 +100,15 @@ class _RegisterScreenState extends State<RegisterScreen>
           SnackBar(
             content: Text('Signed in as ${account.displayName}'),
             backgroundColor: const Color(0xFF06402B),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AuthService.messageForRegisterError(e)),
+            backgroundColor: Colors.red.shade700,
           ),
         );
       }
@@ -97,6 +121,63 @@ class _RegisterScreenState extends State<RegisterScreen>
           ),
         );
       }
+    }
+  }
+
+  // ── Submit (email/password or finalize Google account) ────
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final String uid;
+      if (_googleSignedIn && _googleUserCredential != null) {
+        uid = _googleUserCredential!.user!.uid;
+      } else {
+        final credential = await AuthService.registerWithEmail(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+        uid = credential.user!.uid;
+      }
+
+      await AuthService.saveUserProfile(
+        uid: uid,
+        name: _fullNameController.text.trim(),
+        email: _emailController.text.trim(),
+        role: _role,
+      );
+
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          '/account-created',
+          arguments: {
+            'name': _fullNameController.text,
+            'role': _role,
+          },
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AuthService.messageForRegisterError(e)),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not create your account: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -321,28 +402,28 @@ class _RegisterScreenState extends State<RegisterScreen>
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(15),
-                              onTap: () {
-                                if (_formKey.currentState!.validate()) {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/account-created',
-                                    arguments: {
-                                      'name': _fullNameController.text,
-                                      'role': _role,
-                                    },
-                                  );
-                                }
-                              },
-                              child: const Center(
-                                child: Text(
-                                  'Sign in',
-                                  style: TextStyle(
-                                    color: creamBg,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Inter',
-                                  ),
-                                ),
+                              onTap: _isSubmitting ? null : _handleSubmit,
+                              child: Center(
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                  creamBg),
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Sign in',
+                                        style: TextStyle(
+                                          color: creamBg,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          fontFamily: 'Inter',
+                                        ),
+                                      ),
                               ),
                             ),
                           ),

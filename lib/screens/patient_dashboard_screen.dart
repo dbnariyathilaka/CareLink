@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../services/auth_service.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -11,6 +12,24 @@ class PatientDashboardScreen extends StatefulWidget {
 }
 
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
+  String _userName = 'there';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    final profile = await AuthService.getUserProfile(user.uid);
+    final name = profile?['name'] as String?;
+    if (mounted && name != null && name.isNotEmpty) {
+      setState(() => _userName = name);
+    }
+  }
+
   static const Color bgCream = Color(0xFFF5EEDE);
   static const Color darkGreen = Color(0xFF06402B);
   static const Color borderDark = Color(0xFF033724);
@@ -105,9 +124,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Nipuni Ariyathilaka',
-                style: TextStyle(
+              Text(
+                _userName,
+                style: const TextStyle(
                   fontFamily: 'Quattrocento Sans',
                   color: Colors.white,
                   fontSize: 26,

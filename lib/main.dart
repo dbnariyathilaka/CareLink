@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'screens/starting_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -55,7 +57,11 @@ import 'screens/qualifications_intro_screen.dart';
 import 'screens/matching_analysis_screen.dart';
 import 'screens/advanced_match_results_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const CareMatchApp());
 }
 
