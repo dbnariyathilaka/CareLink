@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/patient_service.dart';
 import '../theme/app_theme.dart';
 
 class PatientOnboarding3Screen extends StatefulWidget {
@@ -102,6 +105,31 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
         _pulseController.repeat(reverse: true);
       }
     });
+  }
+
+  Future<void> _savePatientProfile() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    try {
+      await PatientService.savePatientProfile(
+        uid: user.uid,
+        data: {
+          'patientName': AppState.patientName.value,
+          'patientGender': AppState.patientGenderSelf.value,
+          'patientAge': int.tryParse(AppState.patientAge.value) ?? 0,
+          'relationToPatient': AppState.relationToPatient.value,
+          'address': AppState.patientAddress.value,
+          'careType': AppState.careType.value,
+          'careLevel': AppState.careSchedule.value,
+          'medicalConditions': AppState.additionalCareNotes.value,
+          'preferredCaregiverGender': AppState.preferredGender.value,
+          'city': AppState.careLocation.value,
+        },
+      );
+    } catch (_) {
+      // Best-effort: navigation to the dashboard already proceeds either
+      // way; the profile can be completed later from settings.
+    }
   }
 
   Animation<double> _staggeredFade(double start, double end) {
@@ -231,6 +259,7 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
                           onTap: () {
+                            _savePatientProfile();
                             Navigator.pushNamedAndRemoveUntil(
                               context,
                               '/patient-dashboard',

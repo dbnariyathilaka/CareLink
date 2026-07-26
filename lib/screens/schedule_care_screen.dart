@@ -182,12 +182,18 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     String scheduleType = 'Flexible';
     bool isAdvanced = false;
+    String? caregiverId;
+    String? caregiverName;
+    String? notes;
 
     if (args is String) {
       scheduleType = args;
     } else if (args is Map<String, dynamic>) {
       scheduleType = args['schedule'] ?? 'Flexible';
       isAdvanced = args['isAdvanced'] ?? false;
+      caregiverId = args['caregiverId'] as String?;
+      caregiverName = args['caregiverName'] as String?;
+      notes = args['notes'] as String?;
     }
 
     _isAdvanced = isAdvanced;
@@ -246,7 +252,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildBottomButton(context, scheduleType, isAdvanced),
+            child: _buildBottomButton(
+                context, scheduleType, isAdvanced, caregiverId, caregiverName, notes),
           ),
         ],
       ),
@@ -1464,7 +1471,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   // ── Bottom Button ──
-  Widget _buildBottomButton(BuildContext context, String scheduleType, bool isAdvanced) {
+  Widget _buildBottomButton(BuildContext context, String scheduleType, bool isAdvanced,
+      String? caregiverId, String? caregiverName, String? notes) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1529,6 +1537,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     'duration': scheduleType == 'Flexible' ? '1 day' : _selectedDuration,
                     'endDate': _formatDate(scheduleType == 'Flexible' ? _selectedDate : _endDate),
                     'careType': 'Elder · $scheduleType',
+                    if (caregiverId != null) 'caregiverId': caregiverId,
+                    if (caregiverName != null) 'caregiverName': caregiverName,
+                    if (notes != null && notes.isNotEmpty) 'notes': notes,
                   },
                 );
               },

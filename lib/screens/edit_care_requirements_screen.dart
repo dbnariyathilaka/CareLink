@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../data/sri_lankan_cities.dart';
+import '../services/auth_service.dart';
+import '../services/patient_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Edit Care Requirements Screen (Patient)
@@ -67,6 +69,21 @@ class _EditCareRequirementsScreenState
     AppState.preferredGender.value = _selectedGender;
     AppState.careLocation.value = _location;
     AppState.additionalCareNotes.value = _notesController.text.trim();
+
+    final user = AuthService.currentUser;
+    if (user != null) {
+      PatientService.savePatientProfile(
+        uid: user.uid,
+        data: {
+          'careType': _selectedCareType,
+          'careLevel': _selectedSchedule,
+          'preferredCaregiverGender': _selectedGender,
+          'city': _location,
+          'medicalConditions': _notesController.text.trim(),
+        },
+      );
+    }
+
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Care requirements updated!')),

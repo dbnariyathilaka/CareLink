@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Edit Profile Screen
@@ -23,19 +25,17 @@ class _CaregiverEditProfileScreenState
   static const Color _indigoLight = Color(0xFF818CF8);
   static const Color _geyser = Color(0xFFCBD5E1);
 
-  final _nameController = TextEditingController(text: 'Brian Kumara');
-  final _emailController = TextEditingController(text: 'brian.kumara@email.com');
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final List<TextEditingController> _phoneControllers = [
-    TextEditingController(text: '077 123 4567'),
+    TextEditingController(),
   ];
-  final _cityController = TextEditingController(text: 'Negombo, Western Province');
-  final _bioController = TextEditingController(
-    text: 'Compassionate elder-care nurse with 5 years supporting families '
-        'across the Western Province. I specialise in dementia and '
-        'post-surgery recovery.',
-  );
+  final _cityController = TextEditingController();
+  final _bioController = TextEditingController();
 
-  int _yearsExperience = 5;
+  bool _loading = true;
+  bool _saving = false;
+  int _yearsExperience = 0;
   int _radiusKm = 10;
 
   static const List<String> _skills = [
@@ -49,16 +49,80 @@ class _CaregiverEditProfileScreenState
     'Sign language',
     'Pediatric care',
   ];
-  final Set<String> _selectedSkills = {
-    'Mobility assistance',
-    'Medication management',
-    'Dementia care',
-  };
+  final Set<String> _selectedSkills = {};
 
   static const List<String> _languages = ['Sinhala', 'English', 'Tamil'];
-  final Set<String> _selectedLanguages = {'Sinhala', 'English'};
+  final Set<String> _selectedLanguages = {};
 
-  final List<String> _certificates = ['Caregiving Diploma.pdf', 'First Aid Certificate.pdf'];
+  final List<String> _certificates = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = AuthService.currentUser;
+    if (user == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    final profile = await CaregiverService.getCaregiverProfile(user.uid);
+    if (!mounted) return;
+    _nameController.text = (profile?['name'] as String?) ?? '';
+    _emailController.text = (profile?['email'] as String?) ?? user.email ?? '';
+    _cityController.text = (profile?['city'] as String?) ?? '';
+    _bioController.text = (profile?['bio'] as String?) ?? '';
+    setState(() {
+      _yearsExperience = profile?['yearsExperience'] as int? ?? 0;
+      _radiusKm = profile?['serviceRadiusKm'] as int? ?? 10;
+      _selectedSkills
+        ..clear()
+        ..addAll((profile?['skills'] as List?)?.cast<String>() ?? const []);
+      _selectedLanguages
+        ..clear()
+        ..addAll((profile?['languagesSpoken'] as List?)?.cast<String>() ?? const []);
+      _loading = false;
+    });
+  }
+
+  Future<void> _saveProfile() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    setState(() => _saving = true);
+    try {
+      await CaregiverService.saveCaregiverProfile(
+        uid: user.uid,
+        data: {
+          'name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'city': _cityController.text.trim(),
+          'bio': _bioController.text.trim(),
+          'yearsExperience': _yearsExperience,
+          'serviceRadiusKm': _radiusKm,
+          'skills': _selectedSkills.toList(),
+          'languagesSpoken': _selectedLanguages.toList(),
+        },
+      );
+      await AuthService.saveUserProfile(
+        uid: user.uid,
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated!')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save changes. Please try again.')),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -195,7 +259,10 @@ class _CaregiverEditProfileScreenState
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+                  : SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,22 +455,26 @@ class _CaregiverEditProfileScreenState
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
-                          onTap: () {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Profile updated!')),
-                            );
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Text(
-                              'Save changes',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          onTap: _saving ? null : _saveProfile,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: _saving
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2.5),
+                                    )
+                                  : const Text(
+                                      'Save changes',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
@@ -417,6 +488,17 @@ class _CaregiverEditProfileScreenState
         ),
       ),
     );
+  }
+
+  String _initials() {
+    final trimmed = _nameController.text.trim();
+    if (trimmed.isEmpty) return '?';
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
   }
 
   Widget _buildAvatarPicker() {
@@ -445,10 +527,10 @@ class _CaregiverEditProfileScreenState
                     ? ClipOval(
                         child: Image.file(File(imagePath), width: 90, height: 90, fit: BoxFit.cover),
                       )
-                    : const Center(
+                    : Center(
                         child: Text(
-                          'BK',
-                          style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
+                          _initials(),
+                          style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
                         ),
                       ),
               ),

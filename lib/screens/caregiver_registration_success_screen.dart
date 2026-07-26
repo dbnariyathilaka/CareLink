@@ -1,4 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
 import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -100,6 +104,29 @@ class _CaregiverRegistrationSuccessScreenState
       _cardsController.forward();
       _pulseController.repeat(reverse: true);
     });
+
+    _saveCaregiverProfile();
+  }
+
+  Future<void> _saveCaregiverProfile() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    try {
+      final userProfile = await AuthService.getUserProfile(user.uid);
+      final data = AppState.caregiverOnboardingDraft.toMap();
+      data['agreedToTermsAt'] = FieldValue.serverTimestamp();
+      // Denormalized so search/profile views (readable by any signed-in
+      // user) don't need to read the owner-only users/{uid} document.
+      data['name'] = userProfile?['name'] ?? '';
+      data['email'] = userProfile?['email'] ?? user.email ?? '';
+      await CaregiverService.saveCaregiverProfile(uid: user.uid, data: data);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save your profile: $e')),
+        );
+      }
+    }
   }
 
   Animation<double> _staggeredFade(double start, double end) {

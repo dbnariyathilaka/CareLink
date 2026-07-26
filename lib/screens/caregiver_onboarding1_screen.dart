@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_state.dart';
 import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -328,6 +329,12 @@ class _CaregiverOnboarding1ScreenState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
+                        final draft = AppState.caregiverOnboardingDraft;
+                        draft.gender = _selectedGender;
+                        draft.yearsExperience = _yearsExperience;
+                        draft.careTypes = _selectedCareTypes;
+                        draft.nic = _nicController.text.trim();
+                        draft.referencePhone = _refPhoneController.text.trim();
                         Navigator.pushNamed(context, '/caregiver-onboarding-2');
                       },
                       child: const Padding(

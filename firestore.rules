@@ -1,0 +1,30 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // users/{uid} — role + basic profile, keyed by Firebase Auth uid.
+    // Only the signed-in owner can read or write their own document.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // caregiverProfiles/{uid} — any signed-in user can read (needed for
+    // patient search/profile view); only the owner can write their own.
+    match /caregiverProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // patientProfiles/{uid} — owner-only, same as users/{uid}.
+    match /patientProfiles/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /favorites/{caregiverUid} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // Everything else is denied by default until explicitly added here.
+  }
+}

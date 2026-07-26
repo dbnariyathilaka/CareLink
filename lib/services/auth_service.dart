@@ -40,7 +40,9 @@ class AuthService {
 
   static Future<void> signOut() => _auth.signOut();
 
-  /// Creates/overwrites the `users/{uid}` profile document.
+  /// Creates/overwrites the `users/{uid}` profile document. `role` is only
+  /// written when provided — omitting it (e.g. when just editing name/email)
+  /// must not clobber the role set at registration time.
   static Future<void> saveUserProfile({
     required String uid,
     required String name,
@@ -50,7 +52,7 @@ class AuthService {
     return _firestore.collection('users').doc(uid).set({
       'name': name,
       'email': email,
-      'role': role,
+      if (role != null) 'role': role,
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

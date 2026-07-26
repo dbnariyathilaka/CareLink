@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
+import '../services/patient_service.dart';
+import '../widgets/empty_state.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient My Profile Screen
@@ -23,11 +27,65 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   static const Color _azure11   = AppTheme.surfaceColor;
   static const Color _azure17   = AppTheme.cardColor;
   static const Color _azure27   = AppTheme.borderColor;
-  static const Color _azure47   = Color(0xFF64748B);
   static const Color _azure65   = AppTheme.textSecondary;
   static const Color _grey98    = AppTheme.textPrimary;
   static const Color _red44     = Color(0xFFEF4444);
   static const Color _amber     = Color(0xFFF59E0B);
+
+  bool _loading = true;
+  String _name = '';
+  String _email = '';
+  Map<String, dynamic>? _patientProfile;
+  List<Map<String, dynamic>> _favoriteCaregivers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = AuthService.currentUser;
+    if (user == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    final results = await Future.wait([
+      AuthService.getUserProfile(user.uid),
+      PatientService.getPatientProfile(user.uid),
+      PatientService.getFavoriteCaregiverIds(user.uid),
+    ]);
+    final userProfile = results[0] as Map<String, dynamic>?;
+    final patientProfile = results[1] as Map<String, dynamic>?;
+    final favoriteIds = results[2] as List<String>;
+
+    final favorites = <Map<String, dynamic>>[];
+    for (final id in favoriteIds) {
+      final profile = await CaregiverService.getCaregiverProfile(id);
+      if (profile != null) favorites.add({...profile, 'id': id});
+    }
+
+    if (patientProfile != null) {
+      AppState.careType.value =
+          (patientProfile['careType'] as String?) ?? AppState.careType.value;
+      AppState.careSchedule.value =
+          (patientProfile['careLevel'] as String?) ?? AppState.careSchedule.value;
+      AppState.careLocation.value =
+          (patientProfile['city'] as String?) ?? AppState.careLocation.value;
+      AppState.preferredGender.value =
+          (patientProfile['preferredCaregiverGender'] as String?) ??
+              AppState.preferredGender.value;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _name = (userProfile?['name'] as String?) ?? '';
+      _email = (userProfile?['email'] as String?) ?? user.email ?? '';
+      _patientProfile = patientProfile;
+      _favoriteCaregivers = favorites;
+      _loading = false;
+    });
+  }
 
   Future<void> _pickProfileImage() async {
     final picker = ImagePicker();
@@ -101,7 +159,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primaryGreen))
+                  : SingleChildScrollView(
                 child: Column(
                   children: [
                     _buildHeaderSection(context),
@@ -123,7 +184,6 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                           _menuRow(
                             icon: Icons.chat_bubble_outline_rounded,
                             label: 'Messages',
-                            badge: '2',
                             onTap: () => Navigator.pushNamed(context, '/messages'),
                           ),
                           const SizedBox(height: 12),
@@ -214,10 +274,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                             fit: BoxFit.cover,
                           ),
                         )
-                      : const Center(
+                      : Center(
                           child: Text(
-                            'NA',
-                            style: TextStyle(
+                            _initials(),
+                            style: const TextStyle(
                               color: _green8,
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
@@ -247,18 +307,18 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Nipuni Ariyathilaka',
-            style: TextStyle(
+          Text(
+            _name.isEmpty ? 'Unnamed patient' : _name,
+            style: const TextStyle(
               color: _grey98,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'nipuni@email.com · +94 77 123 4567',
-            style: TextStyle(
+          Text(
+            _email.isEmpty ? 'No email on file' : _email,
+            style: const TextStyle(
               color: _azure65,
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -292,15 +352,27 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     );
   }
 
+  String _initials() {
+    final trimmed = _name.trim();
+    if (trimmed.isEmpty) return '?';
+    return trimmed
+        .split(RegExp(r'\s+'))
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
+  }
+
   // ── Stats row ─────────────────────────────────────────────
   Widget _buildStatsRow() {
     return Row(
       children: [
-        Expanded(child: _statCard('3', 'Bookings')),
+        Expanded(child: _statCard('—', 'Bookings')),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('2', 'Reviews given')),
+        Expanded(child: _statCard('—', 'Reviews given')),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('1', 'Favourite')),
+        Expanded(
+            child: _statCard('${_favoriteCaregivers.length}', 'Favourite')),
       ],
     );
   }
@@ -345,6 +417,37 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
 
   // ── Care requirements card ────────────────────────────────
   Widget _buildCareRequirementsCard(BuildContext context) {
+    if (_patientProfile == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: _azure17,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _azure27),
+        ),
+        child: Column(
+          children: [
+            const EmptyState(
+              icon: Icons.assignment_outlined,
+              message: 'Care requirements not set yet.',
+            ),
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/edit-care-requirements'),
+              child: const Text(
+                'Set requirements',
+                style: TextStyle(
+                  color: _green45,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return ListenableBuilder(
       listenable: Listenable.merge([
         AppState.careType,
@@ -411,14 +514,53 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     );
   }
 
-  // ── Favourite caregiver card ──────────────────────────────
+  // ── Favourite caregiver card(s) ───────────────────────────
   Widget _buildFavouriteCard(BuildContext context) {
+    if (_favoriteCaregivers.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: _azure17,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _azure27),
+        ),
+        child: const EmptyState(
+          icon: Icons.favorite_border_rounded,
+          message: 'No favourite caregivers yet.',
+        ),
+      );
+    }
+    return Column(
+      children: [
+        for (final caregiver in _favoriteCaregivers) ...[
+          _favouriteRow(context, caregiver),
+          if (caregiver != _favoriteCaregivers.last) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+
+  Widget _favouriteRow(BuildContext context, Map<String, dynamic> caregiver) {
+    final id = caregiver['id'] as String;
+    final name = (caregiver['name'] as String?)?.trim() ?? '';
+    final initials = name.isEmpty
+        ? '?'
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase();
+    final careTypes = (caregiver['careTypes'] as List?)?.cast<String>() ?? [];
+
     return GestureDetector(
       onTap: () {
         Navigator.pushNamed(
           context,
           '/caregiver-profile',
-          arguments: const {'caregiverName': 'Alice Fernando'},
+          arguments: {'caregiverId': id},
         );
       },
       child: Container(
@@ -442,38 +584,49 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                   colors: [_green45, _green36],
                 ),
               ),
-              child: const Center(
-                child: Text('AF',
-                    style: TextStyle(
+              child: Center(
+                child: Text(initials,
+                    style: const TextStyle(
                         color: _green8,
                         fontSize: 13,
                         fontWeight: FontWeight.w700)),
               ),
             ),
             const SizedBox(width: 11),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Alice Fernando',
-                      style: TextStyle(
+                  Text(name.isEmpty ? 'Unnamed caregiver' : name,
+                      style: const TextStyle(
                           color: _grey98,
                           fontSize: 13,
                           fontWeight: FontWeight.w700)),
-                  SizedBox(height: 3),
-                  Text('Elder care · ★4.8',
-                      style: TextStyle(
-                          color: _azure65,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 3),
+                  Text(
+                    careTypes.isEmpty ? 'No care types listed' : careTypes.join(', '),
+                    style: const TextStyle(
+                        color: _azure65,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500),
+                  ),
                 ],
               ),
             ),
             GestureDetector(
-              onTap: () {
-                // Heart icon toggles (prevent propagation if needed, but in Flutter onTap on child doesn't bubble up if behavior is set or child consumes it)
+              onTap: () async {
+                final user = AuthService.currentUser;
+                if (user == null) return;
+                await PatientService.toggleFavorite(
+                  patientUid: user.uid,
+                  caregiverUid: id,
+                  isFavorite: false,
+                );
+                setState(() {
+                  _favoriteCaregivers.removeWhere((c) => c['id'] == id);
+                });
               },
-              child: const Icon(Icons.favorite_border, color: _red44, size: 20),
+              child: const Icon(Icons.favorite_rounded, color: _red44, size: 20),
             ),
           ],
         ),

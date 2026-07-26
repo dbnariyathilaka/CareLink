@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
+import '../widgets/empty_state.dart';
 
 class PatientSearchScreen extends StatefulWidget {
   const PatientSearchScreen({super.key});
@@ -15,11 +18,19 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   static const Color bgCream = Color(0xFFF5EEDE);
   static const Color darkGreen = Color(0xFF06402B);
   static const Color buttonNeutral = Color(0xFF554F42);
-  static const Color matchBadgeBg = Color.fromRGBO(64, 64, 6, 0.3);
-  static const Color matchBadgeText = Color(0xFF33440A);
   static const Color navHomeLabel = Color(0xFFFEE269);
   static const Color navMatchLabel = Color(0xFFFFA722);
-  static const Color starGold = Color(0xFFF5B301);
+
+  String _userName = 'there';
+  bool _loading = true;
+  List<Map<String, dynamic>> _caregivers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+    _loadCaregivers();
+  }
 
   @override
   void dispose() {
@@ -27,37 +38,39 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     super.dispose();
   }
 
-  static const List<_CaregiverData> _caregivers = [
-    _CaregiverData(
-      initials: 'RF',
-      avatarBg: Color(0xFFE9C368),
-      initialsColor: darkGreen,
-      name: 'Rayan Fernando',
-      matchScore: '95%',
-      careType: 'Elder care',
-      experience: '7 yrs exp',
-      distance: '2.5 km',
-      rating: '4.8',
-      available: true,
-      cardBg: Color.fromRGBO(100, 86, 57, 0.25),
-    ),
-    _CaregiverData(
-      initials: 'NS',
-      avatarBg: Color(0xFFB9C2E8),
-      initialsColor: Color(0xFF0A2447),
-      name: 'Navodya Sankalpa',
-      matchScore: '89%',
-      careType: 'Elder care',
-      experience: '5 yrs exp',
-      distance: '3.6 km',
-      rating: '4.8',
-      available: true,
-      cardBg: Color(0xFFD1C8B4),
-    ),
-  ];
+  Future<void> _loadUserName() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    final profile = await AuthService.getUserProfile(user.uid);
+    final name = profile?['name'] as String?;
+    if (mounted && name != null && name.isNotEmpty) {
+      setState(() => _userName = name);
+    }
+  }
+
+  Future<void> _loadCaregivers() async {
+    final results = await CaregiverService.searchCaregivers();
+    if (mounted) {
+      setState(() {
+        _caregivers = results;
+        _loading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredCaregivers {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return _caregivers;
+    return _caregivers.where((c) {
+      final name = (c['name'] as String? ?? '').toLowerCase();
+      final city = (c['city'] as String? ?? '').toLowerCase();
+      return name.contains(query) || city.contains(query);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final results = _filteredCaregivers;
     return Scaffold(
       backgroundColor: bgCream,
       body: SafeArea(
@@ -66,27 +79,36 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
           children: [
             _buildHeader(),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
-                children: [
-                  const Text(
-                    'Top matches for you',
-                    style: TextStyle(
-                      fontFamily: 'Open Sans',
-                      color: darkGreen,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  ..._caregivers.map(
-                    (c) => Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: _buildCaregiverCard(c),
-                    ),
-                  ),
-                ],
-              ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: darkGreen))
+                  : results.isEmpty
+                      ? EmptyState(
+                          icon: Icons.person_search_rounded,
+                          message: _caregivers.isEmpty
+                              ? 'No caregivers have registered yet — check back soon.'
+                              : 'No caregivers match your search.',
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
+                          children: [
+                            const Text(
+                              'Caregivers',
+                              style: TextStyle(
+                                fontFamily: 'Open Sans',
+                                color: darkGreen,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            ...results.map(
+                              (c) => Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: _buildCaregiverCard(c),
+                              ),
+                            ),
+                          ],
+                        ),
             ),
             _buildBottomBar(),
           ],
@@ -142,9 +164,9 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Nipuni Ariyathilaka',
-                    style: TextStyle(
+                  Text(
+                    _userName,
+                    style: const TextStyle(
                       fontFamily: 'Quattrocento Sans',
                       color: Colors.white,
                       fontSize: 26,
@@ -261,12 +283,28 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   }
 
   // ── Caregiver card ────────────────────────────────────────
-  Widget _buildCaregiverCard(_CaregiverData data) {
+  Widget _buildCaregiverCard(Map<String, dynamic> c) {
+    final uid = c['uid'] as String;
+    final name = (c['name'] as String?)?.trim() ?? '';
+    final initials = name.isEmpty
+        ? '?'
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase();
+    final city = c['city'] as String?;
+    final careTypes = (c['careTypes'] as List?)?.cast<String>() ?? [];
+    final yearsExperience = c['yearsExperience'] as int?;
+    final skills = (c['skills'] as List?)?.cast<String>() ?? [];
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: data.cardBg,
+        color: const Color(0xFFD1C8B4),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -275,150 +313,114 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: data.avatarBg,
-                    ),
-                    child: Center(
-                      child: Text(
-                        data.initials,
-                        style: TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          color: data.initialsColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+              Container(
+                width: 50,
+                height: 50,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFE9C368),
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: darkGreen,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.place_rounded, color: Colors.black, size: 12),
-                      const SizedBox(width: 3),
-                      Text(
-                        data.distance,
-                        style: const TextStyle(
-                          fontFamily: 'Open Sans',
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            data.name,
+                    Text(
+                      name.isEmpty ? 'Unnamed caregiver' : name,
+                      style: const TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: Colors.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (city != null && city.isNotEmpty)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.place_rounded, color: Colors.black, size: 13),
+                          const SizedBox(width: 3),
+                          Text(
+                            city,
                             style: const TextStyle(
                               fontFamily: 'Open Sans',
                               color: Colors.black,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: matchBadgeBg,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            data.matchScore,
-                            style: const TextStyle(
-                              fontFamily: 'Quattrocento Sans',
-                              color: matchBadgeText,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                        ],
+                      )
+                    else
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.location_off_outlined,
+                              color: Colors.black.withValues(alpha: 0.4), size: 13),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Location not set',
+                            style: TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.black.withValues(alpha: 0.4),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          data.careType,
-                          style: const TextStyle(
-                            fontFamily: 'Open Sans',
-                            color: Colors.black,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
+                    if (careTypes.isNotEmpty || yearsExperience != null)
+                      Text(
+                        [
+                          if (careTypes.isNotEmpty) careTypes.join(', '),
+                          if (yearsExperience != null) '$yearsExperience yrs exp',
+                        ].join(' · '),
+                        style: const TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: Colors.black,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                         ),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: const BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Text(
-                          data.experience,
-                          style: const TextStyle(
-                            fontFamily: 'Open Sans',
-                            color: Colors.black,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, color: starGold, size: 14),
-                        const SizedBox(width: 3),
-                        Text(
-                          data.rating,
-                          style: const TextStyle(
-                            fontFamily: 'Open Sans',
-                            color: Colors.black,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: data.available ? const Color(0xFF22C55E) : Colors.grey,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          data.available ? 'Available' : 'Unavailable',
-                          style: const TextStyle(
-                            fontFamily: 'Open Sans',
-                            color: Colors.black,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    if (skills.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: skills.take(3).map((s) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              s,
+                              style: const TextStyle(
+                                fontFamily: 'Open Sans',
+                                color: darkGreen,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -433,7 +435,11 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () => Navigator.pushNamed(context, '/send-request'),
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/send-request',
+                      arguments: {'caregiverId': uid},
+                    ),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 11),
                       child: Text(
@@ -457,7 +463,11 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      '/caregiver-profile',
+                      arguments: {'caregiverId': uid},
+                    ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 11),
                       decoration: BoxDecoration(
@@ -614,39 +624,10 @@ class _MatchFab extends StatelessWidget {
   }
 }
 
-// ── Data model ────────────────────────────────────────────
-class _CaregiverData {
-  final String initials;
-  final Color avatarBg;
-  final Color initialsColor;
-  final String name;
-  final String matchScore;
-  final String careType;
-  final String experience;
-  final String distance;
-  final String rating;
-  final bool available;
-  final Color cardBg;
-
-  const _CaregiverData({
-    required this.initials,
-    required this.avatarBg,
-    required this.initialsColor,
-    required this.name,
-    required this.matchScore,
-    required this.careType,
-    required this.experience,
-    required this.distance,
-    required this.rating,
-    required this.available,
-    required this.cardBg,
-  });
-}
-
 // ── Filters bottom sheet ──────────────────────────────────
 enum _CareType { fullTime, partTime, liveIn, flexible }
 
-enum _SortBy { bestMatch, nearest, highestRated }
+enum _SortBy { nearest, highestRated }
 
 class FiltersSheet extends StatefulWidget {
   const FiltersSheet({super.key});
@@ -660,14 +641,14 @@ class _FiltersSheetState extends State<FiltersSheet> {
   static const Color borderTan = Color.fromRGBO(6, 64, 43, 0.2);
 
   _CareType _careType = _CareType.fullTime;
-  _SortBy _sortBy = _SortBy.bestMatch;
+  _SortBy _sortBy = _SortBy.nearest;
   double _maxDistance = 15;
   double _minRating = 4.0;
 
   void _clearAll() {
     setState(() {
       _careType = _CareType.fullTime;
-      _sortBy = _SortBy.bestMatch;
+      _sortBy = _SortBy.nearest;
       _maxDistance = 15;
       _minRating = 4.0;
     });
@@ -768,12 +749,6 @@ class _FiltersSheetState extends State<FiltersSheet> {
             ),
             const SizedBox(height: 18),
             _sectionLabel('SORT RESULTS BY'),
-            const SizedBox(height: 9),
-            _radioRow(
-              'Best match',
-              _sortBy == _SortBy.bestMatch,
-              () => setState(() => _sortBy = _SortBy.bestMatch),
-            ),
             const SizedBox(height: 9),
             _radioRow(
               'Nearest first',

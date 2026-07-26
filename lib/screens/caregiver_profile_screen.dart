@@ -1,11 +1,43 @@
 import 'package:flutter/material.dart';
+import '../services/caregiver_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/empty_state.dart';
 
-class CaregiverProfileScreen extends StatelessWidget {
+class CaregiverProfileScreen extends StatefulWidget {
   const CaregiverProfileScreen({super.key});
 
-  static const Color _amber = Color(0xFFF59E0B);
+  @override
+  State<CaregiverProfileScreen> createState() => _CaregiverProfileScreenState();
+}
+
+class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   static const Color _geyser = Color(0xFFCBD5E1); // azure/84
+
+  String? _caregiverId;
+  Map<String, dynamic>? _caregiver;
+  bool _loading = true;
+  bool _loadedArgs = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadedArgs) return;
+    _loadedArgs = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['caregiverId'] is String) {
+      _caregiverId = args['caregiverId'] as String;
+      CaregiverService.getCaregiverProfile(_caregiverId!).then((profile) {
+        if (mounted) {
+          setState(() {
+            _caregiver = profile;
+            _loading = false;
+          });
+        }
+      });
+    } else {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,43 +50,49 @@ class CaregiverProfileScreen extends StatelessWidget {
               children: [
                 _buildTitleRow(context),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 100),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildProfileHeader(),
-                        const SizedBox(height: 16),
-                        _buildStatsRow(),
-                        const SizedBox(height: 16),
-                        _buildMatchBreakdown(),
-                        const SizedBox(height: 20),
-                        _buildSkillsSection(),
-                        const SizedBox(height: 20),
-                        _buildAboutSection(),
-                        const SizedBox(height: 20),
-                        _buildReviewsSection(context),
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  ),
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                              color: AppTheme.primaryGreen))
+                      : _caregiverId == null
+                          ? const EmptyState(
+                              icon: Icons.person_off_outlined,
+                              message: 'No caregiver selected.',
+                            )
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(22, 0, 22, 100),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildProfileHeader(),
+                                  const SizedBox(height: 16),
+                                  _buildStatsRow(),
+                                  const SizedBox(height: 20),
+                                  _buildSkillsSection(),
+                                  const SizedBox(height: 20),
+                                  _buildAboutSection(),
+                                  const SizedBox(height: 20),
+                                  _buildReviewsSection(context),
+                                  const SizedBox(height: 8),
+                                ],
+                              ),
+                            ),
                 ),
               ],
             ),
           ),
           // Sticky bottom button
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomButton(context),
-          ),
+          if (!_loading && _caregiverId != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBottomButton(context),
+            ),
         ],
       ),
     );
   }
-
-
 
   // ── Title row: back + "Caregiver profile" ────────────────
   Widget _buildTitleRow(BuildContext context) {
@@ -80,8 +118,25 @@ class CaregiverProfileScreen extends StatelessWidget {
     );
   }
 
-  // ── Avatar + name + subtitle + available badge ────────────
+  // ── Avatar + name + subtitle ──────────────────────────────
   Widget _buildProfileHeader() {
+    final name = (_caregiver?['name'] as String?)?.trim() ?? '';
+    final initials = name.isEmpty
+        ? '?'
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase();
+    final city = _caregiver?['city'] as String?;
+    final careTypes = (_caregiver?['careTypes'] as List?)?.cast<String>() ?? [];
+    final subtitle = [
+      if (careTypes.isNotEmpty) careTypes.join(', '),
+      if (city != null && city.isNotEmpty) city,
+    ].join(' · ');
+
     return Center(
       child: Column(
         children: [
@@ -98,10 +153,10 @@ class CaregiverProfileScreen extends StatelessWidget {
                 colors: [Color(0xFF22C55E), AppTheme.primaryGreenDark],
               ),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'AF',
-                style: TextStyle(
+                initials,
+                style: const TextStyle(
                   color: AppTheme.bottleGreen,
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
@@ -110,68 +165,46 @@ class CaregiverProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Alice Fernando',
-            style: TextStyle(
+          Text(
+            name.isEmpty ? 'Unnamed caregiver' : name,
+            style: const TextStyle(
               color: AppTheme.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Elder care specialist · Negombo · 2.3 km',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Available now pill
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(width: 5),
-                const Text(
-                  'Available now',
-                  style: TextStyle(
-                    color: AppTheme.primaryGreen,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         ],
       ),
     );
   }
 
-  // ── 3 stat boxes ──────────────────────────────────────────
+  // ── Stat boxes: only years of experience is real data so far ─
   Widget _buildStatsRow() {
+    final yearsExperience = _caregiver?['yearsExperience'] as int?;
     return Row(
       children: [
-        Expanded(child: _statBox('7', 'Yrs exp', valueColor: AppTheme.textPrimary)),
+        Expanded(
+          child: _statBox(
+            yearsExperience?.toString() ?? '—',
+            'Yrs exp',
+            valueColor: AppTheme.textPrimary,
+          ),
+        ),
         const SizedBox(width: 10),
-        Expanded(child: _statBox('4.8', 'Rating', valueColor: _amber)),
+        Expanded(child: _statBox('—', 'Rating', valueColor: AppTheme.textSecondary)),
         const SizedBox(width: 10),
-        Expanded(child: _statBox('38', 'Jobs done', valueColor: AppTheme.textPrimary)),
+        Expanded(child: _statBox('—', 'Jobs done', valueColor: AppTheme.textSecondary)),
       ],
     );
   }
@@ -208,125 +241,9 @@ class CaregiverProfileScreen extends StatelessWidget {
     );
   }
 
-  // ── Match breakdown card ──────────────────────────────────
-  Widget _buildMatchBreakdown() {
-    const bars = [
-      _BarData('Skill match', '100%', 1.0),
-      _BarData('Experience', '70%', 0.70),
-      _BarData('Availability', '100%', 1.0),
-      _BarData('Proximity', '80%', 0.80),
-      _BarData('Feedback', '95%', 0.95),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
-                'Your match breakdown',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                '85%',
-                style: TextStyle(
-                  color: AppTheme.primaryGreen,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Progress bars
-          Column(
-            children: bars.map((b) => _buildProgressRow(b)).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressRow(_BarData bar) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                bar.label,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                bar.percent,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Stack(
-                children: [
-                  // Track
-                  Container(
-                    height: 6,
-                    width: constraints.maxWidth,
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceColor,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                  // Fill
-                  Container(
-                    height: 6,
-                    width: constraints.maxWidth * bar.value,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── Skills & qualifications ───────────────────────────────
   Widget _buildSkillsSection() {
-    const skills = [
-      'Mobility assistance',
-      'Medication mgmt',
-      'Dementia care',
-      'Wound care',
-    ];
+    final skills = (_caregiver?['skills'] as List?)?.cast<String>() ?? [];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -339,11 +256,21 @@ class CaregiverProfileScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: skills.map((s) => _skillChip(s)).toList(),
-        ),
+        if (skills.isEmpty)
+          const Text(
+            'No skills listed yet.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: skills.map((s) => _skillChip(s)).toList(),
+          ),
       ],
     );
   }
@@ -369,10 +296,11 @@ class CaregiverProfileScreen extends StatelessWidget {
 
   // ── About section ─────────────────────────────────────────
   Widget _buildAboutSection() {
+    final bio = (_caregiver?['bio'] as String?)?.trim() ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Text(
+      children: [
+        const Text(
           'About',
           style: TextStyle(
             color: AppTheme.textPrimary,
@@ -380,10 +308,10 @@ class CaregiverProfileScreen extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
-          'Compassionate elder-care nurse with 7 years supporting families across the Western Province. I specialise in dementia and post-surgery recovery, and I bring a calm, patient approach to every visit.',
-          style: TextStyle(
+          bio.isEmpty ? 'No bio provided yet.' : bio,
+          style: const TextStyle(
             color: AppTheme.textSecondary,
             fontSize: 13,
             fontWeight: FontWeight.w400,
@@ -415,7 +343,7 @@ class CaregiverProfileScreen extends StatelessWidget {
                 Navigator.pushNamed(context, '/caregiver-reviews');
               },
               child: const Text(
-                'See all (24)',
+                'See all',
                 style: TextStyle(
                   color: AppTheme.primaryGreen,
                   fontSize: 13,
@@ -426,84 +354,13 @@ class CaregiverProfileScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        _reviewCard(
-          name: 'Priyanka W.',
-          rating: 5.0,
-          comment: 'Alice was wonderful with my mother — patient, punctual, and very knowledgeable about dementia care.',
-        ),
-        const SizedBox(height: 10),
-        _reviewCard(
-          name: 'Ruwan D.',
-          rating: 4.5,
-          comment: 'Great communication throughout recovery. Would book again without hesitation.',
+        const EmptyState(
+          icon: Icons.rate_review_outlined,
+          message: 'No reviews yet.',
         ),
       ],
     );
   }
-
-  Widget _reviewCard({
-    required String name,
-    required double rating,
-    required String comment,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.star_border_rounded,
-                    color: _amber,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    rating.toStringAsFixed(1),
-                    style: const TextStyle(
-                      color: _amber,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            comment,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w400,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
 
   // ── Bottom sticky button ──────────────────────────────────
   Widget _buildBottomButton(BuildContext context) {
@@ -513,7 +370,7 @@ class CaregiverProfileScreen extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppTheme.surfaceColor.withOpacity(0.0),
+            AppTheme.surfaceColor.withValues(alpha: 0.0),
             AppTheme.surfaceColor,
           ],
           stops: const [0.0, 0.2],
@@ -531,7 +388,11 @@ class CaregiverProfileScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: () => Navigator.pushNamed(context, '/add-review'),
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/add-review',
+                  arguments: {'caregiverId': _caregiverId},
+                ),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -558,7 +419,11 @@ class CaregiverProfileScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
-                onTap: () => Navigator.pushNamed(context, '/send-request'),
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  '/send-request',
+                  arguments: {'caregiverId': _caregiverId},
+                ),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -579,11 +444,4 @@ class CaregiverProfileScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _BarData {
-  final String label;
-  final String percent;
-  final double value;
-  const _BarData(this.label, this.percent, this.value);
 }

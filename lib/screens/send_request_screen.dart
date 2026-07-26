@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/caregiver_service.dart';
 
 class SendRequestScreen extends StatefulWidget {
   const SendRequestScreen({super.key});
@@ -12,8 +13,6 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   static const Color darkGreen = Color(0xFF06402B);
   static const Color titleGreen = Color(0xFF033724);
   static const Color inactiveStepBg = Color(0xFFD8E4CE);
-  static const Color matchBadgeBg = Color.fromRGBO(64, 64, 6, 0.3);
-  static const Color matchBadgeText = Color(0xFF33440A);
   static const Color fieldBorder = Color.fromRGBO(0, 0, 0, 0.3);
   static const Color fieldLabel = Color.fromRGBO(0, 0, 0, 0.85);
   static const Color fieldValue = Color.fromRGBO(0, 0, 0, 0.5);
@@ -28,10 +27,25 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   String _selectedWorkSchedule = 'Flexible';
   bool _dropdownOpen = false;
 
-  final TextEditingController _notesController = TextEditingController(
-    text:
-        'Needs help with morning medication, mobility around the house, and meal prep. Mother is 78.',
-  );
+  final TextEditingController _notesController = TextEditingController();
+
+  String? _caregiverId;
+  Map<String, dynamic>? _caregiver;
+  bool _loadedArgs = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadedArgs) return;
+    _loadedArgs = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['caregiverId'] is String) {
+      _caregiverId = args['caregiverId'] as String;
+      CaregiverService.getCaregiverProfile(_caregiverId!).then((profile) {
+        if (mounted) setState(() => _caregiver = profile);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -168,6 +182,23 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
 
   // ── Caregiver summary card ────────────────────────────────
   Widget _buildCaregiverCard() {
+    final name = (_caregiver?['name'] as String?)?.trim() ?? '';
+    final initials = name.isEmpty
+        ? '?'
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase();
+    final careTypes = (_caregiver?['careTypes'] as List?)?.cast<String>() ?? [];
+    final yearsExperience = _caregiver?['yearsExperience'] as int?;
+    final detail = [
+      if (careTypes.isNotEmpty) careTypes.join(', '),
+      if (yearsExperience != null) '$yearsExperience yrs exp',
+    ].join(' · ');
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
@@ -184,10 +215,10 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
               shape: BoxShape.circle,
               color: Color(0xFFE9C368),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'RF',
-                style: TextStyle(
+                initials,
+                style: const TextStyle(
                   fontFamily: 'Quattrocento Sans',
                   color: darkGreen,
                   fontSize: 20,
@@ -201,64 +232,30 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Rayan Fernando',
-                  style: TextStyle(
+                Text(
+                  _caregiverId == null
+                      ? 'No caregiver selected'
+                      : (name.isEmpty ? 'Unnamed caregiver' : name),
+                  style: const TextStyle(
                     fontFamily: 'Open Sans',
                     color: Colors.black,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Text(
-                      'Elder care',
-                      style: TextStyle(
-                        fontFamily: 'Open Sans',
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
                     ),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const Text(
-                      '7 yrs exp',
-                      style: TextStyle(
-                        fontFamily: 'Open Sans',
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: matchBadgeBg,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              '95% match',
-              style: TextStyle(
-                fontFamily: 'Quattrocento Sans',
-                color: matchBadgeText,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
             ),
           ),
         ],
@@ -491,7 +488,13 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                 Navigator.pushNamed(
                   context,
                   '/schedule-care',
-                  arguments: _selectedWorkSchedule,
+                  arguments: {
+                    'schedule': _selectedWorkSchedule,
+                    if (_caregiverId != null) 'caregiverId': _caregiverId,
+                    if (_caregiver?['name'] != null)
+                      'caregiverName': _caregiver!['name'],
+                    'notes': _notesController.text.trim(),
+                  },
                 );
               },
               child: const Padding(

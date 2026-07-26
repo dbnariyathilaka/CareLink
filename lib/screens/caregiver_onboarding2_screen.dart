@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../app_state.dart';
 import '../theme/app_theme.dart';
 import 'certificate_upload_dialog.dart';
 
@@ -302,6 +303,11 @@ class _CaregiverOnboarding2ScreenState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
+                        final draft = AppState.caregiverOnboardingDraft;
+                        draft.educationalQualification = _selectedQualification;
+                        draft.formalTraining = _formalTraining == 'Yes';
+                        draft.languagesSpoken = _selectedLanguages;
+                        draft.skills = _selectedSkills;
                         Navigator.pushNamed(context, '/caregiver-onboarding-3');
                       },
                       child: const Padding(

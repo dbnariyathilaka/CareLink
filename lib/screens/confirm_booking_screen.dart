@@ -466,7 +466,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                     );
                   } else {
                     final caregiverName =
-                        args?['caregiverName'] as String? ?? 'Alice Fernando';
+                        args?['caregiverName'] as String? ?? 'your caregiver';
                     _showConfirmedDialog(
                       context,
                       isAdvanced,

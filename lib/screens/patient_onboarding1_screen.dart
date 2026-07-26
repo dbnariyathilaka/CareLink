@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_state.dart';
 import '../theme/app_theme.dart';
 
 class PatientOnboarding1Screen extends StatefulWidget {
@@ -299,6 +300,9 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
                         onTap: () {
+                          AppState.careType.value = _selectedCareType;
+                          AppState.careSchedule.value = _selectedCareLevel;
+                          AppState.preferredGender.value = _selectedGender;
                           Navigator.pushNamed(
                               context, '/patient-onboarding-3');
                         },

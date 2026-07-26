@@ -14,14 +14,12 @@ class PatientSettingsScreen extends StatefulWidget {
 
 class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   static const Color _azure47 = Color(0xFF64748B);
-  static const Color _amber = Color(0xFFF59E0B);
 
   static const List<String> _languages = ['English', 'Sinhala', 'Tamil'];
 
   bool _bookingUpdates = true;
   bool _emergencyAlerts = true;
   bool _newMessages = true;
-  bool _newTopFive = false;
   bool _darkMode = true;
   String _language = 'English';
 
@@ -102,11 +100,6 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                         title: 'New messages',
                         value: _newMessages,
                         onChanged: (v) => setState(() => _newMessages = v),
-                      ),
-                      _toggleRow(
-                        title: 'New top 5 found',
-                        value: _newTopFive,
-                        onChanged: (v) => setState(() => _newTopFive = v),
                       ),
                     ]),
                     const SizedBox(height: 18),

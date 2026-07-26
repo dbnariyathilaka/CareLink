@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_state.dart';
 import '../theme/app_theme.dart';
 import '../data/sri_lankan_cities.dart';
 
@@ -274,6 +275,15 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                         borderRadius: BorderRadius.circular(10),
                         onTap: () {
                           if (_formKey.currentState!.validate()) {
+                            AppState.patientName.value =
+                                _nameController.text.trim();
+                            AppState.patientGenderSelf.value = _selectedGender;
+                            AppState.patientAge.value =
+                                _ageController.text.trim();
+                            AppState.careLocation.value =
+                                _cityController.text.trim();
+                            AppState.additionalCareNotes.value =
+                                _medicalController.text.trim();
                             Navigator.pushNamed(context, '/patient-onboarding-2');
                           }
                         },

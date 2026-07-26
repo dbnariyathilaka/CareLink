@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_state.dart';
 import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -292,6 +293,13 @@ class _PatientFamilyDetailsScreenState
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
                     onTap: () {
+                      AppState.patientName.value = _nameController.text.trim();
+                      AppState.relationToPatient.value = _relationship;
+                      AppState.patientAge.value = _ageController.text.trim();
+                      AppState.patientAddress.value =
+                          _addressController.text.trim();
+                      AppState.additionalCareNotes.value =
+                          _notesController.text.trim();
                       Navigator.pushNamed(context, '/patient-onboarding-1');
                     },
                     child: const Padding(

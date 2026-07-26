@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
+import '../widgets/empty_state.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver's own "My profile" screen
@@ -18,9 +21,31 @@ class CaregiverOwnProfileScreen extends StatefulWidget {
 class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   static const Color _indigo = Color(0xFF6366F1);
   static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _indigoLighter = Color(0xFFC7D2FE);
   static const Color _geyser = Color(0xFFCBD5E1);
   static const Color _red71 = Color(0xFFF87171);
+
+  bool _loading = true;
+  Map<String, dynamic>? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = AuthService.currentUser;
+    if (user == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    final profile = await CaregiverService.getCaregiverProfile(user.uid);
+    if (!mounted) return;
+    setState(() {
+      _profile = profile;
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +55,10 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+                  : SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
                   child: Column(
@@ -54,35 +82,44 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                       const SizedBox(height: 18),
                       _buildSectionTitle('Care type'),
                       const SizedBox(height: 8),
-                      _buildPillsWrap(const ['Part-time', 'Full-time'], selected: true),
+                      _buildPillsWrap(
+                        (_profile?['careTypes'] as List?)?.cast<String>() ?? const [],
+                        selected: true,
+                        emptyMessage: 'No care types set yet.',
+                      ),
                       const SizedBox(height: 18),
                       _buildSectionTitle('Skills'),
                       const SizedBox(height: 8),
                       _buildPillsWrap(
-                        const ['Mobility assistance', 'Medication management', 'Dementia care'],
+                        (_profile?['skills'] as List?)?.cast<String>() ?? const [],
                         selected: false,
+                        emptyMessage: 'No skills listed yet.',
                       ),
                       const SizedBox(height: 18),
                       _buildSectionTitle('Education & languages'),
                       const SizedBox(height: 8),
-                      _buildInfoCard(const [
-                        'Diploma · Formal caregiving training: Not set',
-                        'Speaks Sinhala, English',
+                      _buildInfoCard([
+                        '${(_profile?['educationalQualification'] as String?)?.trim().isNotEmpty == true ? _profile!['educationalQualification'] : 'Not set'} '
+                            '· Formal caregiving training: ${_profile?['formalTraining'] == true ? 'Yes' : 'Not set'}',
+                        (_profile?['languagesSpoken'] as List?)?.isNotEmpty == true
+                            ? 'Speaks ${(_profile!['languagesSpoken'] as List).cast<String>().join(', ')}'
+                            : 'No languages listed yet.',
                       ]),
                       const SizedBox(height: 18),
                       _buildSectionTitle('Bio'),
                       const SizedBox(height: 8),
-                      _buildInfoCard(const [
-                        'Compassionate elder-care nurse with 5 years supporting '
-                            'families across the Western Province. I specialise in '
-                            'dementia and post-surgery recovery.',
+                      _buildInfoCard([
+                        (_profile?['bio'] as String?)?.trim().isNotEmpty == true
+                            ? _profile!['bio'] as String
+                            : 'No bio provided yet.',
                       ]),
                       const SizedBox(height: 18),
                       _buildSectionTitle('Certifications'),
                       const SizedBox(height: 8),
-                      _buildCertRow('Caregiving Diploma.pdf'),
-                      const SizedBox(height: 10),
-                      _buildCertRow('First Aid Certificate.pdf'),
+                      const EmptyState(
+                        icon: Icons.description_outlined,
+                        message: 'No certificate documents uploaded yet.',
+                      ),
                       const SizedBox(height: 18),
                       _buildSectionTitle('Settings'),
                       const SizedBox(height: 8),
@@ -210,6 +247,18 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   // ── Avatar + name + email + badges ────────────────────────
   Widget _buildAvatarSection() {
+    final name = (_profile?['name'] as String?)?.trim() ?? '';
+    final email = (_profile?['email'] as String?)?.trim() ?? '';
+    final gender = (_profile?['gender'] as String?)?.trim();
+    final initials = name.isEmpty
+        ? '?'
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase();
     return ValueListenableBuilder<String?>(
       valueListenable: AppState.caregiverProfileImagePath,
       builder: (context, imagePath, _) {
@@ -244,10 +293,10 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                                 fit: BoxFit.cover,
                               ),
                             )
-                          : const Center(
+                          : Center(
                               child: Text(
-                                'BK',
-                                style: TextStyle(
+                                initials,
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 26,
                                   fontWeight: FontWeight.w700,
@@ -272,54 +321,26 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Brian Kumara',
-                style: TextStyle(color: AppTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w800),
+              Text(
+                name.isEmpty ? 'Unnamed caregiver' : name,
+                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'brian.kumara@email.com',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+              Text(
+                email.isEmpty ? 'No email on file' : email,
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 10),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.verified_rounded, color: AppTheme.primaryGreen, size: 13),
-                        SizedBox(width: 4),
-                        Text(
-                          'Identity verified',
-                          style: TextStyle(
-                            color: AppTheme.primaryGreen,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _indigo.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Text(
-                      'Male · Caregiver',
-                      style: TextStyle(color: _indigoLight, fontSize: 10, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _indigo.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  gender?.isNotEmpty == true ? '$gender · Caregiver' : 'Caregiver',
+                  style: const TextStyle(color: _indigoLight, fontSize: 10, fontWeight: FontWeight.w700),
+                ),
               ),
             ],
           ),
@@ -330,13 +351,27 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   // ── Stats row: Experience · NIC number ────────────────────
   Widget _buildStatsRow() {
+    final years = _profile?['yearsExperience'] as int?;
+    final nic = (_profile?['nic'] as String?)?.trim();
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _statCard('Experience', '5 years', valueFontSize: 18)),
+          Expanded(
+            child: _statCard(
+              'Experience',
+              years != null ? '$years years' : 'Not set',
+              valueFontSize: 18,
+            ),
+          ),
           const SizedBox(width: 10),
-          Expanded(child: _statCard('NIC number', 'Not provided', valueFontSize: 15)),
+          Expanded(
+            child: _statCard(
+              'NIC number',
+              nic?.isNotEmpty == true ? nic! : 'Not provided',
+              valueFontSize: 15,
+            ),
+          ),
         ],
       ),
     );
@@ -392,52 +427,19 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
-  // ── Earnings gradient card ─────────────────────────────────
+  // ── Earnings card ────────────────────────────────────────
   Widget _buildEarningsCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_indigo, Color(0xFF4338CA)],
-        ),
+        color: AppTheme.cardColor,
+        border: Border.all(color: AppTheme.borderColor),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'This month',
-                style: TextStyle(color: _indigoLighter, fontSize: 11, fontWeight: FontWeight.w600),
-              ),
-              const Text(
-                'LKR 36,000',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(color: Color(0x33FFFFFF), height: 1),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total earned',
-                style: TextStyle(color: _indigoLighter, fontSize: 11, fontWeight: FontWeight.w600),
-              ),
-              const Text(
-                'LKR 412,500',
-                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ],
+      child: const EmptyState(
+        icon: Icons.payments_outlined,
+        message: 'No earnings yet — this fills in once you complete paid bookings.',
       ),
     );
   }
@@ -455,14 +457,24 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _contactRow(Icons.call_rounded, '077 123 4567'),
+          _contactRow(
+            Icons.contact_phone_rounded,
+            (_profile?['referencePhone'] as String?)?.trim().isNotEmpty == true
+                ? 'Reference: ${_profile!['referencePhone']}'
+                : 'Reference: Not provided',
+          ),
           const SizedBox(height: 12),
-          _contactRow(Icons.contact_phone_rounded, 'Reference: Not provided'),
-          const SizedBox(height: 12),
-          _contactRow(Icons.location_on_rounded, 'Negombo, Western Province · 10 km radius'),
+          _contactRow(Icons.location_on_rounded, _locationText()),
         ],
       ),
     );
+  }
+
+  String _locationText() {
+    final city = (_profile?['city'] as String?)?.trim();
+    final radius = _profile?['serviceRadiusKm'] as int?;
+    if (city == null || city.isEmpty) return 'Location not set yet.';
+    return radius != null ? '$city · $radius km radius' : city;
   }
 
   Widget _contactRow(IconData icon, String text) {
@@ -482,7 +494,14 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   }
 
   // ── Generic pill wrap (Care type / Skills) ─────────────────
-  Widget _buildPillsWrap(List<String> items, {required bool selected}) {
+  Widget _buildPillsWrap(List<String> items,
+      {required bool selected, required String emptyMessage}) {
+    if (items.isEmpty) {
+      return Text(
+        emptyMessage,
+        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+      );
+    }
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -533,30 +552,6 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   }
 
   // ── Certification file row ─────────────────────────────────
-  Widget _buildCertRow(String filename) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.verified_rounded, color: AppTheme.primaryGreen, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              filename,
-              style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ── Settings grouped card ──────────────────────────────────
   Widget _buildSettingsCard(BuildContext context) {
     final rows = [

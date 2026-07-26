@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
+import '../widgets/empty_state.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -13,11 +15,13 @@ class PatientDashboardScreen extends StatefulWidget {
 
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   String _userName = 'there';
+  int? _caregiverCount;
 
   @override
   void initState() {
     super.initState();
     _loadUserName();
+    _loadCaregiverCount();
   }
 
   Future<void> _loadUserName() async {
@@ -30,22 +34,19 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     }
   }
 
+  Future<void> _loadCaregiverCount() async {
+    final results = await CaregiverService.searchCaregivers();
+    if (mounted) {
+      setState(() => _caregiverCount = results.length);
+    }
+  }
+
   static const Color bgCream = Color(0xFFF5EEDE);
   static const Color darkGreen = Color(0xFF06402B);
-  static const Color borderDark = Color(0xFF033724);
   static const Color emergencyRed = Color(0xFF9E0606);
   static const Color statCardBg = Color(0xFFE9D3B3);
-  static const Color matchScorePurple = Color(0xFF3D1678);
-  static const Color deltaRedBg = Color.fromRGBO(158, 6, 6, 0.3);
-  static const Color deltaRedText = Color(0xFF9E0606);
-  static const Color deltaTealBg = Color.fromRGBO(6, 155, 158, 0.3);
-  static const Color deltaTealText = Color(0xFF225753);
-  static const Color matchCardBg = Color(0xFFD1C8B4);
-  static const Color matchBadgeBg = Color.fromRGBO(64, 64, 6, 0.3);
-  static const Color matchBadgeText = Color(0xFF33440A);
   static const Color navHomeLabel = Color(0xFFFEE269);
   static const Color navMatchLabel = Color(0xFFFFA722);
-  static const Color starGold = Color(0xFFF5B301);
 
   @override
   Widget build(BuildContext context) {
@@ -68,16 +69,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
                     const SizedBox(height: 20),
                     _buildSectionHeader(),
                     const SizedBox(height: 14),
-                    _buildMatchCard(
-                      initials: 'RF',
-                      name: 'Rayan Fernando',
-                      matchScore: '95%',
-                      careType: 'Elder care',
-                      experience: '7 yrs exp',
-                      distance: '2.5 km',
-                      rating: '4.8',
-                      available: true,
-                    ),
+                    _buildFindCaregiverPrompt(),
                   ],
                 ),
               ),
@@ -225,115 +217,53 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 
   Widget _buildStatsRow() {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _statCard(
-              label: 'Your match score',
-              value: '85%',
-              valueColor: matchScorePurple,
-              valueFontSize: 35,
-              deltaText: '↓2.1%',
-              deltaBg: deltaRedBg,
-              deltaTextColor: deltaRedText,
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/search'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        decoration: BoxDecoration(
+          color: statCardBg,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 4,
+              offset: const Offset(0, 4),
             ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: _statCard(
-              label: 'Available now',
-              value: '12',
-              valueColor: darkGreen,
-              valueFontSize: 30,
-              caption: 'Near you',
-              deltaText: '↑2.1%',
-              deltaBg: deltaTealBg,
-              deltaTextColor: deltaTealText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statCard({
-    required String label,
-    required String value,
-    required Color valueColor,
-    required double valueFontSize,
-    required String deltaText,
-    required Color deltaBg,
-    required Color deltaTextColor,
-    String? caption,
-  }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 14, 14),
-      decoration: BoxDecoration(
-        color: statCardBg,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 4,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Quattrocento Sans',
-              color: darkGreen,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Quattrocento Sans',
-              color: valueColor,
-              fontSize: valueFontSize,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (caption != null)
-            Text(
-              caption,
-              style: const TextStyle(
-                fontFamily: 'Quattrocento Sans',
-                color: darkGreen,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: deltaBg,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                deltaText,
-                style: TextStyle(
-                  fontFamily: 'Quattrocento Sans',
-                  color: deltaTextColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Caregivers available',
+                  style: TextStyle(
+                    fontFamily: 'Quattrocento Sans',
+                    color: darkGreen,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  _caregiverCount == null ? '—' : '$_caregiverCount',
+                  style: const TextStyle(
+                    fontFamily: 'Quattrocento Sans',
+                    color: darkGreen,
+                    fontSize: 35,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const Icon(Icons.search_rounded, color: darkGreen, size: 30),
+          ],
+        ),
       ),
     );
   }
@@ -343,7 +273,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text(
-          'Top matches for you',
+          'Find a caregiver',
           style: TextStyle(
             fontFamily: 'Open Sans',
             color: darkGreen,
@@ -367,235 +297,41 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     );
   }
 
-  Widget _buildMatchCard({
-    required String initials,
-    required String name,
-    required String matchScore,
-    required String careType,
-    required String experience,
-    required String distance,
-    required String rating,
-    required bool available,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: matchCardBg,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFF3E9D2),
-                    ),
-                    child: Center(
-                      child: Text(
-                        initials,
-                        style: const TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          color: darkGreen,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.place_rounded, color: Colors.black, size: 12),
-                      const SizedBox(width: 3),
-                      Text(
-                        distance,
-                        style: const TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: const TextStyle(
-                              fontFamily: 'Quattrocento Sans',
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: matchBadgeBg,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            matchScore,
-                            style: const TextStyle(
-                              fontFamily: 'Quattrocento Sans',
-                              color: matchBadgeText,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text(
-                          careType,
-                          style: const TextStyle(
-                            fontFamily: 'Quattrocento Sans',
-                            color: Colors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: const BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Text(
-                          experience,
-                          style: const TextStyle(
-                            fontFamily: 'Quattrocento Sans',
-                            color: Colors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, color: starGold, size: 14),
-                        const SizedBox(width: 3),
-                        Text(
-                          rating,
-                          style: const TextStyle(
-                            fontFamily: 'Quattrocento Sans',
-                            color: Colors.black,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: available ? const Color(0xFF22C55E) : Colors.grey,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          available ? 'Available' : 'Unavailable',
-                          style: const TextStyle(
-                            fontFamily: 'Quattrocento Sans',
-                            color: Colors.black,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: Material(
+  Widget _buildFindCaregiverPrompt() {
+    if (_caregiverCount == 0) {
+      return const EmptyState(
+        icon: Icons.person_search_rounded,
+        message: 'No caregivers have registered yet — check back soon.',
+      );
+    }
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/search'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: statCardBg,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.search_rounded, color: darkGreen, size: 26),
+            SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'Search our registered caregivers to find the right fit for you.',
+                style: TextStyle(
+                  fontFamily: 'Quattrocento Sans',
                   color: darkGreen,
-                  borderRadius: BorderRadius.circular(10),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () => Navigator.pushNamed(context, '/send-request'),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 11),
-                      child: Text(
-                        'Request',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () => Navigator.pushNamed(context, '/caregiver-profile'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: borderDark),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text(
-                        'Profile',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          color: borderDark,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+            Icon(Icons.chevron_right_rounded, color: darkGreen, size: 22),
+          ],
+        ),
       ),
     );
   }
