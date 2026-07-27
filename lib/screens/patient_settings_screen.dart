@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient Settings Screen
-//  Figma node: 46-2983 (P-24 · Settings (Patient))
+//  Figma node: 171-1189
 // ─────────────────────────────────────────────────────────────
 class PatientSettingsScreen extends StatefulWidget {
   const PatientSettingsScreen({super.key});
@@ -13,39 +12,50 @@ class PatientSettingsScreen extends StatefulWidget {
 }
 
 class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
-  static const Color _azure47 = Color(0xFF64748B);
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color sectionLabelColor = Color(0xFF64748B);
+  static const Color cardBg = Color(0xFF1E293B);
+  static const Color cardBorder = Color(0xFF334155);
+  static const Color rowTitleColor = Color(0xFFF8FAFC);
+  static const Color rowSubtitleColor = Color(0xFF94A3B8);
+  static const Color amberIcon = Color(0xFFFBBC05);
+  static const Color chevronColor = Color(0xFF64748B);
+  static const Color activeSwitchColor = Color(0xFF22C55E);
 
   static const List<String> _languages = ['English', 'Sinhala', 'Tamil'];
 
   bool _bookingUpdates = true;
   bool _emergencyAlerts = true;
   bool _newMessages = true;
+  bool _newTop5Found = false;
   bool _darkMode = true;
   String _language = 'English';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bgCream,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 22, 0),
+              padding: const EdgeInsets.fromLTRB(12, 12, 22, 0),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: darkGreen, size: 22),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 4),
                   const Text(
                     'Settings',
                     style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                      fontFamily: 'Open Sans',
+                      color: darkGreen,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -62,22 +72,23 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                     _buildGroupCard([
                       _navRow(
                         icon: Icons.badge_outlined,
-                        iconColor: AppTheme.primaryGreen,
+                        iconColor: amberIcon,
                         title: 'Edit profile',
                         subtitle: 'Update care requirements',
                         onTap: () {},
                       ),
                       _navRow(
                         icon: Icons.lock_outline_rounded,
-                        iconColor: AppTheme.primaryGreen,
+                        iconColor: amberIcon,
                         title: 'Change password',
                         onTap: () {},
                       ),
                       _navRow(
                         icon: Icons.mail_outline_rounded,
-                        iconColor: AppTheme.primaryGreen,
+                        iconColor: amberIcon,
                         title: 'Change email',
                         subtitle: 'nipuni@email.com',
+                        showChevron: false,
                         onTap: () {},
                       ),
                     ]),
@@ -101,6 +112,11 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                         value: _newMessages,
                         onChanged: (v) => setState(() => _newMessages = v),
                       ),
+                      _toggleRow(
+                        title: 'New top 5 found',
+                        value: _newTop5Found,
+                        onChanged: (v) => setState(() => _newTop5Found = v),
+                      ),
                     ]),
                     const SizedBox(height: 18),
 
@@ -109,7 +125,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                     _buildGroupCard([
                       _navRow(
                         icon: Icons.language_rounded,
-                        iconColor: AppTheme.textSecondary,
+                        iconColor: rowSubtitleColor,
                         title: 'Language',
                         trailingText: _language,
                         showChevron: false,
@@ -138,7 +154,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   void _showLanguagePicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardColor,
+      backgroundColor: cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),
@@ -154,13 +170,13 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
               title: Text(
                 lang,
                 style: TextStyle(
-                  color: selected ? AppTheme.primaryGreen : AppTheme.textPrimary,
+                  color: selected ? activeSwitchColor : rowTitleColor,
                   fontSize: 15,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
               trailing: selected
-                  ? const Icon(Icons.check_rounded, color: AppTheme.primaryGreen)
+                  ? const Icon(Icons.check_rounded, color: activeSwitchColor)
                   : null,
               onTap: () {
                 setState(() => _language = lang);
@@ -178,21 +194,24 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
       onTap: () => _showDeleteAccountDialog(context),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: const Color(0xFFEF4444).withOpacity(0.08),
-          border: Border.all(
-            color: const Color(0xFFEF4444).withOpacity(0.3),
-            width: 1,
-          ),
-          borderRadius: BorderRadius.circular(10),
+          color: const Color.fromRGBO(64, 41, 6, 0.37),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 4,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           children: const [
             Text(
               'Delete account',
               style: TextStyle(
-                color: Color(0xFFEF4444),
+                color: Color(0xFF70360D),
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -201,7 +220,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
             Text(
               'This cannot be undone',
               style: TextStyle(
-                color: Color(0xFF94A3B8),
+                color: Color.fromRGBO(0, 0, 0, 0.5),
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -217,7 +236,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
       context: context,
       barrierColor: Colors.black54,
       builder: (_) => Dialog(
-        backgroundColor: AppTheme.cardColor,
+        backgroundColor: cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -228,7 +247,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withOpacity(0.12),
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -241,7 +260,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
               const Text(
                 'Delete account?',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  color: rowTitleColor,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -251,7 +270,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                 'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently lost.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: rowSubtitleColor,
                   fontSize: 13,
                   height: 1.5,
                 ),
@@ -265,14 +284,14 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: AppTheme.borderColor),
+                          border: Border.all(color: cardBorder),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
                           'Cancel',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: rowSubtitleColor,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -299,8 +318,8 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.12),
-                          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.4)),
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                          border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
@@ -328,7 +347,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     return Text(
       label,
       style: const TextStyle(
-        color: _azure47,
+        color: sectionLabelColor,
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
@@ -340,9 +359,9 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
+        color: cardBg,
+        border: Border.all(color: cardBorder),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: List.generate(rows.length, (i) {
@@ -351,7 +370,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
             decoration: isLast
                 ? null
                 : const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: AppTheme.borderColor)),
+                    border: Border(bottom: BorderSide(color: cardBorder)),
                   ),
             child: rows[i],
           );
@@ -372,11 +391,11 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
         child: Row(
           children: [
             Icon(icon, color: iconColor, size: 20),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,9 +403,9 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      color: rowTitleColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -394,8 +413,8 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
+                        color: rowSubtitleColor,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -407,7 +426,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
               Text(
                 trailingText,
                 style: const TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: rowSubtitleColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -415,7 +434,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
               const SizedBox(width: 4),
             ],
             if (showChevron)
-              const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary, size: 20),
+              const Icon(Icons.chevron_right_rounded, color: chevronColor, size: 20),
           ],
         ),
       ),
@@ -429,19 +448,19 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon, color: AppTheme.textSecondary, size: 20),
-            const SizedBox(width: 14),
+            Icon(icon, color: rowSubtitleColor, size: 20),
+            const SizedBox(width: 12),
           ],
           Expanded(
             child: Text(
               title,
               style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 14,
+                color: rowTitleColor,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -450,9 +469,9 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
             value: value,
             onChanged: onChanged,
             activeThumbColor: Colors.white,
-            activeTrackColor: AppTheme.primaryGreen,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: AppTheme.borderColor,
+            activeTrackColor: activeSwitchColor,
+            inactiveThumbColor: rowSubtitleColor,
+            inactiveTrackColor: cardBorder,
           ),
         ],
       ),

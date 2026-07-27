@@ -24,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _obscureConfirmPassword = true;
   bool _isSubmitting = false;
   String? _role;
+  String? _careRecipient;
   UserCredential? _googleUserCredential;
 
   late AnimationController _fadeController;
@@ -58,6 +59,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map && args['role'] is String) {
       _role = args['role'] as String;
+    }
+    if (args is Map && args['careRecipient'] is String) {
+      _careRecipient = args['careRecipient'] as String;
     }
     if (args is Map && args['triggerGoogle'] == true && !_googleSignedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _handleGoogleSignIn());
@@ -155,6 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           arguments: {
             'name': _fullNameController.text,
             'role': _role,
+            'careRecipient': _careRecipient,
           },
         );
       }
@@ -206,7 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             children: [
               // Back Button (arrow icon in forest green)
               Padding(
-                padding: const EdgeInsets.only(left: 16, top: 12),
+                padding: const EdgeInsets.only(left: 16, top: 8),
                 child: IconButton(
                   icon: const Icon(
                     Icons.arrow_back_ios_new_rounded,
@@ -215,46 +220,47 @@ class _RegisterScreenState extends State<RegisterScreen>
                   ),
                   onPressed: () => Navigator.pop(context),
                   constraints: const BoxConstraints(
-                    minWidth: 40,
-                    minHeight: 40,
+                    minWidth: 36,
+                    minHeight: 36,
                   ),
+                  padding: EdgeInsets.zero,
                 ),
               ),
 
-              // Form Scrollable Container
+              // Form — sized to fit in one frame, but scrollable as a
+              // safety net so it doesn't overflow when the keyboard opens.
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 10, 24, 30),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 6, 24, 16),
                   child: Form(
                     key: _formKey,
-                    child: Column(
+                    child: SingleChildScrollView(
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Hands-holding-heart vector logo in green
+                        // Hands cradling a heart — CareLink brand icon
                         Center(
-                          child: SizedBox(
-                            width: 100,
-                            height: 100,
-                            child: CustomPaint(
-                              painter: _CaregivingIconPainter(color: darkGreen),
-                            ),
+                          child: Image.asset(
+                            'assets/images/login_icon.png',
+                            width: 76,
+                            height: 76,
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 12),
 
                         // Title: Create New Account
                         const Text(
                           'Create New Account',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 38,
-                            fontWeight: FontWeight.w800,
+                            fontFamily: 'Quattrocento Sans',
+                            fontSize: 27,
+                            fontWeight: FontWeight.w700,
                             color: titleGreen,
-                            letterSpacing: -0.5,
+                            letterSpacing: -0.3,
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 18),
 
                         // Full Name Field
                         _buildTextField(
@@ -268,7 +274,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             return null;
                           },
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 12),
 
                         // Email Field
                         _buildTextField(
@@ -286,7 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             return null;
                           },
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 12),
 
                         // Phone Field
                         _buildTextField(
@@ -302,7 +308,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             return null;
                           },
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 12),
 
                         // Password Fields (hidden when authenticated via Google)
                         if (!_googleSignedIn) ...[
@@ -327,9 +333,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                               return null;
                             },
                           ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 12),
                           _buildTextField(
-                            label: 'Confirm Password',
+                            label: 'Confirm password',
                             hintText: '••••••••',
                             controller: _confirmPasswordController,
                             isPassword: true,
@@ -381,12 +387,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ),
                           ),
                         ],
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 20),
 
                         // Register Button (named 'Sign in' in Figma, rounded 15px)
                         Container(
                           width: double.infinity,
-                          height: 58,
+                          height: 52,
                           decoration: BoxDecoration(
                             color: darkGreen,
                             borderRadius: BorderRadius.circular(15),
@@ -428,7 +434,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 14),
 
                         // Footer Link (centered)
                         Center(
@@ -454,7 +460,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     ),
                                   ),
                                   TextSpan(
-                                    text: 'Login in',
+                                    text: 'Login',
                                     style: TextStyle(
                                       color: darkGreen,
                                       fontWeight: FontWeight.bold,
@@ -466,6 +472,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                           ),
                         ),
                       ],
+                    ),
                     ),
                   ),
                 ),
@@ -497,12 +504,12 @@ class _RegisterScreenState extends State<RegisterScreen>
           label,
           style: const TextStyle(
             color: darkGreen,
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             fontFamily: 'Inter',
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: isPassword && obscureText,
@@ -510,7 +517,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           validator: validator,
           style: const TextStyle(
             color: Colors.black,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w500,
             fontFamily: 'Inter',
           ),
@@ -518,13 +525,14 @@ class _RegisterScreenState extends State<RegisterScreen>
             hintText: hintText,
             hintStyle: TextStyle(
               color: Colors.black.withValues(alpha: 0.3),
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w400,
             ),
             filled: false,
+            isDense: true,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 16,
+              horizontal: 16,
+              vertical: 13,
             ),
             prefixIcon: prefixText != null
                 ? Padding(
@@ -595,74 +603,4 @@ class _RegisterScreenState extends State<RegisterScreen>
       ],
     );
   }
-}
-
-/// Custom painter for the caregiving hand + heart icon in forest green
-class _CaregivingIconPainter extends CustomPainter {
-  final Color color;
-  _CaregivingIconPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final strokePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-
-    // Draw the hand (open palm facing up)
-    final handPath = Path();
-
-    // Palm base - curved cup shape
-    handPath.moveTo(cx - 16, cy + 10);
-    handPath.quadraticBezierTo(cx - 18, cy + 18, cx - 10, cy + 20);
-    handPath.lineTo(cx + 10, cy + 20);
-    handPath.quadraticBezierTo(cx + 18, cy + 18, cx + 16, cy + 10);
-
-    // Fingers - slight curves going up on right side
-    handPath.quadraticBezierTo(cx + 20, cy + 2, cx + 14, cy - 2);
-
-    // Back across the top of the hand
-    handPath.quadraticBezierTo(cx + 8, cy + 2, cx, cy + 4);
-    handPath.quadraticBezierTo(cx - 8, cy + 2, cx - 14, cy - 2);
-    handPath.quadraticBezierTo(cx - 20, cy + 2, cx - 16, cy + 10);
-
-    canvas.drawPath(handPath, strokePaint);
-
-    // Draw the heart above the hand
-    final heartSize = 12.0;
-    final heartCx = cx;
-    final heartCy = cy - 12;
-
-    final heartPath = Path();
-    heartPath.moveTo(heartCx, heartCy + heartSize * 0.35);
-
-    // Left half of heart
-    heartPath.cubicTo(
-      heartCx - heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx - heartSize, heartCy + heartSize * 0.05,
-      heartCx, heartCy + heartSize * 0.7,
-    );
-
-    // Right half of heart
-    heartPath.cubicTo(
-      heartCx + heartSize, heartCy + heartSize * 0.05,
-      heartCx + heartSize * 0.5, heartCy - heartSize * 0.3,
-      heartCx, heartCy + heartSize * 0.35,
-    );
-
-    canvas.drawPath(heartPath, paint);
-    canvas.drawPath(heartPath, strokePaint..strokeWidth = 1.5);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

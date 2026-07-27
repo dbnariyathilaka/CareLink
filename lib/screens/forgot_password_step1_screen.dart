@@ -221,7 +221,7 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
                                     ),
                                   ),
                                   TextSpan(
-                                    text: 'Login in',
+                                    text: 'Login',
                                     style: TextStyle(
                                       color: darkGreen,
                                       fontWeight: FontWeight.w600,

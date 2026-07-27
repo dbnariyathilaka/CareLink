@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'who_needs_care_sheet.dart';
 
 class AccountCreatedScreen extends StatefulWidget {
   const AccountCreatedScreen({super.key});
@@ -64,6 +63,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
         ? args['name'].toString()
         : 'Nipuni';
     final role = (args is Map && args['role'] is String) ? args['role'] as String : null;
+    final careRecipient = (args is Map && args['careRecipient'] is String)
+        ? args['careRecipient'] as String
+        : null;
 
     const Color darkGreen = Color(0xFF06402B);
     const Color creamColor = Color(0xFFF6F0E2);
@@ -193,8 +195,10 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                         onTap: () {
                           if (role == 'caregiver') {
                             Navigator.pushNamed(context, '/caregiver-onboarding-1');
+                          } else if (role == 'patient' && careRecipient == 'family') {
+                            Navigator.pushNamed(context, '/patient-family-details');
                           } else if (role == 'patient') {
-                            showWhoNeedsCareSheet(context);
+                            Navigator.pushNamed(context, '/patient-onboarding-1');
                           } else {
                             Navigator.pushNamed(context, '/role-selection');
                           }

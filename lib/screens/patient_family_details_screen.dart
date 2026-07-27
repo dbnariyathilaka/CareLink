@@ -22,13 +22,10 @@ class _PatientFamilyDetailsScreenState
     extends State<PatientFamilyDetailsScreen> {
   static const Color _teal = Color(0xFF01D3A8);
 
-  final _nameController = TextEditingController(text: 'Mala Perera');
-  final _ageController = TextEditingController(text: '78');
-  final _addressController =
-      TextEditingController(text: '42 Temple Rd, Nugegoda');
-  final _notesController = TextEditingController(
-    text: 'Diabetic, limited mobility, hard of hearing.',
-  );
+  final _nameController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _notesController = TextEditingController();
 
   final List<String> _relationships = [
     'Mother',
@@ -131,7 +128,10 @@ class _PatientFamilyDetailsScreenState
                       children: [
                         _buildLabel("Patient's full name"),
                         const SizedBox(height: 7),
-                        _buildTextField(controller: _nameController),
+                        _buildTextField(
+                          controller: _nameController,
+                          hintText: 'Mala Perera',
+                        ),
                         const SizedBox(height: 13),
 
                         IntrinsicHeight(
@@ -147,6 +147,7 @@ class _PatientFamilyDetailsScreenState
                                     _buildTextField(
                                       controller: _ageController,
                                       keyboardType: TextInputType.number,
+                                      hintText: '78',
                                     ),
                                   ],
                                 ),
@@ -198,7 +199,10 @@ class _PatientFamilyDetailsScreenState
 
                         _buildLabel('Care address'),
                         const SizedBox(height: 7),
-                        _buildTextField(controller: _addressController),
+                        _buildTextField(
+                          controller: _addressController,
+                          hintText: '42 Temple Rd, Nugegoda',
+                        ),
                         const SizedBox(height: 13),
 
                         Row(
@@ -336,6 +340,7 @@ class _PatientFamilyDetailsScreenState
   Widget _buildTextField({
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
+    String? hintText,
   }) {
     return Container(
       width: double.infinity,
@@ -352,10 +357,16 @@ class _PatientFamilyDetailsScreenState
           fontSize: 15,
           fontWeight: FontWeight.w400,
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           isDense: true,
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+          hintText: hintText,
+          hintStyle: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+          ),
         ),
       ),
     );

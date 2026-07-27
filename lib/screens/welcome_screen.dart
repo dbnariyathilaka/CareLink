@@ -162,7 +162,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         ],
       ),
       child: Material(
-        color: Colors.transparent,
+        type: MaterialType.transparency,
         child: InkWell(
           borderRadius: BorderRadius.circular(50),
           onTap: onTap,
@@ -190,6 +190,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       width: double.infinity,
       height: 50,
       decoration: BoxDecoration(
+        color: buttonTextColor,
         borderRadius: BorderRadius.circular(50),
         border: Border.all(color: textColor, width: 3.0),
         boxShadow: [
@@ -201,7 +202,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         ],
       ),
       child: Material(
-        color: Colors.transparent,
+        type: MaterialType.transparency,
         child: InkWell(
           borderRadius: BorderRadius.circular(50),
           onTap: onTap,
@@ -209,7 +210,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             child: Text(
               text,
               style: const TextStyle(
-                fontFamily: 'Quattrocento Sans',
+                fontFamily: 'Open Sans',
                 color: textColor,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,

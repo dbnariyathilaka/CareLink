@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
 
 class CaregiverProfileScreen extends StatefulWidget {
@@ -11,10 +10,24 @@ class CaregiverProfileScreen extends StatefulWidget {
 }
 
 class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
-  static const Color _geyser = Color(0xFFCBD5E1); // azure/84
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color statBoxBg = Color(0xFFCCCCC4);
+  static const Color statLabel = Color(0xFF313131);
+  static const Color availableBadgeBg = Color.fromRGBO(231, 92, 17, 0.18);
+  static const Color availableAccent = Color(0xFFA94813);
+  static const Color matchCardBg = Color.fromRGBO(6, 64, 43, 0.85);
+  static const Color matchCardBorder = Color(0xFF334155);
+  static const Color barTrack = Color(0xFF0F172A);
+  static const Color barFill = Color(0xFFFBBC05);
+  static const Color chipBg = Color(0xFF1E293B);
+  static const Color chipBorder = Color(0xFF334155);
+  static const Color chipText = Color(0xFFCBD5E1);
+  static const Color bodyText = Color.fromRGBO(0, 0, 0, 0.58);
 
   String? _caregiverId;
   Map<String, dynamic>? _caregiver;
+  Map<String, dynamic>? _matchBreakdown;
   bool _loading = true;
   bool _loadedArgs = false;
 
@@ -26,6 +39,9 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map && args['caregiverId'] is String) {
       _caregiverId = args['caregiverId'] as String;
+      if (args['matchBreakdown'] is Map) {
+        _matchBreakdown = Map<String, dynamic>.from(args['matchBreakdown'] as Map);
+      }
       CaregiverService.getCaregiverProfile(_caregiverId!).then((profile) {
         if (mounted) {
           setState(() {
@@ -42,7 +58,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bgCream,
       body: Stack(
         children: [
           SafeArea(
@@ -52,21 +68,24 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                 Expanded(
                   child: _loading
                       ? const Center(
-                          child: CircularProgressIndicator(
-                              color: AppTheme.primaryGreen))
+                          child: CircularProgressIndicator(color: darkGreen))
                       : _caregiverId == null
                           ? const EmptyState(
                               icon: Icons.person_off_outlined,
                               message: 'No caregiver selected.',
                             )
                           : SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(22, 0, 22, 100),
+                              padding: const EdgeInsets.fromLTRB(22, 6, 22, 110),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _buildProfileHeader(),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 18),
                                   _buildStatsRow(),
+                                  if (_matchBreakdown != null) ...[
+                                    const SizedBox(height: 16),
+                                    _buildMatchBreakdownCard(),
+                                  ],
                                   const SizedBox(height: 20),
                                   _buildSkillsSection(),
                                   const SizedBox(height: 20),
@@ -81,13 +100,13 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
               ],
             ),
           ),
-          // Sticky bottom button
+          // Sticky bottom buttons
           if (!_loading && _caregiverId != null)
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: _buildBottomButton(context),
+              child: _buildBottomButtons(context),
             ),
         ],
       ),
@@ -97,20 +116,21 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   // ── Title row: back + "Caregiver profile" ────────────────
   Widget _buildTitleRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 22, 10),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: darkGreen, size: 22),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           const Text(
             'Caregiver profile',
             style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
+              fontFamily: 'Open Sans',
+              color: darkGreen,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -118,7 +138,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     );
   }
 
-  // ── Avatar + name + subtitle ──────────────────────────────
+  // ── Avatar + name + subtitle + availability badge ─────────
   Widget _buildProfileHeader() {
     final name = (_caregiver?['name'] as String?)?.trim() ?? '';
     final initials = name.isEmpty
@@ -132,45 +152,45 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
             .toUpperCase();
     final city = _caregiver?['city'] as String?;
     final careTypes = (_caregiver?['careTypes'] as List?)?.cast<String>() ?? [];
+    final distanceKm = _caregiver?['distanceKm'];
     final subtitle = [
       if (careTypes.isNotEmpty) careTypes.join(', '),
       if (city != null && city.isNotEmpty) city,
+      if (distanceKm != null) '$distanceKm km',
     ].join(' · ');
+    final isAvailable = _caregiver?['available'] != false;
 
     return Center(
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          // Large avatar 78px
           Container(
-            width: 78,
-            height: 78,
+            width: 76,
+            height: 76,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF22C55E), AppTheme.primaryGreenDark],
-              ),
+              color: Color(0xFF94A3B8),
             ),
             child: Center(
               child: Text(
                 initials,
                 style: const TextStyle(
-                  color: AppTheme.bottleGreen,
+                  fontFamily: 'Inter',
+                  color: Color(0xFF20385B),
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             name.isEmpty ? 'Unnamed caregiver' : name,
             style: const TextStyle(
-              color: AppTheme.textPrimary,
+              fontFamily: 'Open Sans',
+              color: Colors.black,
               fontSize: 20,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
           ),
           if (subtitle.isNotEmpty) ...[
@@ -178,66 +198,209 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
             Text(
               subtitle,
               style: const TextStyle(
-                color: AppTheme.textSecondary,
+                fontFamily: 'Open Sans',
+                color: Color(0xFF94A3B8),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ],
+          const SizedBox(height: 10),
+          if (isAvailable)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: availableBadgeBg,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: availableAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Available now',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      color: availableAccent,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  // ── Stat boxes: only years of experience is real data so far ─
+  // ── Stat boxes: years exp, rating, jobs done ──────────────
   Widget _buildStatsRow() {
-    final yearsExperience = _caregiver?['yearsExperience'] as int?;
+    final yearsExperience = _caregiver?['yearsExperience'];
+    final rating = _caregiver?['rating'];
+    final jobsDone = _caregiver?['jobsDone'];
     return Row(
       children: [
         Expanded(
           child: _statBox(
             yearsExperience?.toString() ?? '—',
             'Yrs exp',
-            valueColor: AppTheme.textPrimary,
+            valueColor: darkGreen,
           ),
         ),
         const SizedBox(width: 10),
-        Expanded(child: _statBox('—', 'Rating', valueColor: AppTheme.textSecondary)),
+        Expanded(
+          child: _statBox(
+            rating?.toString() ?? '—',
+            'Rating',
+            valueColor: const Color(0xFFE04913),
+          ),
+        ),
         const SizedBox(width: 10),
-        Expanded(child: _statBox('—', 'Jobs done', valueColor: AppTheme.textSecondary)),
+        Expanded(
+          child: _statBox(
+            jobsDone?.toString() ?? '—',
+            'Jobs done',
+            valueColor: darkGreen,
+          ),
+        ),
       ],
     );
   }
 
   Widget _statBox(String value, String label, {required Color valueColor}) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 13),
+      height: 66,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
+        color: statBoxBg,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             value,
             style: TextStyle(
+              fontFamily: 'Open Sans',
               color: valueColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
             style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
+              fontFamily: 'Open Sans',
+              color: statLabel,
+              fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // ── Match breakdown card (only when scoring data is passed in) ─
+  Widget _buildMatchBreakdownCard() {
+    final breakdown = _matchBreakdown!;
+    final overall = breakdown['overall'] ?? 0;
+    const metrics = [
+      ('skillMatch', 'Skill match'),
+      ('experience', 'Experience'),
+      ('availability', 'Availability'),
+      ('proximity', 'Proximity'),
+      ('feedback', 'Feedback'),
+    ];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: matchCardBg,
+        border: Border.all(color: matchCardBorder),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Your match breakdown',
+                style: TextStyle(
+                  color: Color(0xFFF8FAFC),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '$overall%',
+                style: const TextStyle(
+                  color: Color(0xFFC7C7C5),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (final (key, label) in metrics) ...[
+            _matchBar(label, (breakdown[key] as num?)?.toInt() ?? 0),
+            if (key != metrics.last.$1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _matchBar(String label, int percent) {
+    final clamped = percent.clamp(0, 100);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5, fontWeight: FontWeight.w500),
+            ),
+            Text(
+              '$clamped%',
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: [
+                  Container(height: 6, width: double.infinity, color: barTrack),
+                  Container(
+                    height: 6,
+                    width: constraints.maxWidth * clamped / 100,
+                    color: barFill,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -250,9 +413,10 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
         const Text(
           'Skills & qualifications',
           style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontFamily: 'Open Sans',
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 10),
@@ -260,7 +424,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
           const Text(
             'No skills listed yet.',
             style: TextStyle(
-              color: AppTheme.textSecondary,
+              color: Color(0xFF94A3B8),
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -277,18 +441,18 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
 
   Widget _skillChip(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: chipBg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: chipBorder),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: _geyser,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
+          color: chipText,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -303,18 +467,19 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
         const Text(
           'About',
           style: TextStyle(
-            color: AppTheme.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+            fontFamily: 'Open Sans',
+            color: Colors.black,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           bio.isEmpty ? 'No bio provided yet.' : bio,
           style: const TextStyle(
-            color: AppTheme.textSecondary,
+            color: bodyText,
             fontSize: 13,
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w500,
             height: 1.6,
           ),
         ),
@@ -333,8 +498,9 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
             const Text(
               'Reviews',
               style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 14,
+                fontFamily: 'Open Sans',
+                color: Colors.black,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -345,8 +511,8 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
               child: const Text(
                 'See all',
                 style: TextStyle(
-                  color: AppTheme.primaryGreen,
-                  fontSize: 13,
+                  color: darkGreen,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -362,21 +528,21 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     );
   }
 
-  // ── Bottom sticky button ──────────────────────────────────
-  Widget _buildBottomButton(BuildContext context) {
+  // ── Bottom sticky buttons ──────────────────────────────────
+  Widget _buildBottomButtons(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppTheme.surfaceColor.withValues(alpha: 0.0),
-            AppTheme.surfaceColor,
+            bgCream.withValues(alpha: 0.0),
+            bgCream,
           ],
-          stops: const [0.0, 0.2],
+          stops: const [0.0, 0.25],
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 20),
       child: SafeArea(
         top: false,
         child: Column(
@@ -397,15 +563,15 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppTheme.primaryGreen, width: 1.5),
+                    border: Border.all(color: darkGreen, width: 2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Text(
                     'Leave a review',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppTheme.primaryGreen,
-                      fontSize: 14,
+                      color: darkGreen,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -415,7 +581,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
             const SizedBox(height: 12),
             // Filled "Send booking request" button
             Material(
-              color: AppTheme.primaryGreen,
+              color: darkGreen,
               borderRadius: BorderRadius.circular(10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
@@ -426,14 +592,14 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                 ),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: const Text(
                     'Send booking request',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppTheme.bottleGreen,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

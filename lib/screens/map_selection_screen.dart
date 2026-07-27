@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import '../theme/app_theme.dart';
 import '../data/sri_lankan_cities.dart';
 
 class MapSelectionScreen extends StatefulWidget {
@@ -17,12 +16,16 @@ class MapSelectionScreen extends StatefulWidget {
 }
 
 class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTickerProviderStateMixin {
-  // Figma design tokens mapped to AppTheme
-  static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
-  static const Color _azure17 = AppTheme.cardColor;    // #1E293B
-  static const Color _azure27 = AppTheme.borderColor;  // #334155
-  static const Color _azure65 = AppTheme.textSecondary; // #94A3B8
-  static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
+  // Figma design tokens
+  static const Color _azure11 = Color(0xFF0F172A);
+  static const Color _azure17 = Color(0xFF1E293B);
+  static const Color _azure27 = Color(0xFF334155);
+  static const Color _azure65 = Color(0xFF94A3B8);
+  static const Color _grey98 = Color(0xFFF8FAFC);
+  static const Color _sheetBg = Color(0xFF313131);
+  static const Color _searchFieldBg = Color(0xFFEDE9DE);
+  static const Color _confirmBg = Color(0xFF6F5432);
+  static const Color _gpsGreen = Color(0xFF205441);
 
   // Custom known landmarks for accurate mock geocoding and search autocomplete
   static const List<Map<String, String>> _customLandmarks = [
@@ -51,8 +54,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   Map<String, dynamic> _bookingArgs = {};
 
   // Dynamic accent colors based on flow
-  Color get _accentColor => _isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen;
-  Color get _accentText  => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
+  Color get _accentColor => _isAdvanced ? const Color(0xFF3DB498) : const Color(0xFF06402B);
+  Color get _accentText  => _isAdvanced ? const Color(0xFF06291F) : Colors.white;
 
   // Interactive Map State
   final MapController _mapController = MapController();
@@ -520,86 +523,26 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
     }
   }
 
+  // Search field lives inside the bottom sheet now (matches Figma), with
+  // its results dropdown floating just above it.
   Widget _buildSearchBar() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: _azure17,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _azure27, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: [
-              Icon(Icons.search_rounded, color: _azure65, size: 22),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  style: const TextStyle(
-                    color: _grey98,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: 'Inter',
-                  ),
-                  decoration: const InputDecoration(
-                    filled: false,
-                    hintText: 'Search place or location...',
-                    hintStyle: TextStyle(
-                      color: _azure65,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onChanged: _onSearchChanged,
-                ),
-              ),
-              if (_showSearchClear)
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _searchController.clear();
-                      _searchResults = [];
-                      _showSearchClear = false;
-                    });
-                  },
-                  child: const Icon(Icons.close_rounded, color: _grey98, size: 20),
-                ),
-            ],
-          ),
-        ),
         if (_searchResults.isNotEmpty) ...[
-          const SizedBox(height: 6),
           Container(
             constraints: const BoxConstraints(maxHeight: 220),
+            margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: _azure17,
+              color: _searchFieldBg,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: _azure27, width: 1),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 15,
-                  offset: const Offset(0, 8),
+                  offset: const Offset(0, -8),
                 ),
               ],
             ),
@@ -609,8 +552,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 itemCount: _searchResults.length,
-                separatorBuilder: (context, index) => const Divider(
-                  color: _azure27,
+                separatorBuilder: (context, index) => Divider(
+                  color: _azure27.withValues(alpha: 0.4),
                   height: 1,
                   thickness: 0.5,
                 ),
@@ -630,7 +573,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                           children: [
                             const Icon(
                               Icons.location_on_rounded,
-                              color: Color(0xFFCBD5E1),
+                              color: Colors.black54,
                               size: 18,
                             ),
                             const SizedBox(width: 12),
@@ -641,7 +584,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                                   Text(
                                     cityName,
                                     style: const TextStyle(
-                                      color: _grey98,
+                                      color: Colors.black,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       fontFamily: 'Inter',
@@ -651,7 +594,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                                   Text(
                                     districtName,
                                     style: const TextStyle(
-                                      color: _azure65,
+                                      color: Colors.black54,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
                                       fontFamily: 'Inter',
@@ -670,6 +613,61 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
             ),
           ),
         ],
+        Container(
+          decoration: BoxDecoration(
+            color: _searchFieldBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _azure27, width: 1),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+          child: Row(
+            children: [
+              const Icon(Icons.search_rounded, color: _azure65, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: Colors.black,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  decoration: const InputDecoration(
+                    filled: false,
+                    hintText: 'Search location',
+                    hintStyle: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: _azure65,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: _onSearchChanged,
+                ),
+              ),
+              if (_showSearchClear)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchResults = [];
+                      _showSearchClear = false;
+                    });
+                  },
+                  child: const Icon(Icons.close_rounded, color: Colors.black54, size: 18),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -720,29 +718,19 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
             ),
           ),
 
-          // 2. Pulsing target indicator at map center
+          // 2. Center target pin, offset so its tip points at the map center
           Align(
             alignment: Alignment.center,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 40), // offset for visual pin tip
+              padding: const EdgeInsets.only(bottom: 20),
               child: _buildCenterTargetPin(),
             ),
           ),
 
-          // 3. Search Bar Overlay
+          // 3. Floating map tools on the right (Zoom, Location GPS)
           Positioned(
-            left: 16,
             right: 16,
             top: 20,
-            child: SafeArea(
-              child: _buildSearchBar(),
-            ),
-          ),
-
-          // 4. Floating map tools on the right (Zoom, Location GPS)
-          Positioned(
-            right: 16,
-            top: 140,
             child: SafeArea(
               child: Column(
                 children: [
@@ -816,59 +804,67 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   }
 
   Widget _buildGPSFloatingButton() {
+    final active = _usingGPS;
     return GestureDetector(
       onTap: _initiateRealTimeLocation,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: _usingGPS ? _accentColor : _azure17,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: _usingGPS ? _accentColor : _azure27),
+          color: active ? _accentColor : _gpsGreen,
+          shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+              blurRadius: 6,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Icon(
-          Icons.gps_fixed_rounded,
-          color: _usingGPS ? _accentText : _grey98,
+          Icons.my_location_rounded,
+          color: active ? _accentText : Colors.white,
           size: 20,
         ),
       ),
     );
   }
 
-  // Center target pin widget
+  // Center target pin widget — a squircle "map pin" badge matching Figma,
+  // rotated 45° with a white dot at its center.
   Widget _buildCenterTargetPin() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          height: 12,
-          width: 12,
-          decoration: BoxDecoration(
-            color: _accentColor,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: _accentColor.withValues(alpha: 0.5),
-                blurRadius: 10,
-                spreadRadius: 4,
-              ),
-            ],
+    return Transform.rotate(
+      angle: -math.pi / 4,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: _azure11,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(17),
+            topRight: Radius.circular(17),
+            bottomRight: Radius.circular(17),
+            bottomLeft: Radius.circular(4),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Container(
+            width: 16,
+            height: 16,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
           ),
         ),
-        const SizedBox(height: 2),
-        Icon(
-          Icons.location_on_rounded,
-          color: _accentColor,
-          size: 42,
-        ),
-      ],
+      ),
     );
   }
 
@@ -876,7 +872,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   Widget _buildBottomPanel(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: _azure17,
+        color: _sheetBg,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
@@ -892,20 +888,25 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
+      padding: const EdgeInsets.fromLTRB(18, 15, 18, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Drag handle bar
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFF475569),
-              borderRadius: BorderRadius.circular(2),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.37),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
           const SizedBox(height: 15),
+
+          _buildSearchBar(),
+          const SizedBox(height: 12),
 
           // Selected location display bar
           Container(
@@ -932,7 +933,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Action buttons Row
           Row(
@@ -948,13 +949,14 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: _azure27),
+                        border: Border.all(color: _searchFieldBg),
                       ),
                       child: const Text(
                         'Back',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: _grey98,
+                          fontFamily: 'Open Sans',
+                          color: _searchFieldBg,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -965,10 +967,10 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
               ),
               const SizedBox(width: 10),
 
-              // Select Button
+              // Confirm Button
               Expanded(
                 child: Material(
-                  color: _accentColor,
+                  color: _confirmBg,
                   borderRadius: BorderRadius.circular(9),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(9),
@@ -1001,11 +1003,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 13),
-                      child: Text(
-                        'Select',
+                      child: const Text(
+                        'Confirm',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: _accentText,
+                          fontFamily: 'Open Sans',
+                          color: _searchFieldBg,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),

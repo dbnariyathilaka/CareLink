@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
@@ -36,6 +37,22 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  String get _greetingText {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    if (hour < 21) return 'Good evening';
+    return 'Good night';
+  }
+
+  IconData get _greetingIcon {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return Icons.wb_twilight_rounded; // sunrise
+    if (hour < 17) return Icons.wb_sunny_rounded; // full sun
+    if (hour < 21) return Icons.nights_stay_rounded; // dusk
+    return Icons.bedtime_rounded; // night
   }
 
   Future<void> _loadUserName() async {
@@ -145,36 +162,44 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Text(
-                        'Good morning',
-                        style: TextStyle(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          _greetingText,
+                          style: const TextStyle(
+                            fontFamily: 'Quattrocento Sans',
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(_greetingIcon, color: const Color(0xFFFFC940), size: 18),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _userName,
+                        maxLines: 1,
+                        style: const TextStyle(
                           fontFamily: 'Quattrocento Sans',
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 26,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.wb_sunny_rounded, color: Color(0xFFFFC940), size: 18),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _userName,
-                    style: const TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => Navigator.pushNamed(context, '/patient-profile'),
@@ -582,12 +607,41 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   }
 }
 
-class _MatchFab extends StatelessWidget {
+class _MatchFab extends StatefulWidget {
   const _MatchFab();
 
-  static const Color bgCream = Color(0xFFF5EEDE);
-  static const Color darkGreen = Color(0xFF06402B);
-  static const Color navMatchLabel = Color(0xFFFFA722);
+  @override
+  State<_MatchFab> createState() => _MatchFabState();
+}
+
+class _MatchFabState extends State<_MatchFab> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _rotation;
+
+  @override
+  void initState() {
+    super.initState();
+    // 2s stopped, then a full turn that gradually accelerates (3s) and
+    // gradually decelerates (3s) — an 8s cycle that then repeats.
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+    _rotation = TweenSequence<double>([
+      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 2),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 6,
+      ),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -603,9 +657,7 @@ class _MatchFab extends StatelessWidget {
         width: 65,
         height: 65,
         decoration: BoxDecoration(
-          color: darkGreen,
           shape: BoxShape.circle,
-          border: Border.all(color: bgCream, width: 3),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),
@@ -614,10 +666,13 @@ class _MatchFab extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(
-          Icons.crop_free_rounded,
-          color: navMatchLabel,
-          size: 26,
+        child: RotationTransition(
+          turns: _rotation,
+          child: SvgPicture.asset(
+            'assets/images/match_target_icon.svg',
+            width: 65,
+            height: 65,
+          ),
         ),
       ),
     );

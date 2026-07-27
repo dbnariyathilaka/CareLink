@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart' as firebase_core;
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'screens/starting_screen.dart';
@@ -59,7 +59,7 @@ import 'screens/advanced_match_results_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
+  await firebase_core.Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(const CareMatchApp());

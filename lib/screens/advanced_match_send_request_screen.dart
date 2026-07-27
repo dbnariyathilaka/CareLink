@@ -28,9 +28,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
   String _selectedWorkSchedule = 'Flexible';
   bool _dropdownOpen = false;
 
-  final TextEditingController _notesController = TextEditingController(
-    text: 'Needs help with morning medication, mobility around the house, and meal prep. Mother is 78.',
-  );
+  final TextEditingController _notesController = TextEditingController();
 
   @override
   void dispose() {

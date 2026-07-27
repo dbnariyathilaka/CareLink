@@ -35,11 +35,15 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
 
   void _continue() {
     Navigator.pop(context);
-    if (_selected == _CareRecipient.patient) {
-      Navigator.pushNamed(context, '/patient-onboarding-1');
-    } else {
-      Navigator.pushNamed(context, '/patient-family-details');
-    }
+    Navigator.pushNamed(
+      context,
+      '/register',
+      arguments: {
+        'role': 'patient',
+        'careRecipient':
+            _selected == _CareRecipient.patient ? 'self' : 'family',
+      },
+    );
   }
 
   @override

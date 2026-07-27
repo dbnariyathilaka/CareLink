@@ -15,7 +15,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   static const Color scheduleTypeAccent = Color(0xFFA94813);
   static const Color stepInactiveBg = Color(0xFFDCD9CF);
   static const Color stepLineInactive = Color(0xFFD9D9D9);
-  static const Color calendarCardBg = Color.fromRGBO(40, 65, 101, 0.23);
+  static const Color calendarCardBg = Color.fromRGBO(40, 65, 101, 0.11);
   static const Color calendarHeaderText = Color(0xFF284165);
   static const Color calendarDayText = Color(0xFF25467E);
   static const Color calendarRangeBg = Color(0xFF7CA093);
@@ -304,17 +304,22 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
             final leftDone = steps[i ~/ 2].state != _StepState.inactive;
             return Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 3,
-                decoration: BoxDecoration(
-                  color: leftDone ? _accent : stepLineInactive,
-                  borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                // Centers the line on the 35px step circle above the label.
+                padding: const EdgeInsets.only(top: 16),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: leftDone ? _accent : stepLineInactive,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
               ),
             );
@@ -474,7 +479,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         color: calendarCardBg,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 4, offset: const Offset(4, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 6, offset: const Offset(2, 3)),
         ],
       ),
       padding: const EdgeInsets.fromLTRB(15, 21, 15, 15),

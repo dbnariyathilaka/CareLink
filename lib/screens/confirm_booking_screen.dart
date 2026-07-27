@@ -1,33 +1,31 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
+import '../services/booking_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Confirm Booking Screen
-//  Normal flow  : Step 4/4  – green theme  (Figma 282-11092)
-//  Advanced flow: Step 5/5  – teal theme   (Figma 282-13425)
+//  Normal flow  : Step 4/4
+//  Advanced flow: Step 5/5 (teal accent)
+//  Figma node: 208-58
 // ─────────────────────────────────────────────────────────────────────────────
 class ConfirmBookingScreen extends StatelessWidget {
   const ConfirmBookingScreen({super.key});
 
-  // ── Shared tokens ──────────────────────────────────────────────────────────
-  static const Color _azure11 = AppTheme.surfaceColor;   // #0F172A
-  static const Color _azure17 = AppTheme.cardColor;      // #1E293B
-  static const Color _azure27 = AppTheme.borderColor;    // #334155
-  static const Color _azure65 = AppTheme.textSecondary;  // #94A3B8
-  static const Color _grey98  = AppTheme.textPrimary;    // #F8FAFC
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color titleGreen = Color(0xFF033724);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color stepInactiveBg = Color(0xFFDCD9CF);
+  static const Color stepLineInactive = Color(0xFFD9D9D9);
+  static const Color cardBg = Color(0xFFBDB296);
+  static const Color cardRowBorder = Color(0xFF4C6B61);
+  static const Color cardValueText = Color(0xFF384642);
+  static const Color bannerBg = Color.fromRGBO(234, 67, 53, 0.39);
+  static const Color bannerBorder = Color(0xFFEA4335);
+  static const Color editLinkText = Color.fromRGBO(0, 0, 0, 0.78);
 
-  // ── Normal flow tokens ─────────────────────────────────────────────────────
-  static const Color _green45 = AppTheme.primaryGreen;   // #22C55E
-  static const Color _green8  = AppTheme.bottleGreen;    // #06240F
-  static const Color _amber   = Color(0xFFF59E0B);
-  static const Color _amberBg = Color(0x1FF59E0B);
-  static const Color _amberBorder = Color(0x66F59E0B);
-
-  // ── Advanced (teal) flow tokens ────────────────────────────────────────────
-  static const Color _keppel      = Color(0xFF3DB498);   // Keppel Cyan
+  // Advanced (teal) flow accent
+  static const Color _keppel = Color(0xFF3DB498);
   static const Color _bottleGreen = Color(0xFF06291F);
-  static const Color _keppelBg    = Color(0x1A3DB498);   // ~10% keppel
-  static const Color _keppelBdr   = Color(0x663DB498);   // ~40% keppel
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +39,7 @@ class ConfirmBookingScreen extends StatelessWidget {
     final location   = args?['location']   ?? 'Negombo';
     final careType   = args?['careType']   ?? 'Elder · Full-time';
     final isAdvanced = args?['isAdvanced'] ?? false;
+    final caregiverName = args?['caregiverName'] as String? ?? 'Your caregiver';
 
     // Advanced-only quiz answers
     final education  = args?['education']  as String?;
@@ -48,32 +47,24 @@ class ConfirmBookingScreen extends StatelessWidget {
     final training   = args?['training']   as String?;
     final languages  = args?['languages']  as List?;
 
-    // Accent colours depend on flow
-    final Color accent      = isAdvanced ? _keppel  : _green45;
-    final Color accentText  = isAdvanced ? _bottleGreen : _green8;
-    final Color bannerBg    = isAdvanced ? _keppelBg   : _amberBg;
-    final Color bannerBdr   = isAdvanced ? _keppelBdr  : _amberBorder;
-    final Color bannerIcon  = isAdvanced ? _keppel      : _amber;
-    final Color bannerTxt   = isAdvanced ? _keppel      : _amber;
-    final String bannerMsg  = isAdvanced
+    final Color accent = isAdvanced ? _keppel : darkGreen;
+    final Color accentOnColor = isAdvanced ? _bottleGreen : Colors.white;
+    final String bannerMsg = isAdvanced
         ? 'Matching caregivers have 6 hours to accept this request.'
-        : 'Your caregiver has 6 hours to accept this request.';
-    final IconData bannerIconData = isAdvanced
-        ? Icons.hourglass_bottom_rounded
-        : Icons.hourglass_top_rounded;
+        : '$caregiverName has 6 hours to accept this request.';
 
     return Scaffold(
-      backgroundColor: _azure11,
+      backgroundColor: bgCream,
       body: Stack(
         children: [
           SafeArea(
             child: Column(
               children: [
                 _buildTitleRow(context),
-                _buildStepIndicator(isAdvanced, accent),
+                _buildStepIndicator(isAdvanced, accent, accentOnColor),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 140),
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -99,17 +90,10 @@ class ConfirmBookingScreen extends StatelessWidget {
                           ),
                         ],
 
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
 
                         // ── Info banner ────────────────────────────────────
-                        _buildBanner(
-                          bgColor:   bannerBg,
-                          bdrColor:  bannerBdr,
-                          iconColor: bannerIcon,
-                          textColor: bannerTxt,
-                          icon:      bannerIconData,
-                          message:   bannerMsg,
-                        ),
+                        _buildBanner(message: bannerMsg),
                       ],
                     ),
                   ),
@@ -125,8 +109,16 @@ class ConfirmBookingScreen extends StatelessWidget {
               context,
               isAdvanced: isAdvanced,
               accent:     accent,
-              accentText: accentText,
+              accentOnColor: accentOnColor,
               args:       args,
+              caregiverName: caregiverName,
+              careType:   careType,
+              startDate:  startDate,
+              startTime:  startTime,
+              endTime:    endTime,
+              duration:   duration,
+              endDate:    endDate,
+              location:   location,
             ),
           ),
         ],
@@ -137,20 +129,21 @@ class ConfirmBookingScreen extends StatelessWidget {
   // ── Header ─────────────────────────────────────────────────────────────────
   Widget _buildTitleRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: _grey98, size: 24),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: titleGreen, size: 22),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 16),
           const Text(
             'Confirm booking',
             style: TextStyle(
-              color: _grey98,
+              fontFamily: 'Open Sans',
+              color: darkGreen,
               fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -159,7 +152,7 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Step indicator ─────────────────────────────────────────────────────────
-  Widget _buildStepIndicator(bool isAdvanced, Color accent) {
+  Widget _buildStepIndicator(bool isAdvanced, Color accent, Color accentOnColor) {
     final steps = isAdvanced
         ? const [
             _StepInfo('1', 'Request',        _StepState.done),
@@ -176,53 +169,57 @@ class ConfirmBookingScreen extends StatelessWidget {
           ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
+            final leftDone = steps[i ~/ 2].state != _StepState.inactive;
             return Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12, left: 3, right: 3),
-                height: 1.5,
-                color: accent,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: leftDone ? accent : stepLineInactive,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
               ),
             );
           }
           final s = steps[i ~/ 2];
-          final isActive = s.state == _StepState.active;
-          final isDone   = s.state == _StepState.done;
+          final isFilled = s.state != _StepState.inactive;
           return Column(
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 35,
+                height: 35,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isActive ? accent : _azure17,
-                  border: Border.all(
-                    color: isActive || isDone ? accent : _azure27,
-                    width: 1,
-                  ),
+                  color: isFilled ? accent : stepInactiveBg,
                 ),
                 child: Center(
                   child: Text(
                     s.number,
                     style: TextStyle(
-                      color: isActive
-                          ? (isAdvanced ? _bottleGreen : _green8)
-                          : (isDone ? accent : _azure65),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontFamily: 'Open Sans',
+                      color: isFilled ? accentOnColor : Colors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 s.label,
-                style: TextStyle(
-                  color: isActive || isDone ? accent : _azure65,
-                  fontSize: 8,
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: titleGreen,
+                  fontSize: 9,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -268,23 +265,25 @@ class ConfirmBookingScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _azure17,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _azure27),
       ),
-      padding: const EdgeInsets.fromLTRB(17, 14, 17, 4),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Caregiver qualifications required',
-            style: TextStyle(
-              color: _grey98,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              'Caregiver qualifications required',
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.black,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(height: 10),
           _buildQualRow('Education',       education ?? '–'),
           _buildQualRow('Experience',      experience ?? '–'),
           _buildQualRow('Formal training', training ?? '–'),
@@ -302,12 +301,12 @@ class ConfirmBookingScreen extends StatelessWidget {
 
   Widget _buildQualRow(String label, String value, {bool isLast = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 9),
+      padding: const EdgeInsets.symmetric(vertical: 13),
       decoration: isLast
           ? null
           : const BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: _azure27, width: 1),
+                bottom: BorderSide(color: cardRowBorder, width: 1),
               ),
             ),
       child: Row(
@@ -316,7 +315,8 @@ class ConfirmBookingScreen extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: _azure65,
+              fontFamily: 'Open Sans',
+              color: Colors.black,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -324,7 +324,7 @@ class ConfirmBookingScreen extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: _grey98,
+              color: cardValueText,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -339,23 +339,22 @@ class ConfirmBookingScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _azure17,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _azure27),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
         children: List.generate(rows.length, (index) {
           final row    = rows[index];
           final isLast = index == rows.length - 1;
           return Container(
-            constraints: const BoxConstraints(minHeight: 43),
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            constraints: const BoxConstraints(minHeight: 45),
+            padding: const EdgeInsets.symmetric(vertical: 13),
             decoration: isLast
                 ? null
                 : const BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: _azure27, width: 1),
+                      bottom: BorderSide(color: cardRowBorder, width: 1),
                     ),
                   ),
             child: Row(
@@ -364,7 +363,8 @@ class ConfirmBookingScreen extends StatelessWidget {
                 Text(
                   row.label,
                   style: const TextStyle(
-                    color: _azure65,
+                    fontFamily: 'Open Sans',
+                    color: Colors.black,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -375,7 +375,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                     row.value,
                     textAlign: TextAlign.end,
                     style: const TextStyle(
-                      color: _grey98,
+                      color: cardValueText,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -390,32 +390,26 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Info banner ────────────────────────────────────────────────────────────
-  Widget _buildBanner({
-    required Color bgColor,
-    required Color bdrColor,
-    required Color iconColor,
-    required Color textColor,
-    required IconData icon,
-    required String message,
-  }) {
+  Widget _buildBanner({required String message}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: bannerBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: bdrColor),
+        border: Border.all(color: bannerBorder),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, color: iconColor, size: 20),
+          const Icon(Icons.hourglass_top_rounded, color: bannerBorder, size: 24),
           const SizedBox(width: 11),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                color: textColor,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: bannerBorder,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -427,24 +421,63 @@ class ConfirmBookingScreen extends StatelessWidget {
     );
   }
 
+  // ── Firestore write ──────────────────────────────────────────────────────
+  Future<void> _createBookingRequest({
+    required bool isAdvanced,
+    required String? caregiverId,
+    required String caregiverName,
+    required String careType,
+    required String startDate,
+    required String startTime,
+    required String endTime,
+    required String duration,
+    required String endDate,
+    required String location,
+  }) async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+    final isFlexible = careType.contains('Flexible');
+    await BookingService.createBookingRequest(
+      patientUid: uid,
+      caregiverId: caregiverId,
+      caregiverName: isAdvanced ? 'Matching caregivers' : caregiverName,
+      careType: careType,
+      startDate: startDate,
+      startTime: startTime,
+      endTime: isFlexible ? endTime : null,
+      duration: isFlexible ? null : duration,
+      endDate: isFlexible ? null : endDate,
+      location: location,
+      isAdvanced: isAdvanced,
+    );
+  }
+
   // ── Bottom actions ─────────────────────────────────────────────────────────
   Widget _buildBottomActions(
     BuildContext context, {
     required bool isAdvanced,
     required Color accent,
-    required Color accentText,
+    required Color accentOnColor,
     required Map<String, dynamic>? args,
+    required String caregiverName,
+    required String careType,
+    required String startDate,
+    required String startTime,
+    required String endTime,
+    required String duration,
+    required String endDate,
+    required String location,
   }) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [_azure11.withValues(alpha: 0), _azure11],
+          colors: [bgCream.withValues(alpha: 0), bgCream],
           stops: const [0.0, 0.28],
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       child: SafeArea(
         top: false,
         child: Column(
@@ -453,10 +486,23 @@ class ConfirmBookingScreen extends StatelessWidget {
             // Primary: Confirm and send request
             Material(
               color: accent,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
+                borderRadius: BorderRadius.circular(10),
+                onTap: () async {
+                  await _createBookingRequest(
+                    isAdvanced:    isAdvanced,
+                    caregiverId:   args?['caregiverId'] as String?,
+                    caregiverName: caregiverName,
+                    careType:      careType,
+                    startDate:     startDate,
+                    startTime:     startTime,
+                    endTime:       endTime,
+                    duration:      duration,
+                    endDate:       endDate,
+                    location:      location,
+                  );
+                  if (!context.mounted) return;
                   if (isAdvanced) {
                     // Advanced flow → show matching analysis loading screen
                     Navigator.pushNamed(
@@ -465,14 +511,14 @@ class ConfirmBookingScreen extends StatelessWidget {
                       arguments: args,
                     );
                   } else {
-                    final caregiverName =
+                    final resolvedName =
                         args?['caregiverName'] as String? ?? 'your caregiver';
                     _showConfirmedDialog(
                       context,
                       isAdvanced,
                       accent,
-                      accentText,
-                      caregiverName,
+                      accentOnColor,
+                      resolvedName,
                     );
                   }
                 },
@@ -484,7 +530,8 @@ class ConfirmBookingScreen extends StatelessWidget {
                       'Confirm and send request',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: accentText,
+                        fontFamily: 'Open Sans',
+                        color: accentOnColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -516,7 +563,8 @@ class ConfirmBookingScreen extends StatelessWidget {
               child: const Text(
                 'Edit schedule',
                 style: TextStyle(
-                  color: _azure65,
+                  fontFamily: 'Inter',
+                  color: editLinkText,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -533,20 +581,20 @@ class ConfirmBookingScreen extends StatelessWidget {
     BuildContext context,
     bool isAdvanced,
     Color accent,
-    Color accentText,
+    Color accentOnColor,
     String caregiverName,
   ) {
     showDialog<void>(
       context: context,
-      barrierColor: const Color(0xB802060F), // Black Pearl 72%
+      barrierColor: Colors.black54,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF16213A), // Big Stone
+        backgroundColor: accent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 26),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: _azure27, width: 1),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(25, 23, 25, 27),
+          padding: const EdgeInsets.fromLTRB(25, 20, 25, 27),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -556,38 +604,34 @@ class ConfirmBookingScreen extends StatelessWidget {
                   GestureDetector(
                     onTap: () => Navigator.of(ctx).pop(),
                     child: Container(
-                      width: 30,
-                      height: 30,
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
-                        color: _azure11,
-                        border: Border.all(color: _azure27),
-                        borderRadius: BorderRadius.circular(15),
+                        color: Colors.transparent,
+                        border: Border.all(
+                            color: accentOnColor.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.close_rounded,
-                          color: _azure65, size: 18),
+                      child: Icon(Icons.close_rounded,
+                          color: accentOnColor.withValues(alpha: 0.85),
+                          size: 16),
                     ),
                   ),
                 ],
               ),
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(32),
-                ),
-                child: Icon(Icons.check_circle, color: accent, size: 34),
-              ),
-              const SizedBox(height: 18),
-              const Text(
+              const SizedBox(height: 4),
+              Icon(Icons.verified, color: accentOnColor, size: 72),
+              const SizedBox(height: 20),
+              Text(
                 'Request confirmed!',
                 style: TextStyle(
-                  color: _grey98,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Quattrocento Sans',
+                  color: accentOnColor,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 10),
               Text(
                 isAdvanced
                     ? 'Your booking request has been sent to matching caregivers. '
@@ -595,40 +639,47 @@ class ConfirmBookingScreen extends StatelessWidget {
                     : "Your booking request has been sent to $caregiverName. "
                         "We'll notify you as soon as she accepts.",
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _azure65,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: accentOnColor.withValues(alpha: 0.75),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w400,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 22),
-              Material(
-                color: accent,
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/my-bookings',
-                      (route) => route.settings.name == '/patient-dashboard',
-                    );
-                  },
-                  child: SizedBox(
-                    width: double.infinity,
+              const SizedBox(height: 26),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(color: accentOnColor, width: 1),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(15),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(15),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        '/my-bookings',
+                        (route) => route.settings.name == '/patient-dashboard',
+                      );
+                    },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.calendar_month, color: accentText, size: 19),
+                          Icon(Icons.calendar_month, color: accentOnColor, size: 19),
                           const SizedBox(width: 8),
                           Text(
                             'Go to My bookings',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: accentText,
+                              fontFamily: 'Quattrocento Sans',
+                              color: accentOnColor,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -654,7 +705,7 @@ class _BookingRow {
   const _BookingRow(this.label, this.value);
 }
 
-enum _StepState { done, active }
+enum _StepState { done, active, inactive }
 
 class _StepInfo {
   final String number;

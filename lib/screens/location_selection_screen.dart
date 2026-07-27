@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import '../theme/app_theme.dart';
 import '../data/sri_lankan_cities.dart';
 
 class LocationSelectionScreen extends StatefulWidget {
@@ -12,17 +11,22 @@ class LocationSelectionScreen extends StatefulWidget {
 }
 
 class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
-  // Colors (Figma tokens mapped to AppTheme)
-  static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
-  static const Color _azure17 = AppTheme.cardColor;    // #1E293B
-  static const Color _azure27 = AppTheme.borderColor;  // #334155
-  static const Color _azure47 = Color(0xFF64748B);
-  static const Color _azure65 = AppTheme.textSecondary; // #94A3B8
-  static const Color _azure84 = Color(0xFFCBD5E1);
-  static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color titleGreen = Color(0xFF033724);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color stepLineInactive = Color(0xFFD9D9D9);
+  static const Color stepInactiveBg = Color(0xFFDCD9CF);
+  static const Color creamButtonText = Color(0xFFF6F0E2);
 
-  Color get _green45 => _isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen;
-  Color get _green8 => _isAdvanced ? const Color(0xFF06291F) : AppTheme.bottleGreen;
+  // Kept dark — Figma leaves the benefit/info cards on the dark panel
+  // treatment, same pattern used across the rest of this design.
+  static const Color darkCardBg = Color(0xFF1E293B);
+  static const Color darkBorder = Color(0xFF334155);
+  static const Color darkTextSecondary = Color(0xFFCBD5E1);
+  static const Color amberIcon = Color(0xFFFBBC05);
+
+  Color get _accent => _isAdvanced ? const Color(0xFF3DB498) : darkGreen;
+  Color get _accentOnColor => _isAdvanced ? const Color(0xFF06291F) : Colors.white;
 
   // Location State
   String? _selectedCity;
@@ -73,7 +77,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
     final hasLocation = _selectedCity != null;
 
     return Scaffold(
-      backgroundColor: _azure11,
+      backgroundColor: bgCream,
       body: Stack(
         children: [
           SafeArea(
@@ -121,23 +125,24 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   // ── 1. Title Row ──
   Widget _buildTitleRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 14),
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: _grey98, size: 24),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: titleGreen, size: 22),
           ),
           const Text(
             'Location',
             style: TextStyle(
-              color: _grey98,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontFamily: 'Open Sans',
+              color: titleGreen,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: 24), // empty spacer to balance
+          const SizedBox(width: 22), // balances the back icon so the title is centered
         ],
       ),
     );
@@ -160,16 +165,24 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             _StepInfo('4', 'Confirm', _StepState.inactive),
           ];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
+            final leftDone = steps[i ~/ 2].state != _StepState.inactive;
             return Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 1.5,
-                color: _green45,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: leftDone ? _accent : stepLineInactive,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
               ),
             );
           }
@@ -180,39 +193,36 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   }
 
   Widget _buildStepBubble(_StepInfo s) {
-    final isActive = s.state == _StepState.active;
-    final isDone = s.state == _StepState.done;
+    final isFilled = s.state != _StepState.inactive;
 
     return Column(
       children: [
         Container(
-          width: 22,
-          height: 22,
+          width: 35,
+          height: 35,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? _green45 : _azure17,
-            border: Border.all(
-              color: isActive || isDone ? _green45 : _azure27,
-              width: 1,
-            ),
+            color: isFilled ? _accent : stepInactiveBg,
           ),
           child: Center(
             child: Text(
               s.number,
               style: TextStyle(
-                color: isActive ? _green8 : (isDone ? _green45 : _azure47),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontFamily: 'Open Sans',
+                color: isFilled ? _accentOnColor : Colors.black,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           s.label,
-          style: TextStyle(
-            color: isActive || isDone ? _green45 : _azure47,
-            fontSize: 8,
+          style: const TextStyle(
+            fontFamily: 'Open Sans',
+            color: titleGreen,
+            fontSize: 9,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -228,99 +238,61 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       },
       child: Container(
         width: double.infinity,
-        height: 200,
+        height: hasLocation ? 200 : 260,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: _azure17,
+          color: hasLocation ? darkCardBg : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _azure27),
+          border: hasLocation ? Border.all(color: darkBorder) : null,
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (hasLocation && _selectedLat != null && _selectedLng != null) ...[
-              // Real mini map preview using OpenStreetMap!
-              Positioned.fill(
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(_selectedLat!, _selectedLng!),
-                    initialZoom: 14.0,
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.none, // Disable all gestures for static preview
+        child: hasLocation && _selectedLat != null && _selectedLng != null
+            ? Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Real mini map preview using OpenStreetMap!
+                  Positioned.fill(
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(_selectedLat!, _selectedLng!),
+                        initialZoom: 14.0,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.none, // Disable all gestures for static preview
+                        ),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.example.carematch',
+                        ),
+                      ],
                     ),
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.carematch',
-                    ),
-                  ],
+                  Icon(Icons.location_on_rounded, color: _accent, size: 38),
+                ],
+              )
+            : Center(
+                child: Image.asset(
+                  'assets/images/location_map_illustration.png',
+                  width: 220,
+                  height: 220,
+                  fit: BoxFit.contain,
                 ),
               ),
-              // Marker on center
-              Icon(
-                Icons.location_on_rounded,
-                color: _green45,
-                size: 38,
-              ),
-            ] else ...[
-              // Simulated Radar / grid streets background
-              CustomPaint(
-                size: const Size(double.infinity, 200),
-                painter: _MapGridPainter(hasLocation: hasLocation, isAdvanced: _isAdvanced),
-              ),
-              // Pin icon placeholder
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.map_rounded,
-                    color: _azure47,
-                    size: 32,
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Tap to open interactive map',
-                    style: TextStyle(
-                      color: _azure47,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPulseRadar() {
-    return Container(
-      width: 90,
-      height: 90,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _green45.withValues(alpha: 0.1),
-        border: Border.all(
-          color: _green45.withValues(alpha: 0.25),
-          width: 1.5,
-        ),
       ),
     );
   }
 
   // ── 4. Intro Text when no location is selected ──
   Widget _buildIntroSection() {
-    return Column(
-      children: const [
+    return const Column(
+      children: [
         Text(
           'No location set yet',
           style: TextStyle(
-            color: _grey98,
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
+            fontFamily: 'Open Sans',
+            color: darkGreen,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
           ),
         ),
         SizedBox(height: 12),
@@ -330,10 +302,11 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             'Add your care location so we can match you with nearby caregivers and calculate accurate travel times.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: _azure65,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              height: 1.5,
+              fontFamily: 'Open Sans',
+              color: darkGreen,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              height: 1.7,
             ),
           ),
         ),
@@ -341,21 +314,12 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
     );
   }
 
-  // ── 5. Benefits List (Figma specifications) ──
+  // ── 5. Benefits List (kept on the dark card treatment per Figma) ──
   Widget _buildBenefitsList() {
     final benefits = [
-      _BenefitData(
-        icon: Icons.location_searching_rounded,
-        text: 'Faster, more accurate caregiver matches',
-      ),
-      _BenefitData(
-        icon: Icons.directions_car_rounded,
-        text: 'See real distance and travel time',
-      ),
-      _BenefitData(
-        icon: Icons.health_and_safety_rounded,
-        text: 'Faster response during emergencies',
-      ),
+      _BenefitData(icon: Icons.bolt_rounded, text: 'Faster, more accurate caregiver matches'),
+      _BenefitData(icon: Icons.route_rounded, text: 'See real distance and travel time'),
+      _BenefitData(icon: Icons.emergency_rounded, text: 'Faster response during emergencies'),
     ];
 
     return Column(
@@ -365,23 +329,23 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
 
   Widget _buildBenefitRow(_BenefitData b) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
         decoration: BoxDecoration(
-          color: _azure17,
+          color: darkCardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _azure27),
+          border: Border.all(color: darkBorder),
         ),
         child: Row(
           children: [
-            Icon(b.icon, color: _green45, size: 20),
+            Icon(b.icon, color: amberIcon, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 b.text,
                 style: const TextStyle(
-                  color: _azure84,
+                  color: darkTextSecondary,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w500,
                 ),
@@ -399,13 +363,13 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _green45.withValues(alpha: 0.1),
+        color: _accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _green45, width: 1.5),
+        border: Border.all(color: _accent, width: 1.5),
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle_rounded, color: _green45, size: 22),
+          Icon(Icons.check_circle_rounded, color: _accent, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -413,29 +377,17 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
               children: [
                 Text(
                   'Active Care Location',
-                  style: TextStyle(
-                    color: _green45,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${_selectedCity!}, Sri Lanka',
-                  style: const TextStyle(
-                    color: _grey98,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'GPS Coordinates: ${_selectedLat!.toStringAsFixed(4)}° N, ${_selectedLng!.toStringAsFixed(4)}° E',
-                  style: const TextStyle(
-                    color: _azure65,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: const TextStyle(color: Colors.black54, fontSize: 11, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -448,7 +400,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 _selectedLng = null;
               });
             },
-            child: Icon(Icons.close_rounded, color: _green45, size: 20),
+            child: Icon(Icons.close_rounded, color: _accent, size: 20),
           ),
         ],
       ),
@@ -461,28 +413,24 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       children: [
         const Text(
           'Location settings applied',
-          style: TextStyle(
-            color: _azure65,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: darkGreen, fontSize: 13, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: _azure17,
+            color: darkCardBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _azure27),
+            border: Border.all(color: darkBorder),
           ),
           child: Row(
             children: [
-              Icon(Icons.check_rounded, color: _green45, size: 16),
+              Icon(Icons.check_rounded, color: _accent, size: 16),
               const SizedBox(width: 10),
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Nearby caregivers matches generated successfully.',
-                  style: TextStyle(color: _azure84, fontSize: 12),
+                  style: TextStyle(color: darkTextSecondary, fontSize: 12),
                 ),
               ),
             ],
@@ -501,7 +449,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
           children: [
             // Search Input Row
             Container(
-              color: _azure17,
+              color: bgCream,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
@@ -510,25 +458,25 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       controller: _searchController,
                       onChanged: _onSearchChanged,
                       autofocus: true,
-                      style: const TextStyle(color: _grey98),
+                      style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         hintText: 'Search city/town in Sri Lanka...',
-                        hintStyle: const TextStyle(color: _azure65),
-                        prefixIcon: const Icon(Icons.search_rounded, color: _azure65),
+                        hintStyle: const TextStyle(color: Colors.black54),
+                        prefixIcon: const Icon(Icons.search_rounded, color: Colors.black54),
                         filled: true,
-                        fillColor: _azure11,
+                        fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: _azure27),
+                          borderSide: BorderSide(color: darkGreen.withValues(alpha: 0.3)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: _azure27),
+                          borderSide: BorderSide(color: darkGreen.withValues(alpha: 0.3)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: _green45),
+                          borderSide: BorderSide(color: _accent),
                         ),
                       ),
                     ),
@@ -544,7 +492,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     },
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: _green45, fontSize: 15, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: _accent, fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -553,12 +501,12 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             // Results list
             Expanded(
               child: Container(
-                color: _azure11,
+                color: bgCream,
                 child: _searchResults.isEmpty
                     ? const Center(
                         child: Text(
                           'No matching cities found',
-                          style: TextStyle(color: _azure65, fontSize: 14),
+                          style: TextStyle(color: Colors.black54, fontSize: 14),
                         ),
                       )
                     : ListView.builder(
@@ -569,9 +517,9 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                           final lat = city['lat'] as double;
                           final lng = city['lng'] as double;
                           return ListTile(
-                            leading: const Icon(Icons.location_on_rounded, color: _azure65),
-                            title: Text(name, style: const TextStyle(color: _grey98)),
-                            subtitle: Text('Lat: $lat, Lng: $lng', style: const TextStyle(color: _azure65, fontSize: 11)),
+                            leading: const Icon(Icons.location_on_rounded, color: Colors.black54),
+                            title: Text(name, style: const TextStyle(color: Colors.black)),
+                            subtitle: Text('Lat: $lat, Lng: $lng', style: const TextStyle(color: Colors.black54, fontSize: 11)),
                             onTap: () {
                               setState(() {
                                 _selectedCity = name;
@@ -601,55 +549,54 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            _azure11.withValues(alpha: 0),
-            _azure11,
+            bgCream.withValues(alpha: 0),
+            bgCream,
           ],
           stops: const [0.0, 0.3],
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+      padding: const EdgeInsets.fromLTRB(13, 14, 13, 24),
       child: SafeArea(
         top: false,
-        child: Material(
-          color: _green45,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () {
-              if (!hasLocation) {
-                // Navigate to full map selection screen
-                Navigator.pushNamed(context, '/map-selection', arguments: _bookingArgs);
-              } else {
-                final updatedArgs = {
-                  ..._bookingArgs,
-                  'location': _selectedCity,
-                };
-                if (_isAdvanced) {
-                  Navigator.pushNamed(context, '/qualifications-selection', arguments: updatedArgs);
+        child: Container(
+          decoration: BoxDecoration(
+            color: darkGreen,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(color: darkGreen.withValues(alpha: 0.5), blurRadius: 2, offset: const Offset(2, 2)),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
+              onTap: () {
+                if (!hasLocation) {
+                  Navigator.pushNamed(context, '/map-selection', arguments: _bookingArgs);
                 } else {
-                  Navigator.pushNamed(context, '/confirm-booking', arguments: updatedArgs);
+                  final updatedArgs = {
+                    ..._bookingArgs,
+                    'location': _selectedCity,
+                  };
+                  if (_isAdvanced) {
+                    Navigator.pushNamed(context, '/qualifications-selection', arguments: updatedArgs);
+                  } else {
+                    Navigator.pushNamed(context, '/confirm-booking', arguments: updatedArgs);
+                  }
                 }
-              }
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!hasLocation) ...[
-                    Icon(Icons.pin_drop_rounded, color: _green8, size: 20),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    hasLocation ? 'Continue' : 'Set Location',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _green8,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Text(
+                  'Continue',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: creamButtonText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -657,49 +604,6 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       ),
     );
   }
-}
-
-// ── Custom Painter to simulate map grids and streets ──
-class _MapGridPainter extends CustomPainter {
-  final bool hasLocation;
-  final bool isAdvanced;
-  _MapGridPainter({required this.hasLocation, required this.isAdvanced});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF1E293B)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    final double step = 20.0;
-    // Draw grid lines
-    for (double i = 0; i < size.width; i += step) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double j = 0; j < size.height; j += step) {
-      canvas.drawLine(Offset(0, j), Offset(size.width, j), paint);
-    }
-
-    if (hasLocation) {
-      // Draw simulated street avenues
-      final streetPaint = Paint()
-        ..color = const Color(0xFF334155)
-        ..strokeWidth = 3.0;
-
-      canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), streetPaint);
-      canvas.drawLine(Offset(size.width / 2, 0), Offset(size.width / 2, size.height), streetPaint);
-
-      // Draw radius circle
-      final radiusPaint = Paint()
-        ..color = (isAdvanced ? const Color(0xFF3DB498) : AppTheme.primaryGreen).withValues(alpha: 0.15)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(size.width / 2, size.height / 2), 60, radiusPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 // ── Models ──

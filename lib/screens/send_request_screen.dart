@@ -13,6 +13,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   static const Color darkGreen = Color(0xFF06402B);
   static const Color titleGreen = Color(0xFF033724);
   static const Color inactiveStepBg = Color(0xFFD8E4CE);
+  static const Color stepLineInactive = Color(0xFFD9D9D9);
   static const Color fieldBorder = Color.fromRGBO(0, 0, 0, 0.3);
   static const Color fieldLabel = Color.fromRGBO(0, 0, 0, 0.85);
   static const Color fieldValue = Color.fromRGBO(0, 0, 0, 0.5);
@@ -136,10 +137,30 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       _StepData(number: '4', label: 'Confirm', active: false),
     ];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: steps.map(_buildStepBubble).toList(),
+        children: List.generate(steps.length * 2 - 1, (i) {
+          if (i.isOdd) {
+            final leftDone = steps[i ~/ 2].active;
+            return Expanded(
+              child: Padding(
+                // Centers the line on the 35px step circle above the label.
+                padding: const EdgeInsets.only(top: 16),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: leftDone ? darkGreen : stepLineInactive,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            );
+          }
+          return _buildStepBubble(steps[i ~/ 2]);
+        }),
       ),
     );
   }

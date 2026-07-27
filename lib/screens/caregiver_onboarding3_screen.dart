@@ -18,12 +18,8 @@ class _CaregiverOnboarding3ScreenState
     extends State<CaregiverOnboarding3Screen> {
   static const Color _indigo = Color(0xFF6366F1);
 
-  final _cityController = TextEditingController(text: 'Negombo, Western Province');
-  final _bioController = TextEditingController(
-    text: 'Compassionate elder-care nurse with 5 years supporting families '
-        'across the Western Province. I specialise in dementia and '
-        'post-surgery recovery.',
-  );
+  final _cityController = TextEditingController();
+  final _bioController = TextEditingController();
 
   static const List<String> _radiusOptions = [
     '5 km',
@@ -190,6 +186,11 @@ class _CaregiverOnboarding3ScreenState
                                   isDense: true,
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.symmetric(vertical: 15),
+                                  hintText: 'Negombo, Western Province',
+                                  hintStyle: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 15,
+                                  ),
                                 ),
                               ),
                             ),
@@ -323,6 +324,14 @@ class _CaregiverOnboarding3ScreenState
                             isDense: true,
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                            hintText: 'Compassionate elder-care nurse with 5 years supporting '
+                                'families across the Western Province. I specialise in '
+                                'dementia and post-surgery recovery.',
+                            hintStyle: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 13,
+                              height: 1.5,
+                            ),
                           ),
                         ),
                       ),

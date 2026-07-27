@@ -25,6 +25,21 @@ service cloud.firestore {
       }
     }
 
+    // bookingRequests/{bookingId} — created by a patient when they send a
+    // care request. Readable/updatable by the patient who owns it and the
+    // caregiver it's addressed to; the patientUid on create must match the
+    // caller so patients can only create bookings for themselves.
+    match /bookingRequests/{bookingId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.patientUid ||
+         request.auth.uid == resource.data.caregiverId);
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.patientUid;
+      allow update: if request.auth != null &&
+        (request.auth.uid == resource.data.patientUid ||
+         request.auth.uid == resource.data.caregiverId);
+    }
+
     // Everything else is denied by default until explicitly added here.
   }
 }

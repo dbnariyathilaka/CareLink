@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
-import '../theme/app_theme.dart';
 
+// ─────────────────────────────────────────────────────────────
+//  Patient details — care needs (self) — "Step 2 of 2" of the
+//  patient onboarding flow. Mounted at route '/patient-onboarding-2'.
+//  Figma node: 123-474
+// ─────────────────────────────────────────────────────────────
 class PatientOnboarding1Screen extends StatefulWidget {
   const PatientOnboarding1Screen({super.key});
 
@@ -12,7 +16,16 @@ class PatientOnboarding1Screen extends StatefulWidget {
 
 class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     with SingleTickerProviderStateMixin {
-  // ── Options ──
+  static const Color bgCream = Color(0xFFF5E8DE);
+  static const Color titleGreen = Color(0xFF033724);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color chipGreen = Color(0xFF033724);
+  static const Color levelGreen = Color(0xFF0F3D2E);
+  static const Color progressActive = Color(0xFF1E8370);
+  static const Color progressInactive = Color(0xFFD9D9D9);
+  static const Color creamButtonText = Color(0xFFF6F0E2);
+
+  // ── Options ── (single-select: exactly one care type may be chosen)
   final List<String> _careTypes = [
     'Elder care',
     'Pediatric',
@@ -36,13 +49,6 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     'Flexible',
   ];
   String _selectedCareLevel = 'Full-time';
-
-  final List<String> _genderOptions = [
-    'No preference',
-    'Female',
-    'Male',
-  ];
-  String _selectedGender = 'No preference';
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -71,48 +77,10 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     super.dispose();
   }
 
-  void _showGenderPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _genderOptions.map((gender) {
-            final selected = gender == _selectedGender;
-            return ListTile(
-              title: Text(
-                gender,
-                style: TextStyle(
-                  color: selected ? AppTheme.primaryGreen : AppTheme.textPrimary,
-                  fontSize: 15,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-              trailing: selected
-                  ? const Icon(Icons.check_rounded, color: AppTheme.primaryGreen)
-                  : null,
-              onTap: () {
-                setState(() => _selectedGender = gender);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bgCream,
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _fadeController,
@@ -125,233 +93,179 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
               ),
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-
-                // Top row: back arrow + step indicator
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.arrow_back,
-                        color: AppTheme.textPrimary,
-                        size: 24,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.arrow_back_ios_new_rounded, color: titleGreen, size: 22),
                     ),
+                    const SizedBox(width: 16),
                     const Text(
-                      'Step 2 of 2',
+                      'Patient details',
                       style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
+                        fontFamily: 'Open Sans',
+                        color: titleGreen,
+                        fontSize: 24,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 18),
 
-                const SizedBox(height: 16),
-
-                // Progress bar - 3 segments
-                _buildProgressBar(currentStep: 2, totalSteps: 2),
-
-                const SizedBox(height: 24),
-
-                // Scrollable content
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Section 1: Care type (Multi-select)
-                        const Text(
-                          'What kind of care is needed?',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 23,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Care type chips - wrap layout
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: _careTypes.map((type) {
-                            final isSelected = _selectedCareType == type;
-                            return _buildChip(
-                              label: type,
-                              isSelected: isSelected,
-                              onTap: () {
-                                setState(() => _selectedCareType = type);
-                              },
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(height: 34),
-
-                        // Section 2: Care level (Grid)
-                        const Text(
-                          'How much care is needed?',
-                          style: TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 23,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Care level chips - 2x2 Grid Layout
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 3.5,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                          ),
-                          itemCount: _careLevels.length,
-                          itemBuilder: (context, index) {
-                            final level = _careLevels[index];
-                            final isSelected = _selectedCareLevel == level;
-                            return _buildLevelChip(
-                              label: level,
-                              isSelected: isSelected,
-                              onTap: () {
-                                setState(() => _selectedCareLevel = level);
-                              },
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Section 3: Caregiver Gender preference
-                        const Text(
-                          'Preferred caregiver gender',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        GestureDetector(
-                          onTap: _showGenderPicker,
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 17, vertical: 15),
-                            decoration: BoxDecoration(
-                              color: AppTheme.inputBackground,
-                              border: Border.all(color: AppTheme.borderColor),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _selectedGender,
-                                  style: const TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  color: AppTheme.textPrimary,
-                                  size: 22),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 32),
-                      ],
+              // Progress bar — step 2 of 2
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Row(
+                  children: const [
+                    Expanded(
+                      child: _ProgressSegment(color: progressInactive),
                     ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: _ProgressSegment(color: progressActive),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(23, 0, 23, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Section 1: Care type (single-select)
+                      const Text(
+                        'What kind of care is needed?',
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: titleGreen,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Care type chips - wrap layout, exactly one selectable
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _careTypes.map((type) {
+                          final isSelected = _selectedCareType == type;
+                          return _buildChip(
+                            label: type,
+                            isSelected: isSelected,
+                            onTap: () {
+                              // Single-select: replaces any previous choice.
+                              setState(() => _selectedCareType = type);
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 34),
+
+                      // Section 2: Care level (single-select grid)
+                      const Text(
+                        'How much care is needed?',
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: levelGreen,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 3.5,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: _careLevels.length,
+                        itemBuilder: (context, index) {
+                          final level = _careLevels[index];
+                          final isSelected = _selectedCareLevel == level;
+                          return _buildLevelChip(
+                            label: level,
+                            isSelected: isSelected,
+                            onTap: () {
+                              setState(() => _selectedCareLevel = level);
+                            },
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
+              ),
 
-                // Continue button pinned at bottom
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Material(
-                      color: AppTheme.primaryGreen,
-                      borderRadius: BorderRadius.circular(10),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () {
-                          AppState.careType.value = _selectedCareType;
-                          AppState.careSchedule.value = _selectedCareLevel;
-                          AppState.preferredGender.value = _selectedGender;
-                          Navigator.pushNamed(
-                              context, '/patient-onboarding-3');
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Text(
-                            'Continue',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppTheme.bottleGreen,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
+              // Continue button pinned at bottom
+              Padding(
+                padding: const EdgeInsets.fromLTRB(23, 0, 23, 24),
+                child: Container(
+                  width: double.infinity,
+                  height: 59,
+                  decoration: BoxDecoration(
+                    color: darkGreen,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: darkGreen.withValues(alpha: 0.5),
+                        blurRadius: 2,
+                        offset: const Offset(2, 2),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(15),
+                      onTap: () {
+                        AppState.careType.value = _selectedCareType;
+                        AppState.careSchedule.value = _selectedCareLevel;
+                        Navigator.pushNamed(context, '/patient-onboarding-3');
+                      },
+                      child: const Center(
+                        child: Text(
+                          'Continue',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: creamButtonText,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// Progress bar with segmented steps
-  Widget _buildProgressBar(
-      {required int currentStep, required int totalSteps}) {
-    return Row(
-      children: List.generate(totalSteps, (index) {
-        final isActive = index < currentStep;
-        return Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: index < totalSteps - 1 ? 6 : 0),
-            height: 5,
-            decoration: BoxDecoration(
-              color:
-                  isActive ? AppTheme.primaryGreen : AppTheme.inputBackground,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
-  /// Chip for care type selection (wrap layout)
+  /// Chip for care type selection (wrap layout) — single-select.
   Widget _buildChip({
     required String label,
     required bool isSelected,
@@ -363,21 +277,15 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryGreen.withValues(alpha: 0.15)
-              : AppTheme.inputBackground,
+          color: isSelected ? chipGreen : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryGreen : AppTheme.borderColor,
-            width: 1,
-          ),
+          border: Border.all(color: chipGreen, width: 1),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected
-                ? AppTheme.primaryGreen
-                : const Color(0xFFCBD5E1), // Geyser
+            fontFamily: 'Open Sans',
+            color: isSelected ? Colors.white : chipGreen,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -386,7 +294,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     );
   }
 
-  /// Chip for care level selection (grid cell)
+  /// Chip for care level selection (grid cell) — single-select.
   Widget _buildLevelChip({
     required String label,
     required bool isSelected,
@@ -397,27 +305,37 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryGreen.withValues(alpha: 0.15)
-              : AppTheme.inputBackground,
+          color: isSelected ? levelGreen : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryGreen : AppTheme.borderColor,
-            width: 1,
-          ),
+          border: Border.all(color: levelGreen, width: 1),
         ),
         child: Center(
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected
-                  ? AppTheme.primaryGreen
-                  : const Color(0xFFCBD5E1),
+              fontFamily: 'Open Sans',
+              color: isSelected ? Colors.white : levelGreen,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProgressSegment extends StatelessWidget {
+  final Color color;
+  const _ProgressSegment({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 3,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(5),
       ),
     );
   }
