@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
-import '../widgets/empty_state.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  My Bookings Screen  (Patient)
@@ -154,44 +153,183 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       subtitle: doc['careType'] as String? ?? '',
       status: status,
       requestSentAgo: sentAgo,
-      onCancel: cancellable ? () => _confirmCancel(id) : null,
+      onCancel: cancellable
+          ? () => _confirmCancel(
+                bookingId: id,
+                caregiverName: name,
+                careType: doc['careType'] as String? ?? '',
+                startDate: doc['startDate'] as String? ?? '',
+              )
+          : null,
     );
   }
 
-  void _confirmCancel(String bookingId) {
-    showDialog<void>(
+  // ── "Cancel this request?" bottom sheet (Figma node 275-2195) ─
+  void _confirmCancel({
+    required String bookingId,
+    required String caregiverName,
+    required String careType,
+    required String startDate,
+  }) {
+    final details = [careType, startDate].where((s) => s.isNotEmpty).join(' · ');
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: bgCream,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Cancel request?',
-          style: TextStyle(
-            fontFamily: 'Open Sans',
-            color: darkGreen,
-            fontWeight: FontWeight.w700,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFF5EEE8),
+          border: Border(top: BorderSide(color: Color(0xFF1E293B), width: 1)),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(22),
+            topRight: Radius.circular(22),
           ),
         ),
-        content: const Text(
-          'The caregiver will no longer be notified about this request.',
-          style: TextStyle(fontFamily: 'Open Sans', color: darkGreen),
+        padding: EdgeInsets.only(
+          left: 22,
+          right: 22,
+          top: 14,
+          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 24,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Keep it', style: TextStyle(color: darkGreen)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              BookingService.cancelBooking(bookingId);
-            },
-            child: const Text(
-              'Cancel request',
-              style: TextStyle(color: Color(0xFFBA4242), fontWeight: FontWeight.w700),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF475569),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 21),
+            Image.asset(
+              'assets/images/cancel_request_icon.png',
+              width: 73,
+              height: 73,
+              errorBuilder: (_, _, _) => Container(
+                width: 73,
+                height: 73,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close_rounded, color: Color(0xFFEF4444), size: 36),
+              ),
+            ),
+            const SizedBox(height: 9),
+            const Text(
+              'Cancel this request?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: Color(0xFF1E293B),
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text.rich(
+              TextSpan(
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Color.fromRGBO(0, 0, 0, 0.64),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                ),
+                children: [
+                  const TextSpan(text: "You're about to cancel your booking request to "),
+                  TextSpan(
+                    text: caregiverName,
+                    style: const TextStyle(color: Color(0xFF1E293B)),
+                  ),
+                  if (details.isNotEmpty) TextSpan(text: '. $details'),
+                  const TextSpan(text: '. The caregiver will be notified.'),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                border: Border.all(color: const Color(0xFF334155)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.event_available_rounded, color: Color(0xFF94A3B8), size: 18),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Free to cancel now — this request hasn't been accepted "
+                      "yet, so no cancellation fee applies.",
+                      style: TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: Color(0xFFCBD5E1),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                BookingService.cancelBooking(bookingId);
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  borderRadius: BorderRadius.circular(11),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  'Yes, cancel request',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => Navigator.pop(sheetCtx),
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Text(
+                  'Keep request',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Color.fromRGBO(30, 41, 59, 0.68),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -204,37 +342,45 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         child: Column(
           children: [
             _buildHeader(),
-            _buildFilterTabs(),
-            const SizedBox(height: 10),
             Expanded(
               child: StreamBuilder<List<Map<String, dynamic>>>(
                 stream: _bookingsStream,
                 builder: (context, snapshot) {
                   final docs = snapshot.data ?? const [];
-                  final bookings =
-                      _applyFilter(docs.map(_bookingFromDoc).toList());
-                  if (bookings.isEmpty) {
-                    return EmptyState(
-                      icon: Icons.event_available_rounded,
-                      iconColor: darkGreen,
-                      textColor: darkGreen.withValues(alpha: 0.7),
-                      message: _selectedFilter == _BookingFilter.all
-                          ? "You haven't sent any care requests yet. Search for "
-                              "a caregiver and send your first request."
-                          : "No bookings in this category yet.",
-                      actionLabel: _selectedFilter == _BookingFilter.all
-                          ? 'Find a caregiver'
-                          : null,
-                      onAction: _selectedFilter == _BookingFilter.all
-                          ? () => Navigator.pushNamed(context, '/search')
-                          : null,
+                  final allBookings = docs.map(_bookingFromDoc).toList();
+
+                  // No requests at all yet — filter tabs have nothing to
+                  // filter, so skip straight to the welcoming empty state.
+                  if (allBookings.isEmpty) {
+                    return _buildEmptyBookingsState(
+                      title: 'No bookings yet',
+                      body: "You haven't sent any care requests yet. Find a "
+                          "caregiver from your top 5 matches and send your "
+                          "first request.",
+                      showActions: true,
                     );
                   }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(13, 0, 12, 20),
-                    itemCount: bookings.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 14),
-                    itemBuilder: (_, i) => _buildBookingCard(bookings[i]),
+
+                  final bookings = _applyFilter(allBookings);
+                  return Column(
+                    children: [
+                      _buildFilterTabs(),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: bookings.isEmpty
+                            ? _buildEmptyBookingsState(
+                                title: _emptyTitleFor(_selectedFilter),
+                                body: _emptyBodyFor(_selectedFilter),
+                                showActions: false,
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.fromLTRB(13, 0, 12, 20),
+                                itemCount: bookings.length,
+                                separatorBuilder: (_, _) => const SizedBox(height: 14),
+                                itemBuilder: (_, i) => _buildBookingCard(bookings[i]),
+                              ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -242,6 +388,123 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             _buildBottomBar(),
           ],
         ),
+      ),
+    );
+  }
+
+  String _emptyTitleFor(_BookingFilter filter) {
+    switch (filter) {
+      case _BookingFilter.all:
+        return 'No bookings yet';
+      case _BookingFilter.upcoming:
+        return 'No upcoming bookings';
+      case _BookingFilter.requested:
+        return 'No requested bookings';
+      case _BookingFilter.past:
+        return 'No past bookings';
+      case _BookingFilter.cancelled:
+        return 'No cancelled bookings';
+    }
+  }
+
+  String _emptyBodyFor(_BookingFilter filter) {
+    switch (filter) {
+      case _BookingFilter.all:
+        return "You haven't sent any care requests yet. Find a caregiver "
+            "from your top 5 matches and send your first request.";
+      case _BookingFilter.upcoming:
+        return "You don't have any upcoming visits scheduled right now.";
+      case _BookingFilter.requested:
+        return "You don't have any pending requests right now.";
+      case _BookingFilter.past:
+        return "You don't have any completed bookings yet.";
+      case _BookingFilter.cancelled:
+        return "You don't have any cancelled bookings.";
+    }
+  }
+
+  // ── Empty state (illustrated) ──────────────────────────────
+  static const String _emptyBookingsGif = 'assets/images/empty_bookings.webp';
+
+  Widget _buildEmptyBookingsState({
+    required String title,
+    required String body,
+    required bool showActions,
+  }) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 220,
+            height: 220,
+            child: Image.asset(
+              _emptyBookingsGif,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.event_available_rounded,
+                color: Color(0xFFAAA897),
+                size: 120,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: Color(0xFF462911),
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              color: Color.fromRGBO(39, 34, 77, 0.8),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.6,
+            ),
+          ),
+          if (showActions) ...[
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/search'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFAAA897),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Find a caregiver',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Color(0xFF462911),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Your matches refresh automatically if no one responds.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: Color.fromRGBO(33, 43, 57, 0.83),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                height: 1.38,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

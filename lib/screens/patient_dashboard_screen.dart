@@ -1,10 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/patient_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/remote_or_local_image.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -26,6 +27,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   void initState() {
     super.initState();
     _loadUserName();
+    _loadOwnPhoto();
     _loadCaregiverCount();
     // 2s stopped, then a full turn that gradually accelerates (3s) and
     // gradually decelerates (3s) — an 8s cycle that then repeats.
@@ -73,6 +75,13 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     if (mounted && name != null && name.isNotEmpty) {
       setState(() => _userName = name);
     }
+  }
+
+  Future<void> _loadOwnPhoto() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    final profile = await PatientService.getPatientProfile(user.uid);
+    AppState.hydratePatientPhoto(profile?['photoUrl'] as String?);
   }
 
   Future<void> _loadCaregiverCount() async {
@@ -191,11 +200,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                   ),
                   child: imagePath != null
                       ? ClipOval(
-                          child: Image.file(
-                            File(imagePath),
+                          child: RemoteOrLocalImage(
+                            source: imagePath,
                             width: 50,
                             height: 50,
-                            fit: BoxFit.cover,
                           ),
                         )
                       : const Center(

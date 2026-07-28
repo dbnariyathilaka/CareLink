@@ -1,7 +1,11 @@
-import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 4 of 6
@@ -19,12 +23,44 @@ class _CaregiverOnboarding4ScreenState
     extends State<CaregiverOnboarding4Screen> {
   static const Color _indigo = Color(0xFF6366F1);
 
-  File? _photo;
+  Uint8List? _photoPreview;
+  bool _uploading = false;
 
-  Future<void> _pickPhoto(ImageSource source) async {
-    final picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
+  Future<void> _pickPhoto() async {
+    final picked = await pickImageOrDocument(context, allowPdf: false);
     if (picked == null || !mounted) return;
-    setState(() => _photo = File(picked.path));
+
+    setState(() {
+      _photoPreview = picked.bytes;
+      _uploading = true;
+    });
+
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) {
+      setState(() => _uploading = false);
+      return;
+    }
+
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.profilePhotoPath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      if (!mounted) return;
+      AppState.caregiverOnboardingDraft.photoUrl = url;
+      AppState.caregiverProfileImagePath.value = url;
+      setState(() => _uploading = false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _uploading = false;
+        _photoPreview = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload photo. Please try again.')),
+      );
+    }
   }
 
   @override
@@ -92,7 +128,7 @@ class _CaregiverOnboarding4ScreenState
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
-                        onTap: () => _pickPhoto(ImageSource.gallery),
+                        onTap: _uploading ? null : _pickPhoto,
                         child: Stack(
                           children: [
                             Container(
@@ -108,10 +144,10 @@ class _CaregiverOnboarding4ScreenState
                                   style: BorderStyle.solid,
                                 ),
                               ),
-                              child: _photo != null
+                              child: _photoPreview != null
                                   ? ClipOval(
-                                      child: Image.file(
-                                        _photo!,
+                                      child: Image.memory(
+                                        _photoPreview!,
                                         width: 156,
                                         height: 156,
                                         fit: BoxFit.cover,
@@ -123,6 +159,12 @@ class _CaregiverOnboarding4ScreenState
                                       size: 56,
                                     ),
                             ),
+                            if (_uploading)
+                              const Positioned.fill(
+                                child: Center(
+                                  child: CircularProgressIndicator(color: _indigo),
+                                ),
+                              ),
                             Positioned(
                               right: 6,
                               bottom: 6,
@@ -150,7 +192,7 @@ class _CaregiverOnboarding4ScreenState
                         child: _buildOptionButton(
                           icon: Icons.photo_camera_rounded,
                           label: 'Take a photo',
-                          onTap: () => _pickPhoto(ImageSource.camera),
+                          onTap: _uploading ? null : _pickPhoto,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -159,7 +201,7 @@ class _CaregiverOnboarding4ScreenState
                         child: _buildOptionButton(
                           icon: Icons.image_rounded,
                           label: 'Upload from gallery',
-                          onTap: () => _pickPhoto(ImageSource.gallery),
+                          onTap: _uploading ? null : _pickPhoto,
                         ),
                       ),
                     ],
@@ -176,9 +218,11 @@ class _CaregiverOnboarding4ScreenState
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () {
-                        Navigator.pushNamed(context, '/caregiver-onboarding-5');
-                      },
+                      onTap: _uploading
+                          ? null
+                          : () {
+                              Navigator.pushNamed(context, '/caregiver-onboarding-5');
+                            },
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
                         child: Text(
@@ -224,7 +268,7 @@ class _CaregiverOnboarding4ScreenState
   Widget _buildOptionButton({
     required IconData icon,
     required String label,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return Material(
       color: AppTheme.cardColor,

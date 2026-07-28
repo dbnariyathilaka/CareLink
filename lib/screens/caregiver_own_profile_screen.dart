@@ -1,11 +1,12 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/storage_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/remote_or_local_image.dart';
+import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver's own "My profile" screen
@@ -41,6 +42,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     }
     final profile = await CaregiverService.getCaregiverProfile(user.uid);
     if (!mounted) return;
+    AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
     setState(() {
       _profile = profile;
       _loading = false;
@@ -116,10 +118,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                       const SizedBox(height: 18),
                       _buildSectionTitle('Certifications'),
                       const SizedBox(height: 8),
-                      const EmptyState(
-                        icon: Icons.description_outlined,
-                        message: 'No certificate documents uploaded yet.',
-                      ),
+                      _buildCertificationsSection(),
                       const SizedBox(height: 18),
                       _buildSectionTitle('Settings'),
                       const SizedBox(height: 8),
@@ -182,66 +181,31 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   }
 
   Future<void> _pickProfileImage() async {
-    final picker = ImagePicker();
-    final choice = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40, height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.borderColor,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: _indigo),
-              title: const Text('Take a photo',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: _indigo),
-              title: const Text('Choose from gallery',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-            if (AppState.caregiverProfileImagePath.value != null)
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
-                title: const Text('Remove photo',
-                    style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
-                onTap: () {
-                  AppState.caregiverProfileImagePath.value = null;
-                  Navigator.pop(context);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+    final picked = await pickImageOrDocument(
+      context,
+      allowPdf: false,
+      allowRemove: AppState.caregiverProfileImagePath.value != null,
+      onRemove: () => AppState.caregiverProfileImagePath.value = null,
     );
+    if (picked == null || !mounted) return;
 
-    if (choice == null) return;
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
 
-    final picked = await picker.pickImage(
-      source: choice,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 85,
-    );
-
-    if (picked != null) {
-      AppState.caregiverProfileImagePath.value = picked.path;
-      setState(() {});
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.profilePhotoPath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      if (!mounted) return;
+      AppState.caregiverProfileImagePath.value = url;
+      await CaregiverService.saveCaregiverProfile(uid: uid, data: {'photoUrl': url});
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload photo. Please try again.')),
+      );
     }
   }
 
@@ -286,11 +250,10 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                       ),
                       child: imagePath != null
                           ? ClipOval(
-                              child: Image.file(
-                                File(imagePath),
+                              child: RemoteOrLocalImage(
+                                source: imagePath,
                                 width: 84,
                                 height: 84,
-                                fit: BoxFit.cover,
                               ),
                             )
                           : Center(
@@ -407,6 +370,46 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   }
 
   // ── Reusable section title (+ optional action link) ───────
+  // ── Certifications list (Storage download URLs) ───────────
+  Widget _buildCertificationsSection() {
+    final urls = (_profile?['certificateUrls'] as List?)?.cast<String>() ?? const [];
+    if (urls.isEmpty) {
+      return const EmptyState(
+        icon: Icons.description_outlined,
+        message: 'No certificate documents uploaded yet.',
+      );
+    }
+    return Column(
+      children: List.generate(urls.length, (i) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: i == urls.length - 1 ? 0 : 8),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor,
+              border: Border.all(color: AppTheme.borderColor),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.description_rounded, color: _indigoLight, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Certificate ${i + 1}',
+                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 16),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   Widget _buildSectionTitle(String title, {String? actionLabel, VoidCallback? onAction}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

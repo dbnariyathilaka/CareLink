@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  "Submit training certificates" dialog
 //  Figma node: 498-6531 · shown when a caregiver selects "Yes"
 //  for "Formal caregiving training" during onboarding.
 //
-//  Returns the picked files on Submit, or null on Cancel.
+//  Uploads each picked file to Storage as it's selected and returns
+//  the resulting download URLs on Submit, or null on Cancel.
 // ─────────────────────────────────────────────────────────────
-Future<List<XFile>?> showCertificateUploadDialog(BuildContext context) {
-  return showDialog<List<XFile>>(
+Future<List<String>?> showCertificateUploadDialog(BuildContext context) {
+  return showDialog<List<String>>(
     context: context,
     barrierDismissible: false,
     builder: (_) => const CertificateUploadDialog(),
@@ -31,54 +34,35 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
   static const Color _mustard = Color(0xFFFCD34D);
   static const Color _geyser = Color(0xFFCBD5E1);
 
-  final List<XFile> _files = [];
+  final List<_Certificate> _files = [];
+  bool _uploading = false;
 
   Future<void> _pickCertificate() async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.borderColor,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: _indigo),
-              title: const Text('Take a photo',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'camera'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: _indigo),
-              title: const Text('Choose from gallery',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'gallery'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (choice == null || !mounted) return;
-
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
-      imageQuality: 85,
-    );
+    final picked = await pickImageOrDocument(context);
     if (picked == null || !mounted) return;
-    setState(() => _files.add(picked));
+
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+
+    setState(() => _uploading = true);
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.certificatePath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      if (!mounted) return;
+      setState(() {
+        _files.add(_Certificate(name: picked.name, url: url));
+        _uploading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload certificate. Please try again.')),
+      );
+    }
   }
 
   void _submit() {
@@ -88,7 +72,7 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
       );
       return;
     }
-    Navigator.pop(context, _files);
+    Navigator.pop(context, _files.map((f) => f.url).toList());
   }
 
   @override
@@ -127,7 +111,7 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
             ),
             const SizedBox(height: 16),
             GestureDetector(
-              onTap: _pickCertificate,
+              onTap: _uploading ? null : _pickCertificate,
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 21),
@@ -135,21 +119,36 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                   border: Border.all(color: AppTheme.borderColor),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Column(
-                  children: [
-                    Icon(Icons.upload_file_rounded, color: _indigo, size: 26),
-                    SizedBox(height: 6),
-                    Text(
-                      'Tap to upload certificate',
-                      style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'PDF, JPG or PNG',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
+                child: _uploading
+                    ? const Column(
+                        children: [
+                          SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(color: _indigo, strokeWidth: 2.5),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Uploading...',
+                            style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      )
+                    : const Column(
+                        children: [
+                          Icon(Icons.upload_file_rounded, color: _indigo, size: 26),
+                          SizedBox(height: 6),
+                          Text(
+                            'Tap to upload certificate',
+                            style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'PDF, JPG or PNG',
+                            style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
               ),
             ),
             if (_files.isNotEmpty) ...[
@@ -262,4 +261,10 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
       ),
     );
   }
+}
+
+class _Certificate {
+  const _Certificate({required this.name, required this.url});
+  final String name;
+  final String url;
 }

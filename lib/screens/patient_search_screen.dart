@@ -1,10 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/patient_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/remote_or_local_image.dart';
 
 class PatientSearchScreen extends StatefulWidget {
   const PatientSearchScreen({super.key});
@@ -30,6 +31,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   void initState() {
     super.initState();
     _loadUserName();
+    _loadOwnPhoto();
     _loadCaregivers();
   }
 
@@ -63,6 +65,13 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     if (mounted && name != null && name.isNotEmpty) {
       setState(() => _userName = name);
     }
+  }
+
+  Future<void> _loadOwnPhoto() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    final profile = await PatientService.getPatientProfile(user.uid);
+    AppState.hydratePatientPhoto(profile?['photoUrl'] as String?);
   }
 
   Future<void> _loadCaregivers() async {
@@ -215,11 +224,10 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                       ),
                       child: imagePath != null
                           ? ClipOval(
-                              child: Image.file(
-                                File(imagePath),
+                              child: RemoteOrLocalImage(
+                                source: imagePath,
                                 width: 50,
                                 height: 50,
-                                fit: BoxFit.cover,
                               ),
                             )
                           : const Center(

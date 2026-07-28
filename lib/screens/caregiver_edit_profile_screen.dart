@@ -1,10 +1,12 @@
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/storage_service.dart';
+import '../widgets/remote_or_local_image.dart';
+import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Edit Profile Screen
@@ -54,7 +56,9 @@ class _CaregiverEditProfileScreenState
   static const List<String> _languages = ['Sinhala', 'English', 'Tamil'];
   final Set<String> _selectedLanguages = {};
 
-  final List<String> _certificates = [];
+  final List<String> _certificateLabels = [];
+  final List<String> _certificateUrls = [];
+  bool _addingCertificate = false;
 
   @override
   void initState() {
@@ -70,10 +74,12 @@ class _CaregiverEditProfileScreenState
     }
     final profile = await CaregiverService.getCaregiverProfile(user.uid);
     if (!mounted) return;
+    AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
     _nameController.text = (profile?['name'] as String?) ?? '';
     _emailController.text = (profile?['email'] as String?) ?? user.email ?? '';
     _cityController.text = (profile?['city'] as String?) ?? '';
     _bioController.text = (profile?['bio'] as String?) ?? '';
+    final certUrls = (profile?['certificateUrls'] as List?)?.cast<String>() ?? const [];
     setState(() {
       _yearsExperience = profile?['yearsExperience'] as int? ?? 0;
       _radiusKm = profile?['serviceRadiusKm'] as int? ?? 10;
@@ -83,6 +89,12 @@ class _CaregiverEditProfileScreenState
       _selectedLanguages
         ..clear()
         ..addAll((profile?['languagesSpoken'] as List?)?.cast<String>() ?? const []);
+      _certificateUrls
+        ..clear()
+        ..addAll(certUrls);
+      _certificateLabels
+        ..clear()
+        ..addAll(List.generate(certUrls.length, (i) => 'Certificate ${i + 1}'));
       _loading = false;
     });
   }
@@ -137,97 +149,60 @@ class _CaregiverEditProfileScreenState
   }
 
   Future<void> _pickProfileImage() async {
-    final picker = ImagePicker();
-    final choice = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.borderColor,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: _indigo),
-              title: const Text('Take a photo',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: _indigo),
-              title: const Text('Choose from gallery',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    if (choice == null) return;
-    final picked = await picker.pickImage(source: choice, maxWidth: 512, maxHeight: 512, imageQuality: 85);
-    if (picked != null) {
-      AppState.caregiverProfileImagePath.value = picked.path;
-      setState(() {});
+    final picked = await pickImageOrDocument(context, allowPdf: false);
+    if (picked == null || !mounted) return;
+
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.profilePhotoPath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      if (!mounted) return;
+      AppState.caregiverProfileImagePath.value = url;
+      await CaregiverService.saveCaregiverProfile(uid: uid, data: {'photoUrl': url});
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload photo. Please try again.')),
+      );
     }
   }
 
   Future<void> _addCertificate() async {
-    final picker = ImagePicker();
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.borderColor,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: _indigo),
-              title: const Text('Take a photo',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'camera'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: _indigo),
-              title: const Text('Choose from gallery',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'gallery'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (choice == null || !mounted) return;
-    final picked = await picker.pickImage(
-      source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
-    setState(() => _certificates.add(picked.name));
+    final picked = await pickImageOrDocument(context);
+    if (picked == null || !mounted) return;
+
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+
+    setState(() => _addingCertificate = true);
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.certificatePath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      await CaregiverService.saveCaregiverProfile(
+        uid: uid,
+        data: {'certificateUrls': FieldValue.arrayUnion([url])},
+      );
+      if (!mounted) return;
+      setState(() {
+        _certificateUrls.add(url);
+        _certificateLabels.add(picked.name);
+        _addingCertificate = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _addingCertificate = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload certificate. Please try again.')),
+      );
+    }
   }
 
   @override
@@ -417,15 +392,15 @@ class _CaregiverEditProfileScreenState
                     const SizedBox(height: 10),
                     Column(
                       children: [
-                        for (int i = 0; i < _certificates.length; i++) ...[
+                        for (int i = 0; i < _certificateLabels.length; i++) ...[
                           if (i > 0) const SizedBox(height: 10),
-                          _buildCertRow(_certificates[i]),
+                          _buildCertRow(_certificateLabels[i]),
                         ],
                       ],
                     ),
                     const SizedBox(height: 10),
                     GestureDetector(
-                      onTap: _addCertificate,
+                      onTap: _addingCertificate ? null : _addCertificate,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -433,17 +408,33 @@ class _CaregiverEditProfileScreenState
                           border: Border.all(color: AppTheme.borderColor),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.upload_file_rounded, color: _indigoLight, size: 18),
-                            SizedBox(width: 8),
-                            Text(
-                              'Add certificate',
-                              style: TextStyle(color: _indigoLight, fontSize: 13, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
+                        child: _addingCertificate
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(color: _indigoLight, strokeWidth: 2),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Uploading...',
+                                    style: TextStyle(color: _indigoLight, fontSize: 13, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.upload_file_rounded, color: _indigoLight, size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Add certificate',
+                                    style: TextStyle(color: _indigoLight, fontSize: 13, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -525,7 +516,7 @@ class _CaregiverEditProfileScreenState
                 ),
                 child: imagePath != null
                     ? ClipOval(
-                        child: Image.file(File(imagePath), width: 90, height: 90, fit: BoxFit.cover),
+                        child: RemoteOrLocalImage(source: imagePath, width: 90, height: 90),
                       )
                     : Center(
                         child: Text(

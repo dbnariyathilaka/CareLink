@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../app_state.dart';
 import '../theme/app_theme.dart';
 import 'certificate_upload_dialog.dart';
@@ -24,7 +23,7 @@ class _CaregiverOnboarding2ScreenState
   String _selectedQualification = 'Diploma';
 
   String? _formalTraining; // 'Yes' or 'No'
-  List<XFile> _certificates = [];
+  List<String> _certificates = [];
 
   final List<String> _languages = ['Sinhala', 'English', 'Tamil'];
   final Set<String> _selectedLanguages = {'Sinhala', 'English'};
@@ -308,6 +307,7 @@ class _CaregiverOnboarding2ScreenState
                         draft.formalTraining = _formalTraining == 'Yes';
                         draft.languagesSpoken = _selectedLanguages;
                         draft.skills = _selectedSkills;
+                        draft.certificateUrls = _certificates;
                         Navigator.pushNamed(context, '/caregiver-onboarding-3');
                       },
                       child: const Padding(

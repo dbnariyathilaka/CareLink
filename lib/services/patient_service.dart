@@ -41,4 +41,15 @@ class PatientService {
         await _collection.doc(patientUid).collection('favorites').get();
     return snap.docs.map((d) => d.id).toList();
   }
+
+  /// Relatives/helpers the patient has added to their profile (name,
+  /// relation, phone, isPrimary). No add flow exists yet, so this is
+  /// always empty today — reading it is wired up ahead of that screen.
+  static Future<List<Map<String, dynamic>>> getFamilyMembers(
+    String patientUid,
+  ) async {
+    final snap =
+        await _collection.doc(patientUid).collection('familyMembers').get();
+    return snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
 }

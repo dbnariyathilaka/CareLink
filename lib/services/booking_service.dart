@@ -63,4 +63,20 @@ class BookingService {
   static Future<void> cancelBooking(String bookingId) {
     return _collection.doc(bookingId).update({'status': 'cancelled'});
   }
+
+  /// Records a patient-initiated request to extend an ongoing visit's end
+  /// time. Left pending until the caregiver confirms it (no auto-apply).
+  static Future<void> requestExtension({
+    required String bookingId,
+    required String newEndTime,
+    required int extraMinutes,
+  }) {
+    return _collection.doc(bookingId).update({
+      'pendingExtension': {
+        'newEndTime': newEndTime,
+        'extraMinutes': extraMinutes,
+        'requestedAt': FieldValue.serverTimestamp(),
+      },
+    });
+  }
 }

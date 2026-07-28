@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 5 of 6
@@ -14,6 +17,12 @@ class CaregiverOnboarding5Screen extends StatefulWidget {
       _CaregiverOnboarding5ScreenState();
 }
 
+class _UploadedDoc {
+  const _UploadedDoc({required this.name, required this.url});
+  final String name;
+  final String url;
+}
+
 class _CaregiverOnboarding5ScreenState
     extends State<CaregiverOnboarding5Screen> {
   static const Color _indigo = Color(0xFF6366F1);
@@ -22,63 +31,65 @@ class _CaregiverOnboarding5ScreenState
   static const Color _mustard = Color(0xFFFCD34D);
   static const Color _geyser = Color(0xFFCBD5E1);
 
-  XFile? _policeClearance;
-  final List<XFile> _otherDocuments = [];
+  _UploadedDoc? _policeClearance;
+  final List<_UploadedDoc> _otherDocuments = [];
+  bool _uploadingPoliceClearance = false;
+  bool _uploadingOtherDocument = false;
 
-  Future<XFile?> _pickDocument() async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppTheme.cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.borderColor,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: _indigo),
-              title: const Text('Take a photo',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'camera'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: _indigo),
-              title: const Text('Choose from gallery',
-                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'gallery'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (choice == null || !mounted) return null;
-    return ImagePicker().pickImage(
-      source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
-      imageQuality: 85,
-    );
-  }
+  bool get _busy => _uploadingPoliceClearance || _uploadingOtherDocument;
 
   Future<void> _pickPoliceClearance() async {
-    final picked = await _pickDocument();
+    final picked = await pickImageOrDocument(context);
     if (picked == null || !mounted) return;
-    setState(() => _policeClearance = picked);
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+
+    setState(() => _uploadingPoliceClearance = true);
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.policeClearancePath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      if (!mounted) return;
+      setState(() {
+        _policeClearance = _UploadedDoc(name: picked.name, url: url);
+        _uploadingPoliceClearance = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _uploadingPoliceClearance = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload certificate. Please try again.')),
+      );
+    }
   }
 
   Future<void> _pickOtherDocument() async {
-    final picked = await _pickDocument();
+    final picked = await pickImageOrDocument(context);
     if (picked == null || !mounted) return;
-    setState(() => _otherDocuments.add(picked));
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+
+    setState(() => _uploadingOtherDocument = true);
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.otherDocumentPath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      if (!mounted) return;
+      setState(() {
+        _otherDocuments.add(_UploadedDoc(name: picked.name, url: url));
+        _uploadingOtherDocument = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _uploadingOtherDocument = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload document. Please try again.')),
+      );
+    }
   }
 
   void _submit() {
@@ -88,6 +99,9 @@ class _CaregiverOnboarding5ScreenState
       );
       return;
     }
+    final draft = AppState.caregiverOnboardingDraft;
+    draft.policeClearanceUrl = _policeClearance!.url;
+    draft.otherDocumentUrls = _otherDocuments.map((d) => d.url).toList();
     Navigator.pushNamed(context, '/caregiver-onboarding-6');
   }
 
@@ -159,7 +173,7 @@ class _CaregiverOnboarding5ScreenState
                       const SizedBox(height: 20),
 
                       GestureDetector(
-                        onTap: _pickPoliceClearance,
+                        onTap: _busy ? null : _pickPoliceClearance,
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(25),
@@ -167,29 +181,46 @@ class _CaregiverOnboarding5ScreenState
                             border: Border.all(color: AppTheme.borderColor),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.gavel_rounded, color: _indigo, size: 26),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Tap to upload certificate',
-                                style: TextStyle(
-                                  color: _geyser,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                          child: _uploadingPoliceClearance
+                              ? const Column(
+                                  children: [
+                                    SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(color: _indigo, strokeWidth: 2.5),
+                                    ),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      'Uploading...',
+                                      style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  children: [
+                                    const Icon(Icons.gavel_rounded, color: _indigo, size: 26),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _policeClearance == null
+                                          ? 'Tap to upload certificate'
+                                          : 'Tap to replace certificate',
+                                      style: const TextStyle(
+                                        color: _geyser,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    const Text(
+                                      'PDF, JPG or PNG',
+                                      style: TextStyle(
+                                        color: Color(0xFF64748B),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 3),
-                              const Text(
-                                'PDF, JPG or PNG',
-                                style: TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                       if (_policeClearance != null) ...[
@@ -255,7 +286,7 @@ class _CaregiverOnboarding5ScreenState
                       const SizedBox(height: 12),
 
                       GestureDetector(
-                        onTap: _pickOtherDocument,
+                        onTap: _busy ? null : _pickOtherDocument,
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(21),
@@ -263,29 +294,44 @@ class _CaregiverOnboarding5ScreenState
                             border: Border.all(color: AppTheme.borderColor),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.note_add_rounded, color: _indigo, size: 26),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Tap to add a document',
-                                style: TextStyle(
-                                  color: _geyser,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                          child: _uploadingOtherDocument
+                              ? const Column(
+                                  children: [
+                                    SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(color: _indigo, strokeWidth: 2.5),
+                                    ),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      'Uploading...',
+                                      style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                )
+                              : const Column(
+                                  children: [
+                                    Icon(Icons.note_add_rounded, color: _indigo, size: 26),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      'Tap to add a document',
+                                      style: TextStyle(
+                                        color: _geyser,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(height: 3),
+                                    Text(
+                                      'PDF, JPG or PNG · multiple files allowed',
+                                      style: TextStyle(
+                                        color: Color(0xFF64748B),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(height: 3),
-                              const Text(
-                                'PDF, JPG or PNG · multiple files allowed',
-                                style: TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                       if (_otherDocuments.isNotEmpty) ...[
@@ -333,7 +379,7 @@ class _CaregiverOnboarding5ScreenState
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
-                          onTap: _submit,
+                          onTap: _busy ? null : _submit,
                           child: const Padding(
                             padding: EdgeInsets.symmetric(vertical: 14),
                             child: Text(

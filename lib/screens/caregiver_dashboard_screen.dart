@@ -1,8 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
+import '../widgets/remote_or_local_image.dart';
 
 enum _DutyStatus { available, busy, offDuty }
 
@@ -29,6 +30,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   void initState() {
     super.initState();
     _loadUserName();
+    _loadOwnPhoto();
   }
 
   Future<void> _loadUserName() async {
@@ -39,6 +41,13 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     if (mounted && name != null && name.isNotEmpty) {
       setState(() => _userName = name);
     }
+  }
+
+  Future<void> _loadOwnPhoto() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+    final profile = await CaregiverService.getCaregiverProfile(user.uid);
+    AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
   }
 
   static const List<String> _stateTabs = [
@@ -226,11 +235,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 ),
                 child: imagePath != null
                     ? ClipOval(
-                        child: Image.file(
-                          File(imagePath),
+                        child: RemoteOrLocalImage(
+                          source: imagePath,
                           width: 46,
                           height: 46,
-                          fit: BoxFit.cover,
                         ),
                       )
                     : const Center(

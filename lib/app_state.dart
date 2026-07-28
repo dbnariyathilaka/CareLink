@@ -33,11 +33,25 @@ class AppState {
   // Accumulates data across the 6-step caregiver onboarding wizard; written
   // to Firestore (caregiverProfiles/{uid}) once, on the final step.
   static final caregiverOnboardingDraft = CaregiverOnboardingDraft();
+
+  // Backfills a profile picture from Firestore only if nothing has been
+  // picked locally yet this session — avoids a stale read clobbering a
+  // just-uploaded photo.
+  static void hydrateCaregiverPhoto(String? url) {
+    if (caregiverProfileImagePath.value == null && url != null && url.isNotEmpty) {
+      caregiverProfileImagePath.value = url;
+    }
+  }
+
+  static void hydratePatientPhoto(String? url) {
+    if (profileImagePath.value == null && url != null && url.isNotEmpty) {
+      profileImagePath.value = url;
+    }
+  }
 }
 
-/// Draft profile filled in across caregiver onboarding steps 1–3
-/// (steps 4–6 collect a photo/documents/terms-agreement, which aren't
-/// persisted to Firestore — no file storage backend is wired up yet).
+/// Draft profile filled in across the 6-step caregiver onboarding wizard;
+/// written to Firestore (caregiverProfiles/{uid}) once, on the final step.
 class CaregiverOnboardingDraft {
   String gender = 'Male';
   int yearsExperience = 5;
@@ -56,6 +70,13 @@ class CaregiverOnboardingDraft {
   String serviceRadius = '10 km';
   String bio = '';
 
+  // Storage download URLs — populated as each onboarding step uploads its
+  // picked file(s); empty/blank fields mean nothing was uploaded.
+  String photoUrl = '';
+  List<String> certificateUrls = [];
+  String policeClearanceUrl = '';
+  List<String> otherDocumentUrls = [];
+
   Map<String, dynamic> toMap() {
     return {
       'gender': gender,
@@ -71,6 +92,10 @@ class CaregiverOnboardingDraft {
       'serviceRadiusKm':
           int.tryParse(serviceRadius.replaceAll(RegExp(r'[^0-9]'), '')) ?? 10,
       'bio': bio,
+      if (photoUrl.isNotEmpty) 'photoUrl': photoUrl,
+      if (certificateUrls.isNotEmpty) 'certificateUrls': certificateUrls,
+      if (policeClearanceUrl.isNotEmpty) 'policeClearanceUrl': policeClearanceUrl,
+      if (otherDocumentUrls.isNotEmpty) 'otherDocumentUrls': otherDocumentUrls,
     };
   }
 }

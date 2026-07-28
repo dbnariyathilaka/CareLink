@@ -1,16 +1,23 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import '../theme/app_theme.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
+import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
+import '../services/storage_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/remote_or_local_image.dart';
+import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient My Profile Screen
-//  Figma node: 160-1861
+//  Figma node: 262-1634
+//
+//  "Family Members" and "Care circle" are new concepts this design
+//  introduces — no add/manage flow exists for either yet (those
+//  screens are coming separately), so both sections render honestly
+//  empty today instead of showing fabricated example people.
 // ─────────────────────────────────────────────────────────────
 class PatientProfileScreen extends StatefulWidget {
   const PatientProfileScreen({super.key});
@@ -19,29 +26,86 @@ class PatientProfileScreen extends StatefulWidget {
   State<PatientProfileScreen> createState() => _PatientProfileScreenState();
 }
 
-class _PatientProfileScreenState extends State<PatientProfileScreen> {
+class _PatientProfileScreenState extends State<PatientProfileScreen>
+    with SingleTickerProviderStateMixin {
   // ── Figma colour tokens ──────────────────────────────────
-  static const Color _green45   = AppTheme.primaryGreen;
-  static const Color _green36   = AppTheme.primaryGreenDark;
-  static const Color _green8    = AppTheme.bottleGreen;
-  static const Color _azure11   = AppTheme.surfaceColor;
-  static const Color _azure17   = AppTheme.cardColor;
-  static const Color _azure27   = AppTheme.borderColor;
-  static const Color _azure65   = AppTheme.textSecondary;
-  static const Color _grey98    = AppTheme.textPrimary;
-  static const Color _red44     = Color(0xFFEF4444);
-  static const Color _amber     = Color(0xFFF59E0B);
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color titleGreen = Color(0xFF0F3D2E);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color nameColor = Color(0xFF1E293B);
+  static const Color emailColor = Color(0xFF94A3B8);
+  static const Color badgeText = Color(0xFF22C55E);
+  static const Color avatarBg = Color.fromRGBO(109, 66, 117, 0.41);
+  static const Color avatarBorder = Color(0xFF51203B);
+  static const Color avatarInitials = Color(0xFF562D43);
+  static const Color editBadgeBg = Color(0xFF3B4844);
+  static const Color personalCardBg = Color.fromRGBO(168, 156, 126, 0.47);
+  static const Color personalLabel = Color(0xFF302B20);
+  static const Color personalRowLabel = Color(0xFF7C7972);
+  static const Color personalRowValue = Color(0xFF514B3D);
+  static const Color personalDivider = Color.fromRGBO(0, 0, 0, 0.13);
+  static const Color statCardBg = Color(0xFF313131);
+  static const Color statCardBorder = Color(0xFF334155);
+  static const Color statValue = Color(0xFFF8FAFC);
+  static const Color statLabel = Color(0xFFF2F2F2);
+  static const Color familyCardBg = Color(0xFFD1C7B1);
+  static const Color familySub = Color(0xFF736A57);
+  static const Color primaryBadgeBg = Color(0xFFCAAB8C);
+  static const Color primaryBadgeText = Color(0xFF6A441E);
+  static const Color addLink = Color(0xFFC9321B);
+  static const Color careCircleBg = Color(0xFF164939);
+  static const Color careCircleBorder = Color(0xFF3F9E80);
+  static const Color careCircleMuted = Color(0xFFBAAF99);
+  static const Color requirementsCardBg = Color(0xFFD1C7B1);
+  static const Color requirementsDivider = Color.fromRGBO(110, 95, 62, 0.37);
+  static const Color requirementsLabel = Color.fromRGBO(0, 0, 0, 0.49);
+  static const Color requirementsValue = Color(0xFF313131);
+  static const Color editReqLink = Color(0xFF584A2A);
+  static const Color favCardBg = Color(0xFF989A99);
+  static const Color favAvatarBg = Color.fromRGBO(35, 106, 84, 0.57);
+  static const Color favAvatarText = Color(0xFF0B1A16);
+  static const Color heartRed = Color(0xFF992B2B);
+  static const Color menuCardBg = Color(0xFF3B4844);
+  static const Color menuBorder = Color(0xFF334155);
+  static const Color menuAmber = Color(0xFFFBBC05);
+  static const Color menuChevron = Color(0xFF64748B);
+  static const Color logoutBorder = Color(0xFF4E4513);
+  static const Color logoutText = Color(0xFF81622E);
+  static const Color navMatchLabel = Color(0xFFFFA722);
 
   bool _loading = true;
   String _name = '';
   String _email = '';
   Map<String, dynamic>? _patientProfile;
   List<Map<String, dynamic>> _favoriteCaregivers = [];
+  List<Map<String, dynamic>> _familyMembers = [];
+  int? _bookingsCount;
+
+  late final AnimationController _matchIconController;
+  late final Animation<double> _matchIconRotation;
 
   @override
   void initState() {
     super.initState();
+    _matchIconController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+    _matchIconRotation = TweenSequence<double>([
+      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 2),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 6,
+      ),
+    ]).animate(_matchIconController);
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _matchIconController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfile() async {
@@ -54,10 +118,14 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
       AuthService.getUserProfile(user.uid),
       PatientService.getPatientProfile(user.uid),
       PatientService.getFavoriteCaregiverIds(user.uid),
+      PatientService.getFamilyMembers(user.uid),
+      BookingService.streamBookingsForPatient(user.uid).first,
     ]);
     final userProfile = results[0] as Map<String, dynamic>?;
     final patientProfile = results[1] as Map<String, dynamic>?;
     final favoriteIds = results[2] as List<String>;
+    final familyMembers = results[3] as List<Map<String, dynamic>>;
+    final bookings = results[4] as List<Map<String, dynamic>>;
 
     final favorites = <Map<String, dynamic>>[];
     for (final id in favoriteIds) {
@@ -78,136 +146,115 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     }
 
     if (!mounted) return;
+    AppState.hydratePatientPhoto(patientProfile?['photoUrl'] as String?);
     setState(() {
       _name = (userProfile?['name'] as String?) ?? '';
       _email = (userProfile?['email'] as String?) ?? user.email ?? '';
       _patientProfile = patientProfile;
       _favoriteCaregivers = favorites;
+      _familyMembers = familyMembers;
+      _bookingsCount = bookings.length;
       _loading = false;
     });
   }
 
   Future<void> _pickProfileImage() async {
-    final picker = ImagePicker();
-    final choice = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: _azure17,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40, height: 5,
-              decoration: BoxDecoration(
-                color: _azure27,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: _green45),
-              title: const Text('Take a photo',
-                  style: TextStyle(color: _grey98, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: _green45),
-              title: const Text('Choose from gallery',
-                  style: TextStyle(color: _grey98, fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-            if (AppState.profileImagePath.value != null)
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: _red44),
-                title: const Text('Remove photo',
-                    style: TextStyle(color: _red44, fontWeight: FontWeight.w600)),
-                onTap: () {
-                  AppState.profileImagePath.value = null;
-                  Navigator.pop(context);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+    final picked = await pickImageOrDocument(
+      context,
+      allowPdf: false,
+      allowRemove: AppState.profileImagePath.value != null,
+      onRemove: () => AppState.profileImagePath.value = null,
     );
+    if (picked == null || !mounted) return;
 
-    if (choice == null) return;
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
 
-    final picked = await picker.pickImage(
-      source: choice,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 85,
-    );
-
-    if (picked != null) {
-      AppState.profileImagePath.value = picked.path;
-      setState(() {});
+    try {
+      final url = await StorageService.uploadBytes(
+        storagePath: StorageService.profilePhotoPath(uid, picked.name),
+        bytes: picked.bytes,
+        contentType: picked.mimeType,
+      );
+      if (!mounted) return;
+      AppState.profileImagePath.value = url;
+      await PatientService.savePatientProfile(uid: uid, data: {'photoUrl': url});
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload photo. Please try again.')),
+      );
     }
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature is coming soon.')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _azure11,
+      backgroundColor: bgCream,
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppTheme.primaryGreen))
+                  ? const Center(child: CircularProgressIndicator(color: darkGreen))
                   : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildHeaderSection(context),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildStatsRow(),
-                          const SizedBox(height: 12),
-                          _buildSectionLabel('Care requirements'),
-                          const SizedBox(height: 8),
-                          _buildCareRequirementsCard(context),
-                          const SizedBox(height: 12),
-                          _buildSectionLabel('Favourite caregivers'),
-                          const SizedBox(height: 8),
-                          _buildFavouriteCard(context),
-                          const SizedBox(height: 12),
-                          _menuRow(
-                            icon: Icons.chat_bubble_outline_rounded,
-                            label: 'Messages',
-                            onTap: () => Navigator.pushNamed(context, '/messages'),
+                          _buildHeaderSection(context),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildPersonalDetailsCard(),
+                                const SizedBox(height: 12),
+                                _buildStatsRow(),
+                                const SizedBox(height: 20),
+                                _buildFamilyMembersSection(),
+                                const SizedBox(height: 20),
+                                _buildCareCircleSection(),
+                                const SizedBox(height: 20),
+                                _buildSectionLabel('Care requirements'),
+                                const SizedBox(height: 8),
+                                _buildCareRequirementsCard(context),
+                                const SizedBox(height: 20),
+                                _buildSectionLabel('Favourite caregivers'),
+                                const SizedBox(height: 8),
+                                _buildFavouriteCard(context),
+                                const SizedBox(height: 12),
+                                _menuRow(
+                                  icon: Icons.chat_bubble_rounded,
+                                  label: 'Messages',
+                                  onTap: () => Navigator.pushNamed(context, '/messages'),
+                                ),
+                                const SizedBox(height: 12),
+                                _menuRow(
+                                  icon: Icons.shield_rounded,
+                                  label: 'Privacy policy',
+                                  onTap: () => _showComingSoon('Privacy policy'),
+                                ),
+                                const SizedBox(height: 12),
+                                _menuRow(
+                                  icon: Icons.help_rounded,
+                                  label: 'Help & FAQ',
+                                  onTap: () => _showComingSoon('Help & FAQ'),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildLogoutButton(context),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 12),
-                          _menuRow(
-                            icon: Icons.shield_outlined,
-                            label: 'Privacy policy',
-                            onTap: () {},
-                          ),
-                          const SizedBox(height: 12),
-                          _menuRow(
-                            icon: Icons.help_outline_rounded,
-                            label: 'Help & FAQ',
-                            onTap: () {},
-                          ),
-                          const SizedBox(height: 16),
-                          _buildLogoutButton(context),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
             ),
-            _buildBottomNav(context),
+            _buildBottomBar(),
           ],
         ),
       ),
@@ -218,130 +265,123 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   Widget _buildHeaderSection(BuildContext context) {
     final imagePath = AppState.profileImagePath.value;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
+      padding: const EdgeInsets.fromLTRB(16, 20, 18, 18),
       child: Column(
         children: [
-          // "My profile" title row with settings icon
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
                 'My profile',
                 style: TextStyle(
-                  color: _grey98,
+                  fontFamily: 'Open Sans',
+                  color: titleGreen,
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               GestureDetector(
                 onTap: () => Navigator.pushNamed(context, '/settings'),
-                child: const Icon(
-                  Icons.settings_outlined,
-                  color: _grey98,
+                child: Icon(
+                  Icons.settings_rounded,
+                  color: Colors.black.withValues(alpha: 0.43),
                   size: 24,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 18),
-          // Avatar with pencil badge
           GestureDetector(
             onTap: _pickProfileImage,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // Circle avatar
                 Container(
                   width: 84,
                   height: 84,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: imagePath == null
-                        ? const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [_green45, _green36],
-                          )
-                        : null,
-                    color: imagePath != null ? Colors.transparent : null,
+                    color: avatarBg,
+                    border: Border.all(color: avatarBorder),
                   ),
                   child: imagePath != null
                       ? ClipOval(
-                          child: Image.file(
-                            File(imagePath),
+                          child: RemoteOrLocalImage(
+                            source: imagePath,
                             width: 84,
                             height: 84,
-                            fit: BoxFit.cover,
                           ),
                         )
                       : Center(
                           child: Text(
                             _initials(),
                             style: const TextStyle(
-                              color: _green8,
+                              fontFamily: 'Inter',
+                              color: avatarInitials,
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
                 ),
-                // Edit pencil badge
                 Positioned(
-                  right: 0,
-                  bottom: 0,
+                  right: -1,
+                  bottom: -1,
                   child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: _green45,
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: editBadgeBg,
                       shape: BoxShape.circle,
-                      border: Border.all(color: _azure11, width: 2),
                     ),
                     child: const Icon(
                       Icons.edit_rounded,
-                      color: _green8,
-                      size: 12,
+                      color: badgeText,
+                      size: 16,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Text(
             _name.isEmpty ? 'Unnamed patient' : _name,
             style: const TextStyle(
-              color: _grey98,
+              fontFamily: 'Open Sans',
+              color: nameColor,
               fontSize: 20,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             _email.isEmpty ? 'No email on file' : _email,
             style: const TextStyle(
-              color: _azure65,
+              fontFamily: 'Open Sans',
+              color: emailColor,
               fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
             ),
           ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: _green45.withValues(alpha: 0.15),
+              color: titleGreen,
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.verified_rounded, color: _green45, size: 15),
+              children: [
+                Icon(Icons.verified_rounded, color: badgeText, size: 15),
                 SizedBox(width: 5),
                 Text(
                   'Patient / Family account',
                   style: TextStyle(
-                    color: _green45,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Open Sans',
+                    color: badgeText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -363,16 +403,107 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         .toUpperCase();
   }
 
+  // ── Personal details card ─────────────────────────────────
+  Widget _buildPersonalDetailsCard() {
+    final gender = _patientProfile?['patientGender'] as String?;
+    final age = _patientProfile?['patientAge'];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: personalCardBg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'PERSONAL DETAILS',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: personalLabel,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+          Container(
+            height: 34,
+            padding: const EdgeInsets.only(top: 9),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: personalDivider, width: 1)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Gender',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: personalRowLabel,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  (gender == null || gender.isEmpty) ? 'Not set' : gender,
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: personalRowValue,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            height: 24,
+            padding: const EdgeInsets.only(top: 9),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Age',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: personalRowLabel,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Text(
+                  (age == null || age.toString().isEmpty || age.toString() == '0')
+                      ? 'Not set'
+                      : age.toString(),
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: personalRowValue,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Stats row ─────────────────────────────────────────────
   Widget _buildStatsRow() {
     return Row(
       children: [
-        Expanded(child: _statCard('—', 'Bookings')),
+        Expanded(child: _statCard(_bookingsCount?.toString() ?? '—', 'Bookings')),
         const SizedBox(width: 10),
         Expanded(child: _statCard('—', 'Reviews given')),
         const SizedBox(width: 10),
-        Expanded(
-            child: _statCard('${_favoriteCaregivers.length}', 'Favourite')),
+        Expanded(child: _statCard('${_favoriteCaregivers.length}', 'Favourite')),
       ],
     );
   }
@@ -381,20 +512,26 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _azure17,
+        color: statCardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _azure27),
+        border: Border.all(color: statCardBorder),
       ),
       child: Column(
         children: [
           Text(value,
               style: const TextStyle(
-                  color: _grey98, fontSize: 18, fontWeight: FontWeight.w800)),
+                  fontFamily: 'Inter',
+                  color: statValue,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                  color: _azure65, fontSize: 10, fontWeight: FontWeight.w500)),
+                  fontFamily: 'Open Sans',
+                  color: statLabel,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -402,16 +539,226 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
 
   // ── Section label ─────────────────────────────────────────
   Widget _buildSectionLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: _azure65,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+    return Text(
+      label,
+      style: const TextStyle(
+        fontFamily: 'Open Sans',
+        color: personalLabel,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
       ),
+    );
+  }
+
+  // ── Family Members section ────────────────────────────────
+  Widget _buildFamilyMembersSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionLabel('Family Members'),
+            GestureDetector(
+              onTap: () => _showComingSoon('Adding family members'),
+              child: const Text(
+                'Add',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: addLink,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_familyMembers.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: familyCardBg,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const EmptyState(
+              icon: Icons.family_restroom_rounded,
+              message: 'No family members added yet.',
+              iconColor: familySub,
+              textColor: familySub,
+            ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: familyCardBg,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              children: List.generate(_familyMembers.length, (i) {
+                final member = _familyMembers[i];
+                final isLast = i == _familyMembers.length - 1;
+                return _familyMemberRow(member, isLast: isLast);
+              }),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _familyMemberRow(Map<String, dynamic> member, {required bool isLast}) {
+    final name = (member['name'] as String?) ?? 'Family member';
+    final relation = (member['relation'] as String?) ?? '';
+    final phone = (member['phone'] as String?) ?? '';
+    final isPrimary = member['isPrimary'] == true;
+    final initials = name.trim().isEmpty
+        ? '?'
+        : name.trim().split(RegExp(r'\s+')).map((w) => w[0]).take(2).join().toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: isLast
+          ? null
+          : const BoxDecoration(
+              border: Border(bottom: BorderSide(color: personalDivider, width: 1)),
+            ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+              ),
+            ),
+            child: Center(
+              child: Text(initials,
+                  style: const TextStyle(
+                      fontFamily: 'Inter',
+                      color: Color(0xFF3B2406),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: const TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: Colors.black,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600)),
+                Text(
+                  [relation, phone].where((s) => s.isNotEmpty).join(' · '),
+                  style: const TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: familySub,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          if (isPrimary)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: primaryBadgeBg,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Text(
+                'Primary',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: primaryBadgeText,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          else
+            const Icon(Icons.chevron_right_rounded, color: familySub, size: 20),
+        ],
+      ),
+    );
+  }
+
+  // ── Care circle section ────────────────────────────────────
+  Widget _buildCareCircleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel('Care circle'),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: careCircleBg,
+            border: Border.all(color: careCircleBorder),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.family_restroom_rounded, color: Colors.white, size: 30),
+              const SizedBox(height: 10),
+              const Text(
+                'No care circle yet',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                "Your care circle brings family and your caregiver together "
+                "once a booking is confirmed.",
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: careCircleMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              GestureDetector(
+                onTap: () => _showComingSoon('Adding family members'),
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Add family member',
+                      style: TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -422,15 +769,16 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: _azure17,
+          color: requirementsCardBg,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _azure27),
         ),
         child: Column(
           children: [
             const EmptyState(
               icon: Icons.assignment_outlined,
               message: 'Care requirements not set yet.',
+              iconColor: editReqLink,
+              textColor: editReqLink,
             ),
             const SizedBox(height: 6),
             GestureDetector(
@@ -438,7 +786,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
               child: const Text(
                 'Set requirements',
                 style: TextStyle(
-                  color: _green45,
+                  fontFamily: 'Open Sans',
+                  color: editReqLink,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -460,9 +809,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: _azure17,
+            color: requirementsCardBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _azure27),
           ),
           child: Column(
             children: [
@@ -480,7 +828,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                 child: const Text(
                   'Edit requirements',
                   style: TextStyle(
-                    color: _green45,
+                    fontFamily: 'Open Sans',
+                    color: editReqLink,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -498,17 +847,23 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
       height: 35,
       decoration: divider
           ? const BoxDecoration(
-              border: Border(bottom: BorderSide(color: _azure27, width: 1)))
+              border: Border(bottom: BorderSide(color: requirementsDivider, width: 1)))
           : null,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
               style: const TextStyle(
-                  color: _azure65, fontSize: 12, fontWeight: FontWeight.w500)),
+                  fontFamily: 'Open Sans',
+                  color: requirementsLabel,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
           Text(value,
               style: const TextStyle(
-                  color: _grey98, fontSize: 13, fontWeight: FontWeight.w600)),
+                  fontFamily: 'Open Sans',
+                  color: requirementsValue,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -521,13 +876,14 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: _azure17,
+          color: favCardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _azure27),
         ),
         child: const EmptyState(
           icon: Icons.favorite_border_rounded,
           message: 'No favourite caregivers yet.',
+          iconColor: Colors.black,
+          textColor: Colors.black,
         ),
       );
     }
@@ -565,11 +921,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
       },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(13),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _azure17,
+          color: favCardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _azure27),
         ),
         child: Row(
           children: [
@@ -578,16 +933,13 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
               height: 40,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_green45, _green36],
-                ),
+                color: favAvatarBg,
               ),
               child: Center(
                 child: Text(initials,
                     style: const TextStyle(
-                        color: _green8,
+                        fontFamily: 'Inter',
+                        color: favAvatarText,
                         fontSize: 13,
                         fontWeight: FontWeight.w700)),
               ),
@@ -599,14 +951,16 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                 children: [
                   Text(name.isEmpty ? 'Unnamed caregiver' : name,
                       style: const TextStyle(
-                          color: _grey98,
+                          fontFamily: 'Inter',
+                          color: Colors.black,
                           fontSize: 13,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 3),
                   Text(
                     careTypes.isEmpty ? 'No care types listed' : careTypes.join(', '),
                     style: const TextStyle(
-                        color: _azure65,
+                        fontFamily: 'Inter',
+                        color: Color(0xFF313131),
                         fontSize: 11,
                         fontWeight: FontWeight.w500),
                   ),
@@ -626,7 +980,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                   _favoriteCaregivers.removeWhere((c) => c['id'] == id);
                 });
               },
-              child: const Icon(Icons.favorite_rounded, color: _red44, size: 20),
+              child: const Icon(Icons.favorite_rounded, color: heartRed, size: 20),
             ),
           ],
         ),
@@ -634,15 +988,13 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     );
   }
 
-
-
   // ── Log out confirmation dialog ────────────────────────────
   void _showLogoutConfirmationDialog(BuildContext context) {
     showDialog<void>(
       context: context,
       barrierColor: Colors.black54,
       builder: (_) => Dialog(
-        backgroundColor: _azure17,
+        backgroundColor: bgCream,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -653,12 +1005,12 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: _amber.withOpacity(0.12),
+                  color: logoutText.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.logout_rounded,
-                  color: _amber,
+                  color: logoutText,
                   size: 28,
                 ),
               ),
@@ -666,17 +1018,19 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
               const Text(
                 'Log out?',
                 style: TextStyle(
-                  color: _grey98,
+                  fontFamily: 'Open Sans',
+                  color: titleGreen,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'Are you sure you want to log out of your account?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _azure65,
+                  fontFamily: 'Open Sans',
+                  color: titleGreen.withValues(alpha: 0.7),
                   fontSize: 13,
                   height: 1.5,
                 ),
@@ -690,14 +1044,15 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: _azure27),
+                          border: Border.all(color: titleGreen.withValues(alpha: 0.25)),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Cancel',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _azure65,
+                            fontFamily: 'Open Sans',
+                            color: titleGreen.withValues(alpha: 0.7),
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -718,15 +1073,16 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: _amber.withOpacity(0.12),
-                          border: Border.all(color: _amber.withOpacity(0.4)),
+                          color: logoutText.withValues(alpha: 0.12),
+                          border: Border.all(color: logoutText.withValues(alpha: 0.4)),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
                           'Log out',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _amber,
+                            fontFamily: 'Open Sans',
+                            color: logoutText,
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -751,15 +1107,17 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 15),
         decoration: BoxDecoration(
-          color: _azure17,
-          border: Border.all(color: _azure27),
-          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: logoutBorder, width: 2),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: const Text(
           'Log out',
           textAlign: TextAlign.center,
           style: TextStyle(
-              color: _amber, fontSize: 14, fontWeight: FontWeight.w700),
+              fontFamily: 'Open Sans',
+              color: logoutText,
+              fontSize: 15,
+              fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -768,7 +1126,6 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   Widget _menuRow({
     required IconData icon,
     required String label,
-    String? badge,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -777,146 +1134,101 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: _azure17,
+          color: menuCardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _azure27),
+          border: Border.all(color: menuBorder),
         ),
         child: Row(
           children: [
-            Icon(icon, color: _green45, size: 20),
+            Icon(icon, color: menuAmber, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(label,
                   style: const TextStyle(
-                      color: _grey98,
+                      fontFamily: 'Inter',
+                      color: menuAmber,
                       fontSize: 13,
                       fontWeight: FontWeight.w600)),
             ),
-            if (badge != null) ...[
-              Container(
-                height: 20,
-                constraints: const BoxConstraints(minWidth: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                decoration: BoxDecoration(
-                  color: _green45,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                alignment: Alignment.center,
-                child: Text(badge,
-                    style: const TextStyle(
-                        color: _green8,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700)),
-              ),
-              const SizedBox(width: 4),
-            ],
-            const Icon(Icons.chevron_right_rounded, color: _azure65, size: 20),
+            const Icon(Icons.chevron_right_rounded, color: menuChevron, size: 20),
           ],
         ),
       ),
     );
   }
 
-  // ── Bottom nav (matches dashboard) ────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
-    final items = [
-      (icon: Icons.home_rounded, label: 'Home'),
-      (icon: Icons.search_rounded, label: 'Search'),
-      (icon: null, label: 'Match'),
-      (icon: Icons.calendar_month_rounded, label: 'Bookings'),
-      (icon: Icons.notifications_none_rounded, label: 'Alerts'),
-    ];
-    // No tab highlighted on profile screen since it's a sub-page
-    const selectedIndex = -1;
+  // ── Bottom nav (matches dashboard/bookings/notifications) ─
+  Widget _buildBottomBar() {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        _buildBottomNav(),
+        Positioned(top: -22, child: _buildMatchFab()),
+      ],
+    );
+  }
 
+  Widget _buildBottomNav() {
+    final items = [
+      (icon: Icons.home_rounded, label: 'Home', route: '/patient-dashboard'),
+      (icon: Icons.search_rounded, label: 'Search', route: '/search'),
+      (icon: null, label: 'Match', route: null),
+      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/my-bookings'),
+      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/notifications'),
+    ];
     return Container(
-      height: 68,
-      decoration: const BoxDecoration(
-        color: AppTheme.surfaceColor,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
-      ),
+      width: double.infinity,
+      height: 67,
+      color: darkGreen,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(items.length, (index) {
           final item = items[index];
-          final isSelected = index == selectedIndex;
 
           if (index == 2) {
-            return GestureDetector(
-              onTap: () {
-                if (AppState.hasActiveMatch.value) {
-                  Navigator.pushNamed(context, '/advanced-match-results');
-                } else {
-                  Navigator.pushNamed(context, '/advanced-match-send-request');
-                }
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF01D3A8), // Caribbean Green
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.surfaceColor, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF01D3A8).withValues(alpha: 0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.diversity_3_rounded,
-                      color: Color(0xFF06240F), // Bottle green
-                      size: 24,
-                    ),
+            return const SizedBox(
+              width: 60,
+              child: Padding(
+                padding: EdgeInsets.only(top: 41),
+                child: Text(
+                  'Match',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Quattrocento Sans',
+                    color: navMatchLabel,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Match',
-                    style: TextStyle(
-                      color: Color(0xFF01D3A8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           }
 
-          final color = isSelected ? AppTheme.primaryGreen : const Color(0xFF64748B);
+          // No tab highlighted — profile is a sub-page, not a main nav tab.
           return GestureDetector(
+            onTap: item.route != null
+                ? () => Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      item.route!,
+                      (route) => route.settings.name == '/patient-dashboard',
+                    )
+                : null,
             behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (index == 0) {
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/patient-dashboard', (r) => false);
-              } else if (index == 1) {
-                Navigator.pushNamed(context, '/search');
-              } else if (index == 3) {
-                Navigator.pushNamed(context, '/my-bookings');
-              } else if (index == 4) {
-                Navigator.pushNamed(context, '/notifications');
-              }
-            },
             child: SizedBox(
               width: 60,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(item.icon, color: color, size: 22),
+                  Icon(item.icon, color: Colors.white, size: 25),
                   const SizedBox(height: 4),
                   Text(
                     item.label,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    style: const TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -924,6 +1236,40 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+
+  Widget _buildMatchFab() {
+    return GestureDetector(
+      onTap: () {
+        if (AppState.hasActiveMatch.value) {
+          Navigator.pushNamed(context, '/advanced-match-results');
+        } else {
+          Navigator.pushNamed(context, '/advanced-match-send-request');
+        }
+      },
+      child: Container(
+        width: 65,
+        height: 65,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: RotationTransition(
+          turns: _matchIconRotation,
+          child: SvgPicture.asset(
+            'assets/images/match_target_icon.svg',
+            width: 65,
+            height: 65,
+          ),
+        ),
       ),
     );
   }
