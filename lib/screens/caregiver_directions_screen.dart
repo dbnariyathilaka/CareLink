@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../data/patient_locations.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Get Directions Screen (Caregiver)
@@ -257,6 +258,12 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
   String get _distanceLabel {
     if (_distanceMeters == null) return '--';
     return '${(_distanceMeters! / 1000).toStringAsFixed(1)} km';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.light);
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../data/sri_lankan_cities.dart';
+import '../widgets/status_bar.dart';
 
 class LocationSelectionScreen extends StatefulWidget {
   const LocationSelectionScreen({super.key});
@@ -25,8 +26,11 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   static const Color darkTextSecondary = Color(0xFFCBD5E1);
   static const Color amberIcon = Color(0xFFFBBC05);
 
-  Color get _accent => _isAdvanced ? const Color(0xFF3DB498) : darkGreen;
-  Color get _accentOnColor => _isAdvanced ? const Color(0xFF06291F) : Colors.white;
+  // Primary accent — dark green normally, plum/purple for the "advanced
+  // match" flow (Figma node 296-284, matches schedule_care_screen.dart).
+  Color get _accent => _isAdvanced ? const Color(0xFF6D4275) : darkGreen;
+  Color get _accentOnColor => Colors.white;
+  Color get _stepLineInactiveColor => _isAdvanced ? const Color(0xFFD1BAC6) : stepLineInactive;
 
   // Location State
   String? _selectedCity;
@@ -70,6 +74,12 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
   }
 
   @override
@@ -179,7 +189,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   height: 3,
                   decoration: BoxDecoration(
-                    color: leftDone ? _accent : stepLineInactive,
+                    color: leftDone ? _accent : _stepLineInactiveColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -560,10 +570,10 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
         top: false,
         child: Container(
           decoration: BoxDecoration(
-            color: darkGreen,
+            color: _accent,
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
-              BoxShadow(color: darkGreen.withValues(alpha: 0.5), blurRadius: 2, offset: const Offset(2, 2)),
+              BoxShadow(color: _accent.withValues(alpha: 0.5), blurRadius: 2, offset: const Offset(2, 2)),
             ],
           ),
           child: Material(

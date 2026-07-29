@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../widgets/status_bar.dart';
 
+// ─────────────────────────────────────────────────────────────
+//  Advanced Match — Send Request (Step 1 of 5)
+//  Figma node: 296-6914
+// ─────────────────────────────────────────────────────────────
 class AdvancedMatchSendRequestScreen extends StatefulWidget {
   const AdvancedMatchSendRequestScreen({super.key});
 
@@ -9,14 +13,26 @@ class AdvancedMatchSendRequestScreen extends StatefulWidget {
 }
 
 class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendRequestScreen> {
-  // Figma design colors mapped to AppTheme
-  static const Color _cyan47 = Color(0xFF3DB498);      // Keppel / Cyan `#3db498`
-  static const Color _green8 = Color(0xFF06291F);      // Bottle Green `#06291f`
-  static const Color _azure11 = AppTheme.surfaceColor; // #0F172A
-  static const Color _azure17 = AppTheme.cardColor;    // #1E293B
-  static const Color _azure27 = AppTheme.borderColor;  // #334155
-  static const Color _azure65 = AppTheme.textSecondary; // #94A3B8
-  static const Color _grey98 = AppTheme.textPrimary;    // #F8FAFC
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color titleText = Color(0xFF313131);
+  static const Color accent = Color(0xFF6D4275);
+  static const Color stepInactiveBg = Color(0xFFDCD9CF);
+  static const Color stepLineInactive = Color(0xFFD1BAC6);
+  static const Color titleGreen = Color(0xFF033724);
+
+  static const Color cardBg = Color(0xFF313131);
+  static const Color cardBorder = Color(0xFF334155);
+  static const Color cardText = Color(0xFFFEFFE6);
+  static const Color amberIcon = Color(0xFFFBBC05);
+
+  static const Color fieldBorder = Color(0xFF334155);
+  static const Color fieldValue = Color(0xFF313131);
+  static const Color fieldLabel = Color.fromRGBO(0, 0, 0, 0.63);
+
+  static const Color notesFieldBg = Color.fromRGBO(49, 49, 49, 0.41);
+  static const Color notesText = Color.fromRGBO(49, 49, 49, 0.64);
+
+  static const Color creamButtonText = Color(0xFFF6F0E2);
 
   // Dropdown Options
   static const List<String> _workSchedules = [
@@ -37,6 +53,12 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
   }
 
   @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
@@ -44,17 +66,18 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
-        backgroundColor: _azure11,
+        backgroundColor: bgCream,
         body: Stack(
           children: [
             SafeArea(
               child: Column(
                 children: [
                   _buildTitleRow(context),
+                  const SizedBox(height: 24),
                   _buildStepIndicator(),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(22, 20, 22, 110),
+                      padding: const EdgeInsets.fromLTRB(16, 22, 16, 110),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -86,20 +109,21 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
   // ── 1. Title Row ──
   Widget _buildTitleRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 14),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: _grey98, size: 24),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: titleText, size: 22),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 16),
           const Text(
-            'Send request',
+            'Send Request',
             style: TextStyle(
-              color: _grey98,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontFamily: 'Open Sans',
+              color: titleText,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -117,16 +141,25 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
       _StepInfo('5', 'Confirm', false),
     ];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
+            final leftDone = steps[i ~/ 2].active;
             return Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 1.5,
-                color: _azure27,
+              child: Padding(
+                // Centers the line on the 35px step circle above the label.
+                padding: const EdgeInsets.only(top: 16),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: leftDone ? accent : stepLineInactive,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
               ),
             );
           }
@@ -140,84 +173,86 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
     return Column(
       children: [
         Container(
-          width: 24,
-          height: 24,
+          width: 35,
+          height: 35,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: s.active ? _cyan47 : _azure17,
-            border: Border.all(
-              color: s.active ? _cyan47 : _azure27,
-              width: 1,
-            ),
+            color: s.active ? accent : stepInactiveBg,
           ),
           child: Center(
             child: Text(
               s.number,
               style: TextStyle(
-                color: s.active ? _green8 : _azure65,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontFamily: 'Open Sans',
+                color: s.active ? Colors.white : Colors.black,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           s.label,
-          style: TextStyle(
-            color: s.active ? _cyan47 : _azure65,
-            fontSize: 8.5,
-            fontWeight: s.active ? FontWeight.w600 : FontWeight.w500,
+          style: const TextStyle(
+            fontFamily: 'Open Sans',
+            color: titleGreen,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
   }
 
-  // ── 3. Three Benefits Info Cards ──
+  // ── 3. Three reassurance info cards (kept on the dark panel treatment) ──
   Widget _buildBenefitsCardList() {
     return Column(
       children: [
         _buildInfoCard(
           icon: Icons.verified_user_rounded,
+          iconColor: const Color(0xFFFFA722),
           text: 'Your request goes only to caregivers who meet the qualifications you selected.',
         ),
         const SizedBox(height: 14),
         _buildInfoCard(
-          icon: Icons.timer_rounded,
+          icon: Icons.bolt_rounded,
+          iconColor: amberIcon,
           text: 'Most matching caregivers respond within 6 hours of a request.',
         ),
         const SizedBox(height: 14),
         _buildInfoCard(
-          icon: Icons.lock_outline_rounded,
+          icon: Icons.lock_rounded,
+          iconColor: amberIcon,
           text: 'Your contact details stay private until you confirm a booking.',
         ),
       ],
     );
   }
 
-  Widget _buildInfoCard({required IconData icon, required String text}) {
+  Widget _buildInfoCard({required IconData icon, required Color iconColor, required String text}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(21),
       decoration: BoxDecoration(
-        color: _azure17,
+        color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _azure27),
+        border: Border.all(color: cardBorder),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, color: _cyan47, size: 30),
+          Icon(icon, color: iconColor, size: 30),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(
-                color: _azure65,
-                fontSize: 12.5,
+                fontFamily: 'Open Sans',
+                color: cardText,
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
-                height: 1.5,
+                height: 1.4,
               ),
             ),
           ),
@@ -226,7 +261,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
     );
   }
 
-  // ── 4. Dropdown Section ──
+  // ── 4. Work schedule dropdown ──
   Widget _buildWorkScheduleSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,7 +269,8 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
         const Text(
           'Work schedule',
           style: TextStyle(
-            color: _azure65,
+            fontFamily: 'Open Sans',
+            color: fieldLabel,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
@@ -246,7 +282,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
             decoration: BoxDecoration(
-              color: _azure17,
+              color: Colors.transparent,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(10),
                 topRight: const Radius.circular(10),
@@ -254,7 +290,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
                 bottomRight: Radius.circular(_dropdownOpen ? 0 : 10),
               ),
               border: Border.all(
-                color: _dropdownOpen ? _cyan47 : _azure27,
+                color: _dropdownOpen ? accent : fieldBorder,
                 width: 1,
               ),
             ),
@@ -264,17 +300,18 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
                 Text(
                   _selectedWorkSchedule,
                   style: const TextStyle(
-                    color: _grey98,
+                    fontFamily: 'Open Sans',
+                    color: fieldValue,
                     fontSize: 15,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 AnimatedRotation(
                   turns: _dropdownOpen ? 0.5 : 0,
                   duration: const Duration(milliseconds: 200),
-                  child: const Icon(
+                  child: Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: _grey98,
+                    color: fieldValue.withValues(alpha: 0.72),
                     size: 22,
                   ),
                 ),
@@ -287,15 +324,15 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
           secondChild: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: _azure17,
+              color: bgCream,
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(10),
                 bottomRight: Radius.circular(10),
               ),
               border: Border(
-                left: BorderSide(color: _cyan47, width: 1),
-                right: BorderSide(color: _cyan47, width: 1),
-                bottom: BorderSide(color: _cyan47, width: 1),
+                left: BorderSide(color: accent, width: 1),
+                right: BorderSide(color: accent, width: 1),
+                bottom: BorderSide(color: accent, width: 1),
               ),
             ),
             child: Column(
@@ -310,9 +347,9 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
                     decoration: BoxDecoration(
-                      color: isSelected ? _cyan47.withValues(alpha: 0.1) : Colors.transparent,
+                      color: isSelected ? accent.withValues(alpha: 0.1) : Colors.transparent,
                       border: schedule != _workSchedules.last
-                          ? const Border(bottom: BorderSide(color: _azure27, width: 0.5))
+                          ? Border(bottom: BorderSide(color: fieldBorder.withValues(alpha: 0.3), width: 0.5))
                           : null,
                     ),
                     child: Row(
@@ -321,13 +358,14 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
                         Text(
                           schedule,
                           style: TextStyle(
-                            color: isSelected ? _cyan47 : _grey98,
+                            fontFamily: 'Open Sans',
+                            color: isSelected ? accent : Colors.black,
                             fontSize: 14,
                             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                           ),
                         ),
                         if (isSelected)
-                          const Icon(Icons.check_rounded, color: _cyan47, size: 16),
+                          const Icon(Icons.check_rounded, color: accent, size: 16),
                       ],
                     ),
                   ),
@@ -342,7 +380,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
     );
   }
 
-  // ── 5. Special Notes Section ──
+  // ── 5. Special notes textarea ──
   Widget _buildSpecialNotesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,41 +388,43 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
         const Text(
           'Special notes',
           style: TextStyle(
-            color: _azure65,
+            fontFamily: 'Open Sans',
+            color: fieldLabel,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _notesController,
-          maxLines: 5,
-          style: const TextStyle(
-            color: _grey98,
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            height: 1.5,
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 120),
+          decoration: BoxDecoration(
+            color: notesFieldBg,
+            borderRadius: BorderRadius.circular(10),
           ),
-          decoration: InputDecoration(
-            hintText: 'Add any special requirements or notes for the caregiver...',
-            hintStyle: const TextStyle(
-              color: Color(0xFF64748B),
+          child: TextField(
+            controller: _notesController,
+            maxLines: 5,
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: fieldValue,
               fontSize: 14,
+              fontWeight: FontWeight.w400,
+              height: 1.5,
             ),
-            filled: true,
-            fillColor: _azure17,
-            contentPadding: const EdgeInsets.all(14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _azure27),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _azure27),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _cyan47, width: 1),
+            decoration: InputDecoration(
+              hintText: 'Add any special requirements or notes for the caregiver...',
+              hintStyle: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: notesText,
+                fontSize: 14,
+              ),
+              filled: false,
+              isDense: true,
+              contentPadding: const EdgeInsets.all(16),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
             ),
           ),
         ),
@@ -400,40 +440,50 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            _azure11.withValues(alpha: 0),
-            _azure11,
+            bgCream.withValues(alpha: 0),
+            bgCream,
           ],
           stops: const [0.0, 0.3],
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
       child: SafeArea(
         top: false,
-        child: Material(
-          color: _cyan47,
-          borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () {
-              // Navigate to schedule-care passing arguments to enable advanced match flow
-              Navigator.pushNamed(
-                context,
-                '/schedule-care',
-                arguments: {
-                  'schedule': _selectedWorkSchedule,
-                  'isAdvanced': true,
-                },
-              );
-            },
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                'Continue to schedule',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _green8,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+        child: Container(
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(color: accent.withValues(alpha: 0.5), blurRadius: 2, offset: const Offset(2, 2)),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(15),
+              onTap: () {
+                // Navigate to schedule-care passing arguments to enable advanced match flow
+                Navigator.pushNamed(
+                  context,
+                  '/schedule-care',
+                  arguments: {
+                    'schedule': _selectedWorkSchedule,
+                    'isAdvanced': true,
+                    'notes': _notesController.text.trim(),
+                  },
+                );
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 18),
+                child: Text(
+                  'Continue to schedule',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: creamButtonText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

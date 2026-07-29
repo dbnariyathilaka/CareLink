@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 //  Qualifications Intro Screen  (Advanced Match — Step 4 transition)
-//  Figma: P-10e-intro · Qualifications (v2) — Transition intro  node 282-13106
-// ─────────────────────────────────────────────────────────────────────────────
+//  Figma node: 296-7000
+// ─────────────────────────────────────────────────────────────
 class QualificationsIntroScreen extends StatefulWidget {
   const QualificationsIntroScreen({super.key});
 
@@ -12,50 +13,21 @@ class QualificationsIntroScreen extends StatefulWidget {
       _QualificationsIntroScreenState();
 }
 
-class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
-    with TickerProviderStateMixin {
-  // ── Design tokens ──────────────────────────────────────────────────────────
-  static const Color _keppel    = Color(0xFF3DB498); // Keppel Cyan
-  static const Color _bottleGreen = Color(0xFF06291F);
-  static const Color _azure11   = Color(0xFF0F172A); // surface
-  static const Color _azure17   = Color(0xFF1E293B); // card
-  static const Color _azure27   = Color(0xFF334155); // border
-  static const Color _azure65   = Color(0xFF94A3B8); // text secondary
-  static const Color _azure84   = Color(0xFFCBD5E1);
-  static const Color _grey98    = Color(0xFFF8FAFC); // text primary
-  static const Color _tealTop   = Color(0xFF1A7A6E); // hero gradient top
-  static const Color _tealMid   = Color(0xFF0F4F46); // hero gradient mid
+class _QualificationsIntroScreenState extends State<QualificationsIntroScreen> {
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color accent = Color(0xFF6D4275);
+  static const Color stepInactiveBg = Color(0xFFDCD9CF);
+  static const Color stepLineInactive = Color(0xFFD1BAC6);
+  static const Color titleText = Color(0xFF313131);
+  static const Color bodyText = Color.fromRGBO(58, 50, 60, 0.85);
+  static const Color creamButtonText = Color(0xFFF6F0E2);
 
-  // ── State ──────────────────────────────────────────────────────────────────
   Map<String, dynamic> _bookingArgs = {};
-
-  // Pulse animation
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
-
-  // Float animation for icons
-  late AnimationController _floatCtrl;
-  late Animation<double> _floatAnim;
 
   @override
   void initState() {
     super.initState();
-
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.15).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
-
-    _floatCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
-    _floatAnim = Tween<double>(begin: -6.0, end: 6.0).animate(
-      CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut),
-    );
+    setStatusBarStyle(Brightness.dark);
   }
 
   @override
@@ -68,207 +40,116 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
   }
 
   @override
-  void dispose() {
-    _pulseCtrl.dispose();
-    _floatCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _azure11,
-      body: Column(
+      backgroundColor: bgCream,
+      body: Stack(
         children: [
-          // ── Hero (top teal section) ──────────────────────────────────────
-          Expanded(
-            flex: 42,
-            child: _buildHeroSection(),
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/qualifications_hero.png',
+              fit: BoxFit.cover,
+            ),
           ),
-
-          // ── Content (bottom dark section) ────────────────────────────────
-          Expanded(
-            flex: 58,
-            child: _buildContentSection(context),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: titleText,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: _buildStepIndicator(),
+                ),
+              ],
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: FractionallySizedBox(
+              widthFactor: 1,
+              heightFactor: 0.56,
+              child: _buildCard(context),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ── Hero Section ──────────────────────────────────────────────────────────
-  Widget _buildHeroSection() {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_tealTop, _tealMid],
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Back button top-left
-            Positioned(
-              top: 8,
-              left: 16,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const Icon(Icons.arrow_back, color: _grey98, size: 24),
-              ),
-            ),
-
-            // Step indicator (5 bubbles)
-            Positioned(
-              top: 44,
-              left: 16,
-              right: 16,
-              child: _buildStepIndicator(),
-            ),
-
-            // Pulsing glow rings behind central icon
-            AnimatedBuilder(
-              animation: _pulseAnim,
-              builder: (ctx, child) => Transform.scale(
-                scale: _pulseAnim.value,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _keppel.withValues(alpha: 0.12),
-                  ),
-                ),
-              ),
-            ),
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _keppel.withValues(alpha: 0.18),
-              ),
-            ),
-
-            // Central shield-check icon
-            Container(
-              width: 62,
-              height: 62,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _keppel.withValues(alpha: 0.30),
-                border: Border.all(color: _keppel.withValues(alpha: 0.5), width: 1.5),
-              ),
-              child: const Icon(
-                Icons.verified_user_rounded,
-                color: _grey98,
-                size: 32,
-              ),
-            ),
-
-            // Floating graduation cap icon (top-right of center)
-            AnimatedBuilder(
-              animation: _floatAnim,
-              builder: (ctx, child) => Transform.translate(
-                offset: Offset(62, -38 + _floatAnim.value * 0.5),
-                child: _buildFloatingIcon(Icons.school_rounded, 36),
-              ),
-            ),
-
-            // Floating translate/language icon (bottom-left of center)
-            AnimatedBuilder(
-              animation: _floatAnim,
-              builder: (ctx2, child) => Transform.translate(
-                offset: Offset(-70, 38 - _floatAnim.value * 0.5),
-                child: _buildFloatingIcon(Icons.translate_rounded, 36),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFloatingIcon(IconData icon, double size) {
-    return Container(
-      width: size + 8,
-      height: size + 8,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _keppel.withValues(alpha: 0.20),
-        border: Border.all(color: _keppel.withValues(alpha: 0.40), width: 1.2),
-      ),
-      child: Icon(icon, color: _grey98, size: size * 0.58),
-    );
-  }
-
-  // ── Step Indicator ────────────────────────────────────────────────────────
+  // ── 5-step progress indicator (steps 1-4 done, step 5 pending) ──
   Widget _buildStepIndicator() {
     const steps = [
-      _StepData('1', 'Request',        _StepState.done),
-      _StepData('2', 'Schedule',       _StepState.done),
-      _StepData('3', 'Location',       _StepState.done),
-      _StepData('4', 'Qualifications', _StepState.active),
-      _StepData('5', 'Confirm',        _StepState.inactive),
+      _StepInfo('1', 'Request', true),
+      _StepInfo('2', 'Schedule', true),
+      _StepInfo('3', 'Location', true),
+      _StepInfo('4', 'Qualifications', true),
+      _StepInfo('5', 'Confirm', false),
     ];
-
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(steps.length * 2 - 1, (i) {
         if (i.isOdd) {
+          final leftDone = steps[i ~/ 2].done;
           return Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              height: 1.5,
-              color: i < 6 ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.15),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                height: 3,
+                decoration: BoxDecoration(
+                  color: leftDone ? accent : stepLineInactive,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
             ),
           );
         }
         final s = steps[i ~/ 2];
-        final isActive = s.state == _StepState.active;
-        final isDone   = s.state == _StepState.done;
         return Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 22,
-              height: 22,
+              width: 35,
+              height: 35,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isActive
-                    ? Colors.white
-                    : (isDone ? Colors.white.withValues(alpha: 0.12) : Colors.transparent),
-                border: Border.all(
-                  color: isActive
-                      ? Colors.white
-                      : (isDone ? const Color(0xFF8CC0BB) : Colors.white.withValues(alpha: 0.4)),
-                  width: 1,
-                ),
+                color: s.done ? accent : stepInactiveBg,
               ),
               child: Center(
                 child: Text(
                   s.number,
                   style: TextStyle(
-                    color: isActive
-                        ? const Color(0xFF0F766E)
-                        : (isDone ? Colors.white : Colors.white.withValues(alpha: 0.7)),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Open Sans',
+                    color: s.done ? Colors.white : Colors.black,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               s.label,
-              style: TextStyle(
-                color: isActive || isDone ? Colors.white : Colors.white.withValues(alpha: 0.7),
-                fontSize: 8,
-                fontWeight: isActive || isDone ? FontWeight.w600 : FontWeight.w400,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: accent,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -277,92 +158,81 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
     );
   }
 
-  // ── Content Section ───────────────────────────────────────────────────────
-  Widget _buildContentSection(BuildContext context) {
+  // ── Cream rounded-top card overlapping the bottom of the hero image ──
+  Widget _buildCard(BuildContext context) {
     return Container(
-      color: _azure11,
-      padding: const EdgeInsets.fromLTRB(24, 26, 24, 0),
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: bgCream,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 26, 24, 20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Spacer(),
-          // Heading
-          const Text(
-            "Now, let's set caregiver\nqualifications",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _grey98,
-              fontSize: 25,
-              fontWeight: FontWeight.w800,
-              fontFamily: 'Inter',
-              height: 1.2,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Subtitle
-          Container(
-            constraints: const BoxConstraints(maxWidth: 280),
-            child: const Text(
-              'Tell us the education, experience and skills your ideal caregiver should have.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _azure65,
-                fontSize: 14.5,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Inter',
-                height: 1.5,
+          Column(
+            children: const [
+              Text(
+                "Now, let's set caregiver\nqualifications",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: titleText,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
+                  height: 1.15,
+                ),
               ),
-            ),
+              SizedBox(height: 14),
+              Text(
+                'Tell us the education, experience and skills your ideal caregiver should have.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: bodyText,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-
-          // Category cards row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildCategoryItem('assets/images/qualifications_education_icon.png', 'Education'),
+              _buildCategoryItem('assets/images/qualifications_experience_icon.png', 'Experience'),
+              _buildCategoryItem('assets/images/qualifications_language_icon.png', 'Language'),
+            ],
+          ),
           SizedBox(
-            width: 300,
-            child: Row(
-              children: [
-                _buildCategoryCard(Icons.school_rounded, 'Education'),
-                const SizedBox(width: 10),
-                _buildCategoryCard(Icons.work_history_rounded, 'Experience'),
-                const SizedBox(width: 10),
-                _buildCategoryCard(Icons.translate_rounded, 'Languages'),
-              ],
-            ),
-          ),
-
-          const Spacer(),
-
-          // Continue button
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Material(
-                color: _keppel,
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/qualifications-selection',
-                      arguments: _bookingArgs,
-                    );
-                  },
-                  child: const SizedBox(
-                    height: 54,
-                    child: Center(
-                      child: Text(
-                        'Continue',
-                        style: TextStyle(
-                          color: _bottleGreen,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'Inter',
-                        ),
-                      ),
+            width: double.infinity,
+            child: Material(
+              color: accent,
+              borderRadius: BorderRadius.circular(15),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(15),
+                onTap: () {
+                  Navigator.pushNamed(
+                    context,
+                    '/qualifications-selection',
+                    arguments: _bookingArgs,
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 18),
+                  child: Text(
+                    'Continue',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: creamButtonText,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -374,42 +244,30 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen>
     );
   }
 
-  Widget _buildCategoryCard(IconData icon, String label) {
-    return Expanded(
-      child: Container(
-        height: 65,
-        decoration: BoxDecoration(
-          color: _azure17,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _azure27, width: 1),
+  Widget _buildCategoryItem(String assetPath, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(assetPath, width: 48, height: 48),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Open Sans',
+            color: Colors.black,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: _keppel, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: _azure84,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Inter',
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-enum _StepState { done, active, inactive }
-
-class _StepData {
+// ── Step data model ───────────────────────────────────────
+class _StepInfo {
   final String number;
   final String label;
-  final _StepState state;
-  const _StepData(this.number, this.label, this.state);
+  final bool done;
+  const _StepInfo(this.number, this.label, this.done);
 }

@@ -7,6 +7,7 @@ import '../services/caregiver_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/upload_picker_sheet.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Edit Profile Screen
@@ -63,6 +64,7 @@ class _CaregiverEditProfileScreenState
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
     _loadProfile();
   }
 

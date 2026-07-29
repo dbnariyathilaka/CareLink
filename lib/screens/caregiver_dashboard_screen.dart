@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../widgets/remote_or_local_image.dart';
+import '../widgets/status_bar.dart';
 
 enum _DutyStatus { available, busy, offDuty }
 
@@ -29,6 +30,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
     _loadUserName();
     _loadOwnPhoto();
   }

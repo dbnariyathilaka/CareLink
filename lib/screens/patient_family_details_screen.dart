@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient details (family member)
@@ -82,6 +83,12 @@ class _PatientFamilyDetailsScreenState
         ),
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.light);
   }
 
   @override

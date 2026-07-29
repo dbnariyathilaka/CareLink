@@ -9,6 +9,7 @@ import '../services/storage_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/upload_picker_sheet.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient My Profile Screen
@@ -87,6 +88,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
     _matchIconController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),

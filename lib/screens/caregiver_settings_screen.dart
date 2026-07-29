@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Settings Screen
@@ -35,6 +36,12 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
   bool _newBookingRequests = true;
   bool _paymentReceived    = true;
   bool _newReviewReceived  = false;
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.light);
+  }
 
   @override
   Widget build(BuildContext context) {

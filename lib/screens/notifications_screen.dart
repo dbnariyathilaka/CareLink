@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/booking_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Notifications Screen  (Patient)
@@ -118,6 +119,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
     _matchIconController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 class StartingScreen extends StatefulWidget {
   const StartingScreen({super.key});
@@ -14,6 +15,7 @@ class _StartingScreenState extends State<StartingScreen> {
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
     _timer = Timer(const Duration(seconds: 5), () {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/welcome');

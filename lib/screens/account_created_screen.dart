@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 class AccountCreatedScreen extends StatefulWidget {
   const AccountCreatedScreen({super.key});
@@ -18,6 +19,7 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
 
     // Premium entrance animation sequence
     _mainController = AnimationController(

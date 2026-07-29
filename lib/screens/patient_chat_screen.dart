@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient Chat Screen  (Chat Thread — Patient view)
@@ -15,6 +16,7 @@ class PatientChatScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    setStatusBarStyle(Brightness.light);
     return Scaffold(
       backgroundColor: _azure11,
       body: SafeArea(

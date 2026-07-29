@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 class PatientOnboarding4Screen extends StatefulWidget {
   const PatientOnboarding4Screen({super.key});
@@ -38,6 +39,7 @@ class _PatientOnboarding4ScreenState extends State<PatientOnboarding4Screen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
 
     _heroController = AnimationController(
       vsync: this,

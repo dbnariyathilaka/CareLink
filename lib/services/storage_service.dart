@@ -1,27 +1,45 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
-/// Thin wrapper around Firebase Storage for profile pictures and caregiver
-/// verification documents (police clearance, certificates, other docs).
+/// Uploads profile pictures and caregiver verification documents (police
+/// clearance, certificates, other docs) to Cloudinary via an unsigned
+/// upload preset, and returns the resulting HTTPS download URL.
 class StorageService {
   StorageService._();
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
+
+  static const String _cloudName = 'ov1bmnqf';
+  static const String _uploadPreset = 'Care_Match';
+  static final Uri _uploadUrl =
+      Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/auto/upload');
 
   static Future<String> uploadBytes({
     required String storagePath,
     required Uint8List bytes,
     String? contentType,
   }) async {
-    final ref = _storage.ref(storagePath);
-    await ref.putData(
-      bytes,
-      SettableMetadata(contentType: contentType ?? _contentTypeFor(storagePath)),
-    );
-    return ref.getDownloadURL();
+    final slash = storagePath.lastIndexOf('/');
+    final folder = slash == -1 ? '' : storagePath.substring(0, slash);
+    final filename = slash == -1 ? storagePath : storagePath.substring(slash + 1);
+
+    final request = http.MultipartRequest('POST', _uploadUrl)
+      ..fields['upload_preset'] = _uploadPreset
+      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    if (folder.isNotEmpty) {
+      request.fields['folder'] = folder;
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200) {
+      throw Exception('Cloudinary upload failed (${response.statusCode}): ${response.body}');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['secure_url'] as String;
   }
 
   static Future<String> uploadXFile(String storagePath, XFile file) async {
@@ -55,15 +73,5 @@ class StorageService {
   static String _extOf(String filename) {
     final i = filename.lastIndexOf('.');
     return i == -1 ? '' : filename.substring(i).toLowerCase();
-  }
-
-  static String? _contentTypeFor(String path) {
-    final ext = path.toLowerCase().split('.').last;
-    return switch (ext) {
-      'jpg' || 'jpeg' => 'image/jpeg',
-      'png' => 'image/png',
-      'pdf' => 'application/pdf',
-      _ => null,
-    };
   }
 }

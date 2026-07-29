@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/patient_service.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Edit Care Requirements Screen (Patient)
-//  Figma node: 498-3870 · P-28 · Edit Care Requirements (Patient)
+//  Figma node: 275-2005
 //
 //  Consolidates what used to be spread across the two-step
 //  onboarding flow (care type, schedule, location, preferred
@@ -23,14 +23,14 @@ class EditCareRequirementsScreen extends StatefulWidget {
 
 class _EditCareRequirementsScreenState
     extends State<EditCareRequirementsScreen> {
-  static const Color _azure17 = AppTheme.cardColor;
-  static const Color _azure27 = AppTheme.borderColor;
-  static const Color _azure47 = Color(0xFF64748B);
-  static const Color _azure65 = AppTheme.textSecondary;
-  static const Color _grey98 = AppTheme.textPrimary;
-  static const Color _green45 = AppTheme.primaryGreen;
-  static const Color _green8 = AppTheme.bottleGreen;
-  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color darkGreen = Color(0xFF06402B);
+  static const Color sectionLabel = Color.fromRGBO(0, 0, 0, 0.5);
+  static const Color chipUnselectedText = Color(0xFF06402B);
+  static const Color locationFieldBg = Color(0xFFEFE6D6);
+  static const Color notesFieldBg = Color.fromRGBO(168, 156, 126, 0.3);
+  static const Color notesPlaceholder = Color(0xFF6E6656);
+  static const Color chevronMuted = Color(0xFF6B7A72);
 
   static const List<String> _careTypes = [
     'Elder care',
@@ -50,6 +50,7 @@ class _EditCareRequirementsScreenState
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
     _selectedCareType = AppState.careType.value;
     _selectedSchedule = AppState.careSchedule.value;
     _selectedGender = AppState.preferredGender.value;
@@ -95,7 +96,7 @@ class _EditCareRequirementsScreenState
     final selected = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _azure17,
+      backgroundColor: bgCream,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -121,7 +122,7 @@ class _EditCareRequirementsScreenState
                         width: 40,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: _azure27,
+                          color: darkGreen.withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
@@ -130,25 +131,33 @@ class _EditCareRequirementsScreenState
                         child: TextField(
                           autofocus: true,
                           onChanged: (v) => setSheetState(() => query = v),
-                          style: const TextStyle(color: _grey98, fontSize: 15),
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: darkGreen,
+                            fontSize: 15,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Search city or area',
-                            hintStyle: const TextStyle(color: _azure47, fontSize: 15),
-                            prefixIcon: const Icon(Icons.search_rounded, color: _azure65),
+                            hintStyle: TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: darkGreen.withValues(alpha: 0.5),
+                              fontSize: 15,
+                            ),
+                            prefixIcon: Icon(Icons.search_rounded, color: darkGreen.withValues(alpha: 0.6)),
                             filled: true,
-                            fillColor: AppTheme.surfaceColor,
+                            fillColor: Colors.white,
                             contentPadding: const EdgeInsets.symmetric(vertical: 12),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: _azure27),
+                              borderSide: BorderSide(color: darkGreen.withValues(alpha: 0.2)),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: _azure27),
+                              borderSide: BorderSide(color: darkGreen.withValues(alpha: 0.2)),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: _green45, width: 1.5),
+                              borderSide: const BorderSide(color: darkGreen, width: 1.5),
                             ),
                           ),
                         ),
@@ -160,10 +169,13 @@ class _EditCareRequirementsScreenState
                             final item = matches[i];
                             final label = '${item['city']}, ${item['district']}';
                             return ListTile(
-                              leading: const Icon(Icons.location_on_outlined, color: _green45),
+                              leading: const Icon(Icons.location_on_outlined, color: darkGreen),
                               title: Text(label,
                                   style: const TextStyle(
-                                      color: _grey98, fontSize: 14, fontWeight: FontWeight.w500)),
+                                      fontFamily: 'Open Sans',
+                                      color: darkGreen,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500)),
                               onTap: () => Navigator.pop(ctx, label),
                             );
                           },
@@ -186,26 +198,27 @@ class _EditCareRequirementsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bgCream,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 6, 22, 10),
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 10),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back, color: _grey98, size: 24),
+                    child: const Icon(Icons.arrow_back_ios_new_rounded, color: darkGreen, size: 20),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 16),
                   const Text(
                     'Edit care requirements',
                     style: TextStyle(
-                      color: _grey98,
+                      fontFamily: 'Open Sans',
+                      color: darkGreen,
                       fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -213,85 +226,88 @@ class _EditCareRequirementsScreenState
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 6, 22, 18),
+                padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLabel('Care type'),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _careTypes.map((type) {
-                        final isSelected = _selectedCareType == type;
-                        return _buildPillChip(
-                          label: type,
-                          isSelected: isSelected,
-                          onTap: () => setState(() => _selectedCareType = type),
-                        );
-                      }).toList(),
+                    Center(child: _buildLabel('Care type')),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _careTypes.map((type) {
+                          final isSelected = _selectedCareType == type;
+                          return _buildPillChip(
+                            label: type,
+                            isSelected: isSelected,
+                            onTap: () => setState(() => _selectedCareType = type),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 22),
 
                     _buildLabel('Care schedule'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     _buildSegmentedRow(
                       options: _careSchedules,
                       selected: _selectedSchedule,
                       onSelect: (v) => setState(() => _selectedSchedule = v),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 22),
 
                     _buildLabel('Location'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     GestureDetector(
                       onTap: _showLocationPicker,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(15),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
                         decoration: BoxDecoration(
-                          color: _azure17,
-                          border: Border.all(color: _azure27),
+                          color: locationFieldBg,
+                          border: Border.all(color: darkGreen, width: 1.4),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.location_on, color: _green45, size: 20),
+                            const Icon(Icons.location_on_rounded, color: darkGreen, size: 20),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                _location,
+                                _location.isEmpty ? 'Select your city or area' : _location,
                                 style: const TextStyle(
-                                  color: _grey98,
+                                  fontFamily: 'Open Sans',
+                                  color: darkGreen,
                                   fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                            const Icon(Icons.expand_more_rounded, color: _azure47, size: 20),
+                            const Icon(Icons.expand_more_rounded, color: chevronMuted, size: 22),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 22),
 
                     _buildLabel('Preferred gender'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     _buildSegmentedRow(
                       options: _genderOptions,
                       selected: _selectedGender,
                       onSelect: (v) => setState(() => _selectedGender = v),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 22),
 
                     _buildLabel('Additional notes'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Container(
                       width: double.infinity,
                       constraints: const BoxConstraints(minHeight: 56),
                       decoration: BoxDecoration(
-                        color: _azure17,
-                        border: Border.all(color: _azure27),
+                        color: notesFieldBg,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: TextField(
@@ -299,44 +315,48 @@ class _EditCareRequirementsScreenState
                         maxLines: 4,
                         minLines: 2,
                         style: const TextStyle(
-                          color: _grey98,
+                          fontFamily: 'Open Sans',
+                          color: darkGreen,
                           fontSize: 13,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.w500,
                           height: 1.4,
                         ),
                         decoration: const InputDecoration(
                           isDense: true,
+                          filled: false,
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.all(15),
                           hintText: 'Prefers a caregiver experienced with mobility '
                               'support and medication reminders.',
                           hintStyle: TextStyle(
-                            color: _azure47,
+                            fontFamily: 'Open Sans',
+                            color: notesPlaceholder,
                             fontSize: 13,
-                            fontWeight: FontWeight.w400,
+                            fontWeight: FontWeight.w500,
                             height: 1.4,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 28),
 
                     SizedBox(
                       width: double.infinity,
                       child: Material(
-                        color: _green45,
-                        borderRadius: BorderRadius.circular(10),
+                        color: darkGreen,
+                        borderRadius: BorderRadius.circular(12),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                           onTap: _save,
                           child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 15),
+                            padding: EdgeInsets.symmetric(vertical: 16),
                             child: Text(
                               'Save requirements',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: _green8,
-                                fontSize: 15,
+                                fontFamily: 'Open Sans',
+                                color: Colors.white,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -357,9 +377,10 @@ class _EditCareRequirementsScreenState
   Widget _buildLabel(String text) => Text(
         text,
         style: const TextStyle(
-          color: _azure65,
+          fontFamily: 'Open Sans',
+          color: sectionLabel,
           fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
         ),
       );
 
@@ -372,20 +393,18 @@ class _EditCareRequirementsScreenState
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         decoration: BoxDecoration(
-          color: isSelected ? _green45.withValues(alpha: 0.15) : _azure17,
+          color: isSelected ? darkGreen : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isSelected ? _green45 : _azure27,
-            width: 1,
-          ),
+          border: Border.all(color: darkGreen, width: 1.3),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? _green45 : _geyser,
-            fontSize: 12,
+            fontFamily: 'Open Sans',
+            color: isSelected ? Colors.white : chipUnselectedText,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -402,7 +421,7 @@ class _EditCareRequirementsScreenState
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: List.generate(options.length * 2 - 1, (i) {
-          if (i.isOdd) return const SizedBox(width: 8);
+          if (i.isOdd) return const SizedBox(width: 10);
           final option = options[i ~/ 2];
           final isSelected = option == selected;
           return Expanded(
@@ -410,22 +429,20 @@ class _EditCareRequirementsScreenState
               onTap: () => onSelect(option),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 decoration: BoxDecoration(
-                  color: isSelected ? _green45.withValues(alpha: 0.15) : _azure17,
+                  color: isSelected ? darkGreen : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected ? _green45 : _azure27,
-                    width: 1,
-                  ),
+                  border: Border.all(color: darkGreen, width: 1.3),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   option,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? _green45 : _geyser,
-                    fontSize: 12,
+                    fontFamily: 'Open Sans',
+                    color: isSelected ? Colors.white : chipUnselectedText,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../theme/app_theme.dart';
 import 'certificate_upload_dialog.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 2 of 6
@@ -45,6 +46,12 @@ class _CaregiverOnboarding2ScreenState
     'Medication management',
     'Dementia care',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.light);
+  }
 
   @override
   Widget build(BuildContext context) {

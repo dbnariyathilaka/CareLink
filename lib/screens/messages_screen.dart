@@ -1,38 +1,109 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import '../widgets/empty_state.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Messages List Screen  (Patient)
-//  Messaging unlocks once a real booking exists — no booking
-//  infrastructure exists yet (Phase 2), so this is always empty today.
+//  Figma node: 294-169
+//  Messaging unlocks once a real booking is confirmed — no
+//  caregiver-side accept flow exists yet, so this is always the
+//  empty state today.
 // ─────────────────────────────────────────────────────────────
 class MessagesScreen extends StatelessWidget {
   const MessagesScreen({super.key});
 
-  static const Color _azure11 = AppTheme.surfaceColor;
-  static const Color _azure17 = AppTheme.cardColor;
-  static const Color _azure47 = Color(0xFF64748B);
-  static const Color _grey98 = AppTheme.textPrimary;
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color titleGreen = Color(0xFF0F3D2E);
+  static const Color heading = Color(0xFF462911);
+  static const Color body = Color.fromRGBO(70, 41, 17, 0.67);
+  static const Color caption = Color.fromRGBO(0, 0, 0, 0.67);
+  static const Color buttonBg = Color(0xFFAAA897);
 
   @override
   Widget build(BuildContext context) {
+    setStatusBarStyle(Brightness.dark);
     return Scaffold(
-      backgroundColor: _azure11,
+      backgroundColor: bgCream,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
-            const Expanded(
-              child: EmptyState(
-                icon: Icons.chat_bubble_outline_rounded,
-                message:
-                    'No conversations yet — messaging unlocks once you have a '
-                    'confirmed booking.',
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 260,
+                      height: 260,
+                      child: Image.asset(
+                        'assets/images/empty_messages.webp',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: buttonBg,
+                          size: 120,
+                        ),
+                      ),
+                    ),
+                    const Text(
+                      'No messages yet',
+                      style: TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: heading,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Messages are unlocked when a booking is confirmed. '
+                      'Once a caregiver accepts your request, you can chat '
+                      'with them here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: body,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(context, '/my-bookings'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+                        decoration: BoxDecoration(
+                          color: buttonBg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'View my bookings',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: heading,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    const Text(
+                      'You can only message caregivers linked to an active booking.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: caption,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            _buildInfoBar(),
           ],
         ),
       ),
@@ -42,49 +113,21 @@ class MessagesScreen extends StatelessWidget {
   // ── Page header ───────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 12),
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 12),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back, color: _grey98, size: 24),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: titleGreen, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           const Text(
             'Messages',
             style: TextStyle(
-              color: _grey98,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Bottom info bar ───────────────────────────────────────
-  Widget _buildInfoBar() {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: _azure17, width: 1),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(22, 15, 22, 14),
-      child: Row(
-        children: const [
-          Icon(Icons.lock_outline_rounded, color: _azure47, size: 16),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Messages are only available for confirmed bookings.',
-              style: TextStyle(
-                color: _azure47,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
+              fontFamily: 'Open Sans',
+              color: titleGreen,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

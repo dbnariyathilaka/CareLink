@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  My Bookings Screen  (Patient)
@@ -68,6 +69,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
     final uid = AuthService.currentUser?.uid;
     if (uid != null) {
       _bookingsStream = BookingService.streamBookingsForPatient(uid);

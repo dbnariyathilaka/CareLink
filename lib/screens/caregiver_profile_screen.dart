@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/status_bar.dart';
 
 class CaregiverProfileScreen extends StatefulWidget {
   const CaregiverProfileScreen({super.key});
@@ -53,6 +54,12 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     } else {
       setState(() => _loading = false);
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
   }
 
   @override

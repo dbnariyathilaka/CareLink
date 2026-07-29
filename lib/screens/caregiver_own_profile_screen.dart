@@ -7,6 +7,7 @@ import '../services/storage_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/upload_picker_sheet.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver's own "My profile" screen
@@ -31,6 +32,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
     _loadProfile();
   }
 

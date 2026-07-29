@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 class ForgotPasswordResetSuccessScreen extends StatefulWidget {
   const ForgotPasswordResetSuccessScreen({super.key});
@@ -20,6 +21,7 @@ class _ForgotPasswordResetSuccessScreenState
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
 
     _mainController = AnimationController(
       vsync: this,

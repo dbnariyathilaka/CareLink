@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart' as firebase_core;
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
@@ -62,6 +63,7 @@ void main() async {
   await firebase_core.Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const CareMatchApp());
 }
 

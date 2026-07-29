@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  In-call screen — simulated voice / video call UI shown when
@@ -42,6 +43,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
     _ringTimer = Timer(const Duration(milliseconds: 2200), _connect);
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
+import '../widgets/status_bar.dart';
 
 class SendRequestScreen extends StatefulWidget {
   const SendRequestScreen({super.key});
@@ -52,6 +53,12 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   void dispose() {
     _notesController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
   }
 
   @override

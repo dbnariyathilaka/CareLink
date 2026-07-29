@@ -6,6 +6,7 @@ import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/remote_or_local_image.dart';
+import '../widgets/status_bar.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -26,6 +27,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
     _loadUserName();
     _loadOwnPhoto();
     _loadCaregiverCount();

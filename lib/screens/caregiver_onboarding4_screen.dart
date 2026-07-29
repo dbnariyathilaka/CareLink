@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/upload_picker_sheet.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 4 of 6
@@ -61,6 +62,12 @@ class _CaregiverOnboarding4ScreenState
         const SnackBar(content: Text('Could not upload photo. Please try again.')),
       );
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.light);
   }
 
   @override

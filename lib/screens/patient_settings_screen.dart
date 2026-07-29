@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient Settings Screen
@@ -31,6 +32,12 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   bool _newTop5Found = false;
   bool _darkMode = true;
   String _language = 'English';
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+  }
 
   @override
   Widget build(BuildContext context) {

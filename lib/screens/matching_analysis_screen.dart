@@ -1,12 +1,12 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Matching Analysis Screen  (Advanced Match — loading/waiting)
-//  Figma: P-17-loading · Analyzing Matches (v2) — waiting screen  node 282-13544
-//  Auto-advances to /top-matches after the staged animation completes.
+//  Matching Analysis Screen  (Advanced Match — loading screen after Confirm)
+//  Figma node: 331-754
+//  Auto-advances to /advanced-match-results after the staged steps complete.
 // ─────────────────────────────────────────────────────────────────────────────
 class MatchingAnalysisScreen extends StatefulWidget {
   const MatchingAnalysisScreen({super.key});
@@ -15,96 +15,55 @@ class MatchingAnalysisScreen extends StatefulWidget {
   State<MatchingAnalysisScreen> createState() => _MatchingAnalysisScreenState();
 }
 
-class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
-    with TickerProviderStateMixin {
+class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen> {
   // ── Design tokens ──────────────────────────────────────────────────────────
-  static const Color _keppel      = Color(0xFF3DB498);
-  static const Color _azure11     = Color(0xFF0F172A);
-  static const Color _azure17     = Color(0xFF1E293B);
-  static const Color _azure27     = Color(0xFF334155);
-  static const Color _azure47     = Color(0xFF64748B);
-  static const Color _azure65     = Color(0xFF94A3B8);
-  static const Color _grey98      = Color(0xFFF8FAFC);
-  static const Color _tealTop     = Color(0xFF1A7A6E);
-  static const Color _tealMid     = Color(0xFF0D4F47);
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color heroCardBg = Color(0xFFFFFADC);
+  static const Color titleBrown = Color(0xFF63553D);
+  static const Color subtitleBrown = Color.fromRGBO(99, 85, 61, 0.94);
+  static const Color stepDoneFill = Color(0xFFC79A7F);
+  static const Color stepDoneStroke = Color(0xFF4D2409);
+  static const Color stepDoneCheck = Color(0xFF4F260C);
+  static const Color stepPendingFill = Color.fromRGBO(157, 120, 99, 0.25);
+  static const Color stepDoneLabel = Color(0xFF280F00);
+  static const Color stepActiveLabel = Color(0xFFB4633D);
+  static const Color stepPendingLabel = Color.fromRGBO(40, 15, 0, 0.6);
+  static const Color banner1Bg = Color(0xFF313131);
+  static const Color banner1Border = Color(0xFF334155);
+  static const Color banner1Text = Color(0xFFDFD0BF);
+  static const Color banner2Bg = Color.fromRGBO(49, 49, 49, 0.17);
+  static const Color banner2Border = Color(0xFF313131);
 
   // ── Steps ──────────────────────────────────────────────────────────────────
   static const _steps = [
     'Reviewing care type & schedule',
     'Checking location & distance',
-    'Matching qualifications...',
+    'Matching qualifications…',
     'Ranking your top 5',
     'Preparing your results',
   ];
 
-  int _completedSteps = 0; // how many have ticked green
-  int _activeStep     = 0; // 0-based currently animating step
-  bool _done          = false;
+  int _completedSteps = 0; // how many have ticked done
+  int _activeStep = 0; // 0-based currently animating step
+  bool _done = false;
 
   Map<String, dynamic> _bookingArgs = {};
 
-  // ── Animations ─────────────────────────────────────────────────────────────
-  late AnimationController _spinCtrl;    // orbit ring rotation
-  late AnimationController _pulseCtrl;   // inner glow pulse
-  late AnimationController _orbitCtrl;   // floating icons orbit
-  late AnimationController _dotsCtrl;    // ellipsis dots
-
-  late Animation<double> _spinAnim;
-  late Animation<double> _pulseAnim;
-  late Animation<double> _orbitAnim;
-  late Animation<double> _dotsAnim;
-
-  // Step timers
   final List<Timer> _timers = [];
 
   @override
   void initState() {
     super.initState();
-
-    // Spinning orbit ring
-    _spinCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3000),
-    )..repeat();
-    _spinAnim = Tween<double>(begin: 0, end: 2 * math.pi)
-        .animate(CurvedAnimation(parent: _spinCtrl, curve: Curves.linear));
-
-    // Pulsing inner glow
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.88, end: 1.08)
-        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
-
-    // Orbiting small icons
-    _orbitCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 4500),
-    )..repeat();
-    _orbitAnim = Tween<double>(begin: 0, end: 2 * math.pi)
-        .animate(CurvedAnimation(parent: _orbitCtrl, curve: Curves.linear));
-
-    // Animated dots
-    _dotsCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
-    _dotsAnim = Tween<double>(begin: 0, end: 3)
-        .animate(CurvedAnimation(parent: _dotsCtrl, curve: Curves.linear));
-
-    // Stage the step progression
+    setStatusBarStyle(Brightness.dark);
     _scheduleSteps();
   }
 
   void _scheduleSteps() {
-    // Each step takes ~1.4 s, step 0 already "completed" at start
     // after 0.5 s → step 0 done, step 1 active
     // after 1.9 s → step 1 done, step 2 active
     // after 3.3 s → step 2 done, step 3 active
     // after 4.7 s → step 3 done, step 4 active
     // after 5.8 s → all done → navigate
-
     final delays = [500, 1900, 3300, 4700, 5800];
 
     for (int i = 0; i < delays.length; i++) {
@@ -113,11 +72,11 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
         setState(() {
           if (i < _steps.length - 1) {
             _completedSteps = i + 1;
-            _activeStep     = i + 1;
+            _activeStep = i + 1;
           } else {
             _completedSteps = _steps.length;
-            _activeStep     = _steps.length;
-            _done           = true;
+            _activeStep = _steps.length;
+            _done = true;
           }
         });
         if (i == delays.length - 1) {
@@ -131,7 +90,6 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
   void _navigateToResults() {
     Timer(const Duration(milliseconds: 600), () {
       if (!mounted) return;
-      // Mark that a match result is now active globally
       AppState.hasActiveMatch.value = true;
       AppState.lastMatchArgs = _bookingArgs;
       Navigator.pushNamedAndRemoveUntil(
@@ -157,10 +115,6 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
     for (final t in _timers) {
       t.cancel();
     }
-    _spinCtrl.dispose();
-    _pulseCtrl.dispose();
-    _orbitCtrl.dispose();
-    _dotsCtrl.dispose();
     super.dispose();
   }
 
@@ -168,227 +122,109 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _azure11,
-      body: Column(
-        children: [
-          // Top teal hero
-          Expanded(
-            flex: 40,
-            child: _buildHero(),
+      backgroundColor: bgCream,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeroCard(),
+              const SizedBox(height: 28),
+              _buildStepList(),
+              const SizedBox(height: 20),
+              _buildInfoBanner(
+                icon: Icons.shield_rounded,
+                text:
+                    'We only show caregivers who are verified and background-checked.',
+                iconSize: 30,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                bg: banner1Bg,
+                border: banner1Border,
+                textColor: banner1Text,
+                iconColor: banner1Text,
+                padding: const EdgeInsets.all(21),
+                radius: 14,
+              ),
+              const SizedBox(height: 12),
+              _buildInfoBanner(
+                icon: Icons.bolt_rounded,
+                text: 'Hang tight — this usually takes just a few seconds.',
+                iconSize: 22,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                bg: banner2Bg,
+                border: banner2Border,
+                textColor: banner2Border,
+                iconColor: banner2Border,
+                padding: const EdgeInsets.all(15),
+                radius: 12,
+              ),
+            ],
           ),
-          // Bottom content
-          Expanded(
-            flex: 60,
-            child: _buildContent(),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  // ── Hero section ───────────────────────────────────────────────────────────
-  Widget _buildHero() {
+  // ── Hero card: title, subtitle, GIF ─────────────────────────────────────
+  Widget _buildHeroCard() {
     return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_tealTop, _tealMid],
-        ),
+      decoration: BoxDecoration(
+        color: heroCardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          child: SizedBox(
-            width: 200,
-            height: 200,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Pulsing outer glow
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (ctx, child) => Transform.scale(
-                    scale: _pulseAnim.value,
-                    child: Container(
-                      width: 170,
-                      height: 170,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _keppel.withValues(alpha: 0.12),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Spinning orbit ring
-                AnimatedBuilder(
-                  animation: _spinAnim,
-                  builder: (ctx, child) => Transform.rotate(
-                    angle: _spinAnim.value,
-                    child: Container(
-                      width: 148,
-                      height: 148,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _grey98.withValues(alpha: 0.85),
-                          width: 2.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Inner filled circle with icon
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (ctx, child) => Transform.scale(
-                    scale: 0.97 + (_pulseAnim.value - 0.88) * 0.3,
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _keppel.withValues(alpha: 0.35),
-                        border: Border.all(
-                          color: _keppel.withValues(alpha: 0.5),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.tune_rounded,
-                        color: _grey98,
-                        size: 44,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Orbiting floating icons
-                AnimatedBuilder(
-                  animation: _orbitAnim,
-                  builder: (ctx, child) {
-                    const radius = 82.0;
-                    // heart icon at angle 0 + offset
-                    final heartAngle = _orbitAnim.value - math.pi / 6;
-                    final heartX = math.cos(heartAngle) * radius;
-                    final heartY = math.sin(heartAngle) * radius;
-
-                    // grad cap at opposite side
-                    final capAngle = _orbitAnim.value + math.pi * 0.75;
-                    final capX = math.cos(capAngle) * radius;
-                    final capY = math.sin(capAngle) * radius;
-
-                    return Stack(
-                      children: [
-                        Positioned(
-                          left: 100 + heartX - 18,
-                          top:  100 + heartY - 18,
-                          child: _buildOrbitIcon(Icons.favorite_rounded),
-                        ),
-                        Positioned(
-                          left: 100 + capX - 18,
-                          top:  100 + capY - 18,
-                          child: _buildOrbitIcon(Icons.school_rounded),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+      child: Column(
+        children: [
+          const Text(
+            'Analyzing your details…',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: titleBrown,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.4,
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOrbitIcon(IconData icon) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _tealMid,
-        border: Border.all(color: _grey98.withValues(alpha: 0.6), width: 1.5),
-      ),
-      child: Icon(icon, color: _grey98, size: 18),
-    );
-  }
-
-  // ── Content section ────────────────────────────────────────────────────────
-  Widget _buildContent() {
-    return Container(
-      color: _azure11,
-      padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title
-          _buildTitle(),
-          const SizedBox(height: 14),
-
-          // Step list
-          _buildStepList(),
-          const Spacer(),
-
-          // Info banners
-          _buildInfoBanner(
-            icon: Icons.verified_user_outlined,
-            text: 'We only show caregivers who are verified and background-checked.',
+          const SizedBox(height: 10),
+          const Text(
+            "Almost done! we're ranking caregivers who best match what you need.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: subtitleBrown,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.6,
+            ),
           ),
           const SizedBox(height: 8),
-          _buildInfoBanner(
-            icon: Icons.bolt_rounded,
-            text: 'Hang tight — this usually takes just a few seconds.',
-            isAccent: true,
+          Image.asset(
+            'assets/images/loading_screen.gif',
+            width: 220,
+            height: 220,
           ),
-          const SizedBox(height: 4),
         ],
       ),
     );
   }
 
-  Widget _buildTitle() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AnimatedBuilder(
-          animation: _dotsAnim,
-          builder: (ctx, child) {
-            final dots = '.' * ((_dotsAnim.value.floor() % 4));
-            final suffix = _done ? '' : dots;
-            return Text(
-              'Analyzing your details$suffix',
-              style: const TextStyle(
-                color: _grey98,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                height: 1.2,
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Almost done — we\'re ranking caregivers who best match what you need.',
-          style: TextStyle(
-            color: _azure65,
-            fontSize: 13,
-            height: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-
+  // ── Step list ────────────────────────────────────────────────────────────
   Widget _buildStepList() {
     return Column(
       children: List.generate(_steps.length, (i) {
-        final isDone   = i < _completedSteps;
-        final isActive = i == _activeStep && !_done && i < _completedSteps == false;
+        final isDone = i < _completedSteps;
+        final isActive = i == _activeStep && !isDone && !_done;
         return _buildStepRow(_steps[i], isDone: isDone, isActive: isActive, index: i);
       }),
     );
@@ -406,47 +242,36 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Indicator column
           SizedBox(
-            width: 28,
+            width: 26,
             child: Column(
               children: [
-                // Bubble
                 Container(
                   width: 26,
                   height: 26,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isDone
-                        ? _keppel
-                        : (isActive
-                            ? _keppel.withValues(alpha: 0.15)
-                            : _azure17),
+                        ? stepDoneFill
+                        : (isActive ? Colors.transparent : stepPendingFill),
                     border: Border.all(
-                      color: isDone || isActive ? _keppel : _azure27,
-                      width: 1.5,
+                      color: isDone || isActive
+                          ? stepDoneStroke
+                          : Colors.transparent,
+                      width: 2,
                     ),
                   ),
                   child: isDone
-                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 15)
-                      : isActive
-                          ? Container(
-                              width: 8,
-                              height: 8,
-                              margin: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _keppel,
-                              ),
-                            )
-                          : null,
+                      ? const Icon(Icons.check_rounded,
+                          color: stepDoneCheck, size: 16)
+                      : null,
                 ),
-                // Connector line
                 if (!isLastStep)
                   Expanded(
                     child: Container(
-                      width: 2,
-                      color: isDone ? _keppel : _azure27,
+                      width: 3,
+                      color: isDone ? stepDoneFill : stepPendingFill,
                       margin: const EdgeInsets.symmetric(vertical: 2),
                     ),
                   ),
@@ -454,24 +279,21 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
             ),
           ),
           const SizedBox(width: 14),
-
-          // Label
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(
-                top: 4,
-                bottom: isLastStep ? 0 : 10,
+                top: 3,
+                bottom: isLastStep ? 0 : 14,
               ),
               child: Text(
                 label,
                 style: TextStyle(
+                  fontFamily: 'Open Sans',
                   color: isDone
-                      ? _grey98
-                      : (isActive ? _keppel : _azure47),
+                      ? stepDoneLabel
+                      : (isActive ? stepActiveLabel : stepPendingLabel),
                   fontSize: 14,
-                  fontWeight: isDone || isActive
-                      ? FontWeight.w600
-                      : FontWeight.w400,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -484,32 +306,37 @@ class _MatchingAnalysisScreenState extends State<MatchingAnalysisScreen>
   Widget _buildInfoBanner({
     required IconData icon,
     required String text,
-    bool isAccent = false,
+    required double iconSize,
+    required double fontSize,
+    required FontWeight fontWeight,
+    required Color bg,
+    required Color border,
+    required Color textColor,
+    required Color iconColor,
+    required EdgeInsets padding,
+    required double radius,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      padding: padding,
       decoration: BoxDecoration(
-        color: _azure17,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _azure27),
+        color: bg,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: border),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: isAccent ? _keppel : _azure65,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: iconColor, size: iconSize),
+          const SizedBox(width: 14),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
-                color: isAccent ? _keppel : _azure65,
-                fontSize: 13,
+                fontFamily: fontWeight == FontWeight.w600 ? 'Inter' : 'Open Sans',
+                color: textColor,
+                fontSize: fontSize,
+                fontWeight: fontWeight,
                 height: 1.45,
-                fontWeight: isAccent ? FontWeight.w500 : FontWeight.w400,
               ),
             ),
           ),

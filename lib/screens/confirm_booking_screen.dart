@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Confirm Booking Screen
-//  Normal flow  : Step 4/4
-//  Advanced flow: Step 5/5 (teal accent)
-//  Figma node: 208-58
+//  Normal flow  : Step 4/4 (dark green accent, light tan summary cards)
+//  Advanced flow: Step 5/5 (plum accent, dark summary cards)
+//  Figma nodes: 208-58 (normal), 324-360 (advanced)
 // ─────────────────────────────────────────────────────────────────────────────
 class ConfirmBookingScreen extends StatelessWidget {
   const ConfirmBookingScreen({super.key});
@@ -16,19 +17,35 @@ class ConfirmBookingScreen extends StatelessWidget {
   static const Color darkGreen = Color(0xFF06402B);
   static const Color stepInactiveBg = Color(0xFFDCD9CF);
   static const Color stepLineInactive = Color(0xFFD9D9D9);
-  static const Color cardBg = Color(0xFFBDB296);
-  static const Color cardRowBorder = Color(0xFF4C6B61);
-  static const Color cardValueText = Color(0xFF384642);
-  static const Color bannerBg = Color.fromRGBO(234, 67, 53, 0.39);
-  static const Color bannerBorder = Color(0xFFEA4335);
   static const Color editLinkText = Color.fromRGBO(0, 0, 0, 0.78);
 
-  // Advanced (teal) flow accent
-  static const Color _keppel = Color(0xFF3DB498);
-  static const Color _bottleGreen = Color(0xFF06291F);
+  // Summary/qualifications cards — light tan for normal flow, dark panel
+  // for advanced flow (Figma node 324-360).
+  static const Color cardBgLight = Color(0xFFBDB296);
+  static const Color cardBgDark = Color(0xFF313131);
+  static const Color cardBorderDark = Color(0xFF334155);
+  static const Color cardRowBorderLight = Color(0xFF4C6B61);
+  static const Color cardRowBorderDark = Color(0xFF484848);
+  static const Color cardLabelDark = Color(0xFF827B65);
+  static const Color cardValueLight = Color(0xFF384642);
+  static const Color cardValueDark = Color(0xFFF8FAFC);
+
+  // Info banner — red for normal flow, amber/olive for advanced flow.
+  static const Color bannerBgLight = Color.fromRGBO(234, 67, 53, 0.39);
+  static const Color bannerBorderLight = Color(0xFFEA4335);
+  static const Color bannerBgDark = Color(0xFFEDE6C7);
+  static const Color bannerBorderDark = Color(0xFF9C8629);
+  static const Color bannerIconDark = Color(0xFF706743);
+  static const Color bannerTextDark = Color(0xFF6B6343);
+
+  static const Color titleDark = Color(0xFF313131);
+
+  // Advanced flow accent (plum/purple)
+  static const Color _accentAdvanced = Color(0xFF6D4275);
 
   @override
   Widget build(BuildContext context) {
+    setStatusBarStyle(Brightness.dark);
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
     final startDate  = args?['startDate']  ?? '20 Dec 2025';
@@ -47,8 +64,8 @@ class ConfirmBookingScreen extends StatelessWidget {
     final training   = args?['training']   as String?;
     final languages  = args?['languages']  as List?;
 
-    final Color accent = isAdvanced ? _keppel : darkGreen;
-    final Color accentOnColor = isAdvanced ? _bottleGreen : Colors.white;
+    final Color accent = isAdvanced ? _accentAdvanced : darkGreen;
+    const Color accentOnColor = Colors.white;
     final String bannerMsg = isAdvanced
         ? 'Matching caregivers have 6 hours to accept this request.'
         : '$caregiverName has 6 hours to accept this request.';
@@ -60,7 +77,7 @@ class ConfirmBookingScreen extends StatelessWidget {
           SafeArea(
             child: Column(
               children: [
-                _buildTitleRow(context),
+                _buildTitleRow(context, isAdvanced),
                 _buildStepIndicator(isAdvanced, accent, accentOnColor),
                 Expanded(
                   child: SingleChildScrollView(
@@ -70,6 +87,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                       children: [
                         // ── Schedule summary card ──────────────────────────
                         _buildScheduleCard(
+                          isAdvanced: isAdvanced,
                           startDate: startDate,
                           startTime: startTime,
                           endTime:   endTime,
@@ -83,6 +101,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                         if (isAdvanced) ...[
                           const SizedBox(height: 14),
                           _buildQualificationsCard(
+                            isAdvanced: isAdvanced,
                             education:  education,
                             experience: experience,
                             training:   training,
@@ -93,7 +112,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                         const SizedBox(height: 16),
 
                         // ── Info banner ────────────────────────────────────
-                        _buildBanner(message: bannerMsg),
+                        _buildBanner(message: bannerMsg, isAdvanced: isAdvanced),
                       ],
                     ),
                   ),
@@ -127,21 +146,22 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Header ─────────────────────────────────────────────────────────────────
-  Widget _buildTitleRow(BuildContext context) {
+  Widget _buildTitleRow(BuildContext context, bool isAdvanced) {
+    final Color titleColor = isAdvanced ? titleDark : titleGreen;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, color: titleGreen, size: 22),
+            child: Icon(Icons.arrow_back_ios_new_rounded, color: titleColor, size: 22),
           ),
           const SizedBox(width: 16),
-          const Text(
-            'Confirm booking',
+          Text(
+            'Confirm Booking',
             style: TextStyle(
               fontFamily: 'Open Sans',
-              color: darkGreen,
+              color: titleColor,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -216,9 +236,9 @@ class ConfirmBookingScreen extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 s.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Open Sans',
-                  color: titleGreen,
+                  color: isAdvanced ? accent : titleGreen,
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                 ),
@@ -232,6 +252,7 @@ class ConfirmBookingScreen extends StatelessWidget {
 
   // ── Schedule summary card ──────────────────────────────────────────────────
   Widget _buildScheduleCard({
+    required bool isAdvanced,
     required String startDate,
     required String startTime,
     required String endTime,
@@ -252,11 +273,12 @@ class ConfirmBookingScreen extends StatelessWidget {
       _BookingRow('Location',       location),
       _BookingRow('Work schedule',  careType),
     ];
-    return _buildSummaryCardContainer(rows);
+    return _buildSummaryCardContainer(rows, isAdvanced: isAdvanced);
   }
 
   // ── Qualifications card ────────────────────────────────────────────────────
   Widget _buildQualificationsCard({
+    required bool isAdvanced,
     String? education,
     String? experience,
     String? training,
@@ -265,33 +287,35 @@ class ConfirmBookingScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: cardBg,
+        color: isAdvanced ? cardBgDark : cardBgLight,
         borderRadius: BorderRadius.circular(14),
+        border: isAdvanced ? Border.all(color: cardBorderDark) : null,
       ),
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
             child: Text(
               'Caregiver qualifications required',
               style: TextStyle(
                 fontFamily: 'Open Sans',
-                color: Colors.black,
+                color: isAdvanced ? cardValueDark : Colors.black,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          _buildQualRow('Education',       education ?? '–'),
-          _buildQualRow('Experience',      experience ?? '–'),
-          _buildQualRow('Formal training', training ?? '–'),
+          _buildQualRow('Education',       education ?? '–', isAdvanced: isAdvanced),
+          _buildQualRow('Experience',      experience ?? '–', isAdvanced: isAdvanced),
+          _buildQualRow('Formal training', training ?? '–', isAdvanced: isAdvanced),
           _buildQualRow(
             'Languages',
             languages != null && languages.isNotEmpty
                 ? languages.join(', ')
                 : '–',
+            isAdvanced: isAdvanced,
             isLast: true,
           ),
         ],
@@ -299,14 +323,18 @@ class ConfirmBookingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQualRow(String label, String value, {bool isLast = false}) {
+  Widget _buildQualRow(String label, String value,
+      {required bool isAdvanced, bool isLast = false}) {
+    final Color rowBorder = isAdvanced ? cardRowBorderDark : cardRowBorderLight;
+    final Color labelColor = isAdvanced ? cardLabelDark : Colors.black;
+    final Color valueColor = isAdvanced ? cardValueDark : cardValueLight;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 13),
       decoration: isLast
           ? null
-          : const BoxDecoration(
+          : BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: cardRowBorder, width: 1),
+                bottom: BorderSide(color: rowBorder, width: 1),
               ),
             ),
       child: Row(
@@ -314,17 +342,17 @@ class ConfirmBookingScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Open Sans',
-              color: Colors.black,
+              color: labelColor,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
           Text(
             value,
-            style: const TextStyle(
-              color: cardValueText,
+            style: TextStyle(
+              color: valueColor,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -335,12 +363,16 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Generic summary card ───────────────────────────────────────────────────
-  Widget _buildSummaryCardContainer(List<_BookingRow> rows) {
+  Widget _buildSummaryCardContainer(List<_BookingRow> rows, {required bool isAdvanced}) {
+    final Color rowBorder = isAdvanced ? cardRowBorderDark : cardRowBorderLight;
+    final Color labelColor = isAdvanced ? cardLabelDark : Colors.black;
+    final Color valueColor = isAdvanced ? cardValueDark : cardValueLight;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: cardBg,
+        color: isAdvanced ? cardBgDark : cardBgLight,
         borderRadius: BorderRadius.circular(14),
+        border: isAdvanced ? Border.all(color: cardBorderDark) : null,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
@@ -352,9 +384,9 @@ class ConfirmBookingScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 13),
             decoration: isLast
                 ? null
-                : const BoxDecoration(
+                : BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: cardRowBorder, width: 1),
+                      bottom: BorderSide(color: rowBorder, width: 1),
                     ),
                   ),
             child: Row(
@@ -362,9 +394,9 @@ class ConfirmBookingScreen extends StatelessWidget {
               children: [
                 Text(
                   row.label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Open Sans',
-                    color: Colors.black,
+                    color: labelColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -374,8 +406,8 @@ class ConfirmBookingScreen extends StatelessWidget {
                   child: Text(
                     row.value,
                     textAlign: TextAlign.end,
-                    style: const TextStyle(
-                      color: cardValueText,
+                    style: TextStyle(
+                      color: valueColor,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -390,26 +422,30 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Info banner ────────────────────────────────────────────────────────────
-  Widget _buildBanner({required String message}) {
+  Widget _buildBanner({required String message, required bool isAdvanced}) {
+    final Color bg = isAdvanced ? bannerBgDark : bannerBgLight;
+    final Color border = isAdvanced ? bannerBorderDark : bannerBorderLight;
+    final Color icon = isAdvanced ? bannerIconDark : bannerBorderLight;
+    final Color text = isAdvanced ? bannerTextDark : bannerBorderLight;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: bannerBg,
+        color: bg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: bannerBorder),
+        border: Border.all(color: border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(Icons.hourglass_top_rounded, color: bannerBorder, size: 24),
+          Icon(Icons.hourglass_top_rounded, color: icon, size: 24),
           const SizedBox(width: 11),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Open Sans',
-                color: bannerBorder,
+                color: text,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.4,

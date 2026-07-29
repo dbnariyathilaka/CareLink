@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Messages List Screen  (Caregiver)
@@ -17,6 +18,7 @@ class CaregiverMessagesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    setStatusBarStyle(Brightness.light);
     return Scaffold(
       backgroundColor: _azure11,
       body: SafeArea(

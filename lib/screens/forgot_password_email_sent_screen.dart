@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 class ForgotPasswordEmailSentScreen extends StatefulWidget {
   const ForgotPasswordEmailSentScreen({super.key});
@@ -24,6 +25,7 @@ class _ForgotPasswordEmailSentScreenState
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),

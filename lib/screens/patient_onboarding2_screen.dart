@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../data/sri_lankan_cities.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient details (self) — "Step 1 of 2" of the patient
@@ -56,6 +57,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
 
     _fadeController = AnimationController(
       vsync: this,

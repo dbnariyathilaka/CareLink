@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Registration — "Profile live!" celebration screen
@@ -46,6 +47,7 @@ class _CaregiverRegistrationSuccessScreenState
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
 
     _heroController = AnimationController(
       vsync: this,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 class ForgotPasswordStep1Screen extends StatefulWidget {
   const ForgotPasswordStep1Screen({super.key});
@@ -26,6 +27,7 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'who_needs_care_sheet.dart';
+import '../widgets/status_bar.dart';
 
 const Color _cardSubtitleColor = Color.fromRGBO(0, 0, 0, 0.5);
 
@@ -28,6 +29,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.dark);
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),

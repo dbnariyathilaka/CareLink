@@ -7,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../data/sri_lankan_cities.dart';
+import '../widgets/status_bar.dart';
 
 class MapSelectionScreen extends StatefulWidget {
   const MapSelectionScreen({super.key});
@@ -53,9 +54,11 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   bool _isAdvanced = false;
   Map<String, dynamic> _bookingArgs = {};
 
-  // Dynamic accent colors based on flow
-  Color get _accentColor => _isAdvanced ? const Color(0xFF3DB498) : const Color(0xFF06402B);
-  Color get _accentText  => _isAdvanced ? const Color(0xFF06291F) : Colors.white;
+  // Dynamic accent colors based on flow — dark green normally, plum/purple
+  // for the "advanced match" flow (Figma node 296-215, matches the other
+  // advanced-matching screens).
+  Color get _accentColor => _isAdvanced ? const Color(0xFF6D4275) : const Color(0xFF06402B);
+  Color get _accentText  => Colors.white;
 
   // Interactive Map State
   final MapController _mapController = MapController();
@@ -673,6 +676,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   }
 
   @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _azure11,
@@ -970,7 +979,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
               // Confirm Button
               Expanded(
                 child: Material(
-                  color: _confirmBg,
+                  color: _isAdvanced ? _accentColor : _confirmBg,
                   borderRadius: BorderRadius.circular(9),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(9),

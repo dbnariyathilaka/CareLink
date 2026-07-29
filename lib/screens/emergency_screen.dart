@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/status_bar.dart';
 
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -22,6 +23,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
   @override
   void initState() {
     super.initState();
+    setStatusBarStyle(Brightness.light);
     _loadCaregivers();
   }
 

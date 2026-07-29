@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/status_bar.dart';
 
 class ScheduleCareScreen extends StatefulWidget {
   const ScheduleCareScreen({super.key});
@@ -41,12 +42,25 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   bool _isAdvanced = false;
   String _scheduleType = 'Flexible';
 
-  // Primary accent — dark green normally, teal for the "advanced match" flow.
-  Color get _accent => _isAdvanced ? const Color(0xFF3DB498) : darkGreen;
-  Color get _accentOnColor => _isAdvanced ? const Color(0xFF06291F) : Colors.white;
+  // Primary accent — dark green normally, plum/purple for the "advanced
+  // match" flow (Figma node 142-2663, verified against Full-time).
+  Color get _accent => _isAdvanced ? const Color(0xFF6D4275) : darkGreen;
+  Color get _accentOnColor => Colors.white;
   Color get _shiftActiveBg => _isAdvanced ? _accent : const Color(0xFF0F3D2E);
-  Color get _durationActiveBg => _isAdvanced ? _accent : const Color(0xFF071F40);
-  Color get _calendarSelectedBg => _isAdvanced ? _accent : darkGreen;
+  // Duration chips intentionally stay a fixed dark neutral (not the flow's
+  // accent colour) in both flows — Figma confirms this for the advanced
+  // variant too.
+  Color get _durationActiveBg => _isAdvanced ? const Color(0xFF313131) : const Color(0xFF071F40);
+  Color get _durationInactiveBg =>
+      _isAdvanced ? const Color.fromRGBO(49, 49, 49, 0.38) : durationInactiveBg;
+  Color get _durationInactiveText => _isAdvanced ? const Color(0xFF313131) : durationInactiveText;
+  // The calendar's selected-day fill is a distinct, darker shade from the
+  // general accent in the advanced flow.
+  Color get _calendarSelectedBg => _isAdvanced ? const Color(0xFF603468) : darkGreen;
+  Color get _calendarRangeBg =>
+      _isAdvanced ? const Color.fromRGBO(109, 66, 117, 0.41) : calendarRangeBg;
+  Color get _calendarRangeTextColor => _isAdvanced ? const Color(0xFF4F1E58) : calendarRangeText;
+  Color get _stepLineInactiveColor => _isAdvanced ? const Color(0xFFD1BAC6) : stepLineInactive;
   // Part-time's time-picker card keeps the old dark panel treatment with a
   // spring-green highlight, matching the Figma reference exactly.
   Color get _timePickerAccent => _isAdvanced ? _accent : const Color(0xFF22C55E);
@@ -178,6 +192,12 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments;
     String scheduleType = 'Flexible';
@@ -220,9 +240,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       scheduleType,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontFamily: 'Open Sans',
-                        color: _isAdvanced ? _accent : scheduleTypeAccent,
+                        color: scheduleTypeAccent,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -317,7 +337,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   height: 3,
                   decoration: BoxDecoration(
-                    color: leftDone ? _accent : stepLineInactive,
+                    color: leftDone ? _accent : _stepLineInactiveColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -440,20 +460,24 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F3D2E),
+          color: _isAdvanced ? _accent : const Color(0xFF0F3D2E),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: darkBorder),
+          border: _isAdvanced ? null : Border.all(color: darkBorder),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.home_rounded, color: Color(0xFFFFA722), size: 22),
-            SizedBox(width: 11),
+            Icon(
+              Icons.home_rounded,
+              color: _isAdvanced ? Colors.white : const Color(0xFFFFA722),
+              size: 22,
+            ),
+            const SizedBox(width: 11),
             Expanded(
               child: Text(
                 'Caregiver stays on-site, day and night',
                 style: TextStyle(
                   fontFamily: 'Open Sans',
-                  color: darkTextSecondary,
+                  color: _isAdvanced ? Colors.white : darkTextSecondary,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
@@ -637,7 +661,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           color: isSelected
               ? _calendarSelectedBg
               : inRange
-                  ? calendarRangeBg
+                  ? _calendarRangeBg
                   : unavailable
                       ? calendarCompletedBg
                       : Colors.transparent,
@@ -651,7 +675,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             color: isSelected
                 ? _accentOnColor
                 : inRange
-                    ? calendarRangeText
+                    ? _calendarRangeTextColor
                     : unavailable
                         ? calendarDayText
                         : calendarDayText,
@@ -670,7 +694,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       runSpacing: 4,
       children: [
         _legendDot(_calendarSelectedBg, 'Selected'),
-        _legendDot(calendarRangeBg, 'Booked period'),
+        _legendDot(_calendarRangeBg, 'Booked period'),
         _legendDot(calendarCompletedBg, 'Completed'),
       ],
     );
@@ -857,7 +881,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: isPresetSelected ? _timePickerAccent.withValues(alpha: 0.15) : const Color(0xFF0F172A),
+                        color: isPresetSelected
+                            ? (_isAdvanced ? _timePickerAccent : _timePickerAccent.withValues(alpha: 0.15))
+                            : const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: isPresetSelected ? _timePickerAccent : darkBorder,
@@ -868,7 +894,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                       child: Text(
                         preset.toLowerCase(),
                         style: TextStyle(
-                          color: isPresetSelected ? _timePickerAccent : darkTextSecondary,
+                          color: isPresetSelected
+                              ? (_isAdvanced ? Colors.white : _timePickerAccent)
+                              : darkTextSecondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1145,7 +1173,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 decoration: BoxDecoration(
-                  color: active ? _durationActiveBg : durationInactiveBg,
+                  color: active ? _durationActiveBg : _durationInactiveBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -1156,7 +1184,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'Open Sans',
-                          color: active ? Colors.white : durationInactiveText,
+                          color: active ? Colors.white : _durationInactiveText,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1495,10 +1523,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         top: false,
         child: Container(
           decoration: BoxDecoration(
-            color: darkGreen,
+            color: _accent,
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
-              BoxShadow(color: darkGreen.withValues(alpha: 0.5), blurRadius: 2, offset: const Offset(2, 2)),
+              BoxShadow(color: _accent.withValues(alpha: 0.5), blurRadius: 2, offset: const Offset(2, 2)),
             ],
           ),
           child: Material(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 6 of 6
@@ -31,6 +32,12 @@ class _CaregiverOnboarding6ScreenState
       return;
     }
     Navigator.pushNamed(context, '/caregiver-registration-success');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.light);
   }
 
   @override
