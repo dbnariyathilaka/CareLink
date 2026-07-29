@@ -1,17 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
+import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Notifications Screen  (Patient)
-//  Figma node: 249-1064
-//  No notification-producing backend exists yet (no caregiver-side
-//  accept/decline, no shift tracking, no push/FCM), so the feed is
-//  always empty today — the card/filter UI below is built to spec
-//  so it lights up the moment that data exists.
+//  Figma node: 249-1064 · "Caregiver on the way" node 393-163
+//  No push/FCM backend exists, so notifications aren't pushed events —
+//  "Shift starting soon" and "Caregiver is on the way" are derived live
+//  from each real booking's start time vs. the current clock (re-checked
+//  every 30s while this screen is open). Other types (accepted/declined/
+//  reached out) still have no producing backend and won't appear yet.
 // ─────────────────────────────────────────────────────────────
 
 enum _NotificationCategory { booking, reminder, system }
@@ -24,6 +27,7 @@ enum _NotificationType {
   bookingAccepted,
   caregiverReachedOut,
   requestDeclined,
+  caregiverOnTheWay,
 }
 
 class _NotificationAction {
@@ -88,6 +92,9 @@ const Map<_NotificationType, _NotificationStyle> _notificationStyles = {
   _NotificationType.requestDeclined: _NotificationStyle(
     Icons.cancel_rounded, Color(0xFF975151), _NotificationCategory.booking,
   ),
+  _NotificationType.caregiverOnTheWay: _NotificationStyle(
+    Icons.directions_walk_rounded, Color(0xFFEA4335), _NotificationCategory.booking,
+  ),
 };
 
 class NotificationsScreen extends StatefulWidget {
@@ -112,9 +119,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   late final AnimationController _matchIconController;
   late final Animation<double> _matchIconRotation;
 
-  // No notification-producing backend exists yet — kept empty until a
-  // real event source (caregiver actions, shift tracking, FCM) exists.
-  final List<_AppNotification> _notifications = const [];
+  // Derived live from real bookings — "Shift starting soon" and "Caregiver
+  // on the way" are computed from each booking's real start time vs. the
+  // current time (re-evaluated every tick), not stored/pushed events.
+  List<Map<String, dynamic>> _bookings = [];
+  StreamSubscription<List<Map<String, dynamic>>>? _bookingsSub;
+  Timer? _tickTimer;
+
+  List<_AppNotification> get _notifications => _deriveNotifications(_bookings);
 
   @override
   void initState() {
@@ -132,11 +144,122 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         weight: 6,
       ),
     ]).animate(_matchIconController);
+
+    final uid = AuthService.currentUser?.uid;
+    if (uid != null) {
+      _bookingsSub = BookingService.streamBookingsForPatient(uid).listen((docs) {
+        if (mounted) setState(() => _bookings = docs);
+      });
+    }
+    // Re-evaluate time-based notifications even when no Firestore write
+    // happens — e.g. crossing from "starting soon" to "on the way" purely
+    // because the clock passed the shift's start time.
+    _tickTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  DateTime? _parseShiftStart(String? dateStr, String? timeStr) {
+    if (dateStr == null || timeStr == null) return null;
+    const months = {
+      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+    };
+    final dateParts = dateStr.trim().split(RegExp(r'\s+'));
+    if (dateParts.length != 3) return null;
+    final day = int.tryParse(dateParts[0]);
+    final month = months[dateParts[1]];
+    final year = int.tryParse(dateParts[2]);
+    if (day == null || month == null || year == null) return null;
+
+    final timeMatch = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false)
+        .firstMatch(timeStr.trim());
+    if (timeMatch == null) return null;
+    var hour = int.parse(timeMatch.group(1)!);
+    final minute = int.parse(timeMatch.group(2)!);
+    final period = timeMatch.group(3)!.toUpperCase();
+    if (period == 'PM' && hour != 12) hour += 12;
+    if (period == 'AM' && hour == 12) hour = 0;
+
+    return DateTime(year, month, day, hour, minute);
+  }
+
+  // Two live states, both derived from real booking data + the real clock:
+  //  - within 10 min *before* shift start → "Shift starting soon"
+  //  - at/after shift start, caregiver hasn't confirmed arrival yet →
+  //    "Caregiver is on the way", with a Track action.
+  List<_AppNotification> _deriveNotifications(List<Map<String, dynamic>> bookings) {
+    final now = DateTime.now();
+    final result = <_AppNotification>[];
+    for (final b in bookings) {
+      if (b['status'] == 'cancelled') continue;
+      if (b['arrivalConfirmed'] == true) continue;
+      final shiftStart = _parseShiftStart(b['startDate'] as String?, b['startTime'] as String?);
+      if (shiftStart == null) continue;
+
+      final caregiverName = (b['caregiverName'] as String?) ?? 'Your caregiver';
+      final careType = b['careType'] as String?;
+      final bookingId = b['id'] as String?;
+      final startTime = b['startTime'] as String?;
+
+      if (!now.isBefore(shiftStart)) {
+        final lateMinutes = now.difference(shiftStart).inMinutes;
+        result.add(_AppNotification(
+          type: _NotificationType.caregiverOnTheWay,
+          title: '$caregiverName is on the way',
+          body: lateMinutes < 1
+              ? "Their shift just started and they haven't confirmed arrival yet."
+              : "They haven't confirmed arrival yet — ${lateMinutes}m past the shift start time.",
+          timeAgo: lateMinutes < 1 ? 'just now' : '${lateMinutes}m late',
+          caregiverName: caregiverName,
+          visitLabel: careType,
+          bookingId: bookingId,
+          actions: [
+            _NotificationAction(
+              'Track',
+              isPrimary: true,
+              onTap: bookingId == null
+                  ? null
+                  : () => Navigator.pushNamed(
+                        context,
+                        '/track-caregiver',
+                        arguments: {
+                          'bookingId': bookingId,
+                          'caregiverId': b['caregiverId'],
+                          'caregiverName': caregiverName,
+                          'careType': careType,
+                          'startTime': startTime,
+                          'location': b['location'],
+                          'locationLat': b['locationLat'],
+                          'locationLng': b['locationLng'],
+                        },
+                      ),
+            ),
+          ],
+        ));
+      } else if (!now.isBefore(shiftStart.subtract(const Duration(minutes: 10)))) {
+        final minutesUntil = shiftStart.difference(now).inMinutes;
+        result.add(_AppNotification(
+          type: _NotificationType.shiftStartingSoon,
+          title: 'Shift starting soon',
+          body: startTime != null
+              ? "$caregiverName's shift starts at $startTime."
+              : "$caregiverName's shift starts soon.",
+          timeAgo: minutesUntil < 1 ? 'now' : 'in ${minutesUntil}m',
+          caregiverName: caregiverName,
+          visitLabel: careType,
+          bookingId: bookingId,
+        ));
+      }
+    }
+    return result;
   }
 
   @override
   void dispose() {
     _matchIconController.dispose();
+    _bookingsSub?.cancel();
+    _tickTimer?.cancel();
     super.dispose();
   }
 
@@ -513,6 +636,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return Scaffold(
       backgroundColor: bgCream,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
@@ -758,64 +882,69 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     ];
     return Container(
       width: double.infinity,
-      height: 67,
       color: darkGreen,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 67,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
 
-          if (index == 2) {
-            return const SizedBox(
-              width: 60,
-              child: Padding(
-                padding: EdgeInsets.only(top: 41),
-                child: Text(
-                  'Match',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Quattrocento Sans',
-                    color: navMatchLabel,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          // "Notification" tab is the current screen.
-          final color = index == 4 ? navHomeLabel : Colors.white;
-          return GestureDetector(
-            onTap: item.route != null
-                ? () => Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      item.route!,
-                      (route) => route.settings.name == '/patient-dashboard',
-                    )
-                : null,
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              width: 60,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, color: color, size: 25),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+              if (index == 2) {
+                return const SizedBox(
+                  width: 60,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 41),
+                    child: Text(
+                      'Match',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        color: navMatchLabel,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        }),
+                );
+              }
+
+              // "Notification" tab is the current screen.
+              final color = index == 4 ? navHomeLabel : Colors.white;
+              return GestureDetector(
+                onTap: item.route != null
+                    ? () => Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          item.route!,
+                          (route) => route.settings.name == '/patient-dashboard',
+                        )
+                    : null,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 60,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, color: color, size: 25),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

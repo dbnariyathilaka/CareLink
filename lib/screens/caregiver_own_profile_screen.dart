@@ -56,6 +56,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     return Scaffold(
       backgroundColor: AppTheme.surfaceColor,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             Expanded(
@@ -644,47 +645,52 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     const selectedIndex = 3;
 
     return Container(
-      height: 64,
       decoration: const BoxDecoration(
         color: AppTheme.surfaceColor,
         border: Border(top: BorderSide(color: AppTheme.borderColor)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == selectedIndex;
-          final color = isSelected ? _indigo : const Color(0xFF64748B);
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (index == 0) {
-                Navigator.popUntil(context, ModalRoute.withName('/caregiver-dashboard'));
-              } else if (index == 1) {
-                Navigator.pushNamed(context, '/caregiver-schedule');
-              } else if (index == 2) {
-                Navigator.pushNamed(context, '/caregiver-notifications');
-              } else if (index != 3) {
-                _comingSoon(context, item.label);
-              }
-            },
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(item.icon, color: color, size: 22),
-                const SizedBox(height: 4),
-                Text(
-                  item.label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              final isSelected = index == selectedIndex;
+              final color = isSelected ? _indigo : const Color(0xFF64748B);
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (index == 0) {
+                    Navigator.popUntil(context, ModalRoute.withName('/caregiver-dashboard'));
+                  } else if (index == 1) {
+                    Navigator.pushNamed(context, '/caregiver-schedule');
+                  } else if (index == 2) {
+                    Navigator.pushNamed(context, '/caregiver-notifications');
+                  } else if (index != 3) {
+                    _comingSoon(context, item.label);
+                  }
+                },
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(item.icon, color: color, size: 22),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.label,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 10,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        }),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

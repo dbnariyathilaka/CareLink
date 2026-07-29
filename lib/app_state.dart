@@ -21,14 +21,24 @@ class AppState {
   static final preferredGender = ValueNotifier<String>('No preference');
   static final additionalCareNotes = ValueNotifier<String>('');
 
-  // Patient identity fields — filled in during onboarding (family-details
-  // and/or the patient-details step), written to patientProfiles/{uid}
-  // alongside the care-requirement fields above.
+  // Patient identity fields — filled in during onboarding (the
+  // patient-details step), written to patientProfiles/{uid} alongside the
+  // care-requirement fields above.
   static final patientName = ValueNotifier<String>('');
   static final patientGenderSelf = ValueNotifier<String>('Female');
   static final patientAge = ValueNotifier<String>('');
   static final patientAddress = ValueNotifier<String>('');
   static final relationToPatient = ValueNotifier<String>('Patient');
+
+  // The registering family member's own contact details — collected on the
+  // family-details step (before account registration) when someone signs up
+  // on behalf of a patient. Distinct from the patientXxx fields above, which
+  // describe the patient, not the person booking for them.
+  static final familyMemberName = ValueNotifier<String>('');
+  static final familyMemberNic = ValueNotifier<String>('');
+  static final familyMemberPhone = ValueNotifier<String>('');
+  static final familyMemberEmail = ValueNotifier<String>('');
+  static final familyMemberAddress = ValueNotifier<String>('');
 
   // Accumulates data across the 6-step caregiver onboarding wizard; written
   // to Firestore (caregiverProfiles/{uid}) once, on the final step.

@@ -21,6 +21,7 @@ class PickedUpload {
 Future<PickedUpload?> pickImageOrDocument(
   BuildContext context, {
   bool allowPdf = true,
+  bool allowVideo = false,
   bool allowRemove = false,
   VoidCallback? onRemove,
 }) async {
@@ -66,6 +67,13 @@ Future<PickedUpload?> pickImageOrDocument(
                   style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
               onTap: () => Navigator.pop(context, 'pdf'),
             ),
+          if (allowVideo)
+            ListTile(
+              leading: const Icon(Icons.videocam_rounded, color: indigo),
+              title: const Text('Choose a video',
+                  style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(context, 'video'),
+            ),
           if (allowRemove)
             ListTile(
               leading: const Icon(Icons.delete_outline_rounded, color: red),
@@ -95,6 +103,16 @@ Future<PickedUpload?> pickImageOrDocument(
     final file = result?.files.single;
     if (file?.bytes == null) return null;
     return PickedUpload(bytes: file!.bytes!, name: file.name, mimeType: 'application/pdf');
+  }
+
+  if (choice == 'video') {
+    final picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (picked == null) return null;
+    return PickedUpload(
+      bytes: await picked.readAsBytes(),
+      name: picked.name,
+      mimeType: picked.mimeType ?? 'video/mp4',
+    );
   }
 
   final picked = await ImagePicker().pickImage(

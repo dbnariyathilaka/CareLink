@@ -70,6 +70,9 @@ class StorageService {
   static String otherDocumentPath(String uid, String filename) =>
       'caregivers/$uid/other_documents/${DateTime.now().millisecondsSinceEpoch}_$filename';
 
+  static String reviewMediaPath(String uid, String filename) =>
+      'reviews/$uid/${DateTime.now().millisecondsSinceEpoch}_$filename';
+
   static String _extOf(String filename) {
     final i = filename.lastIndexOf('.');
     return i == -1 ? '' : filename.substring(i).toLowerCase();

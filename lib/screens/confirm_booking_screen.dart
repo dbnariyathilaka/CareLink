@@ -469,6 +469,8 @@ class ConfirmBookingScreen extends StatelessWidget {
     required String duration,
     required String endDate,
     required String location,
+    double? locationLat,
+    double? locationLng,
   }) async {
     final uid = AuthService.currentUser?.uid;
     if (uid == null) return;
@@ -484,6 +486,8 @@ class ConfirmBookingScreen extends StatelessWidget {
       duration: isFlexible ? null : duration,
       endDate: isFlexible ? null : endDate,
       location: location,
+      locationLat: locationLat,
+      locationLng: locationLng,
       isAdvanced: isAdvanced,
     );
   }
@@ -537,6 +541,8 @@ class ConfirmBookingScreen extends StatelessWidget {
                     duration:      duration,
                     endDate:       endDate,
                     location:      location,
+                    locationLat:   args?['lat'] as double?,
+                    locationLng:   args?['lng'] as double?,
                   );
                   if (!context.mounted) return;
                   if (isAdvanced) {

@@ -101,11 +101,9 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     final results = _filteredCaregivers;
     return Scaffold(
       backgroundColor: bgCream,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
+      body: Column(
+        children: [
+          _buildHeader(context),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: darkGreen))
@@ -139,8 +137,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                         ),
             ),
             _buildBottomBar(),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -155,7 +152,10 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   }
 
   // ── Header (matches dashboard style, plus search bar) ─────
-  Widget _buildHeader() {
+  // Paints full-bleed behind the transparent status bar (edge-to-edge mode);
+  // the top padding below (not an outer SafeArea) keeps content clear of it.
+  Widget _buildHeader(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -165,7 +165,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
           bottomRight: Radius.circular(20),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(22, 12, 22, 20),
+      padding: EdgeInsets.fromLTRB(22, topInset + 12, 22, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -555,63 +555,68 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     ];
     return Container(
       width: double.infinity,
-      height: 67,
       color: darkGreen,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 67,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
 
-          if (index == 2) {
-            return const SizedBox(
-              width: 60,
-              child: Padding(
-                padding: EdgeInsets.only(top: 41),
-                child: Text(
-                  'Match',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Quattrocento Sans',
-                    color: navMatchLabel,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          final color = index == 1 ? navHomeLabel : Colors.white;
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (index == 0) {
-                Navigator.popUntil(context, ModalRoute.withName('/patient-dashboard'));
-              } else if (item.route != null) {
-                Navigator.pushNamed(context, item.route!);
-              }
-            },
-            child: SizedBox(
-              width: 60,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, color: color, size: 25),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+              if (index == 2) {
+                return const SizedBox(
+                  width: 60,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 41),
+                    child: Text(
+                      'Match',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        color: navMatchLabel,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        }),
+                );
+              }
+
+              final color = index == 1 ? navHomeLabel : Colors.white;
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (index == 0) {
+                    Navigator.popUntil(context, ModalRoute.withName('/patient-dashboard'));
+                  } else if (item.route != null) {
+                    Navigator.pushNamed(context, item.route!);
+                  }
+                },
+                child: SizedBox(
+                  width: 60,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, color: color, size: 25),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
@@ -689,10 +694,10 @@ class _MatchFabState extends State<_MatchFab> with SingleTickerProviderStateMixi
   }
 }
 
-// ── Filters bottom sheet ──────────────────────────────────
-enum _CareType { fullTime, partTime, liveIn, flexible }
-
-enum _SortBy { nearest, highestRated }
+// ─────────────────────────────────────────────────────────────
+//  Filters bottom sheet  (Figma node 346-1035)
+// ─────────────────────────────────────────────────────────────
+enum _Schedule { fullTime, partTime, liveIn }
 
 class FiltersSheet extends StatefulWidget {
   const FiltersSheet({super.key});
@@ -702,20 +707,54 @@ class FiltersSheet extends StatefulWidget {
 }
 
 class _FiltersSheetState extends State<FiltersSheet> {
-  static const Color darkGreen = Color(0xFF06402B);
-  static const Color borderTan = Color.fromRGBO(6, 64, 43, 0.2);
+  static const Color sheetBg = Color(0xFFF5EEE8);
+  static const Color dragHandle = Color(0xFF475569);
+  static const Color titleBrown = Color(0xFF5E462B);
+  static const Color closeIcon = Color.fromRGBO(68, 51, 28, 0.47);
+  static const Color sectionLabel = Color.fromRGBO(93, 65, 41, 0.7);
+  static const Color radioLabelLight = Color.fromRGBO(68, 51, 28, 0.52);
+  static const Color radioLabelDark = Color.fromRGBO(68, 51, 28, 0.79);
+  static const Color radioIcon = Color(0xFF44331C);
+  static const Color radioIconUnchecked = Color(0xFF475569);
+  static const Color sliderTrack = Color(0xFF765B36);
+  static const Color sliderFill = Color(0xFF44331C);
+  static const Color sliderLabel = Color(0xFF494742);
+  static const Color pillDark = Color(0xFF44331C);
+  static const Color pillDarkText = Color(0xFFF1C58B);
+  static const Color amberBg = Color(0xFFEEDECA);
+  static const Color amberBorder = Color(0xFFC57E22);
+  static const Color clearAllBorder = Color.fromRGBO(68, 51, 28, 0.3);
+  static const Color applyBg = Color(0xFF5C4537);
 
-  _CareType _careType = _CareType.fullTime;
-  _SortBy _sortBy = _SortBy.nearest;
+  static const _careTypeOptions = ['Elder care', 'Child care', 'Disability care', 'Post-surgery'];
+  static const _languageOptions = ['Sinhala', 'English', 'Tamil'];
+  static const _skillOptions = ['Dementia care', 'Medication', 'Mobility support', 'Cooking', 'First aid'];
+  static const _experienceOptions = ['Any', '1+ yrs', '3+ yrs', '5+ yrs'];
+  static const _educationOptions = ['Any', 'Certificate / diploma', 'Degree or higher'];
+
+  final Set<String> _careTypes = {'Elder care'};
+  _Schedule? _schedule = _Schedule.fullTime;
   double _maxDistance = 15;
   double _minRating = 4.0;
+  final Set<String> _languages = {'Sinhala', 'English'};
+  final Set<String> _skills = {'Dementia care'};
+  String _experience = '3+ yrs';
+  String _education = 'Certificate / diploma';
+  String _training = 'No preference';
+  String _gender = 'Any';
 
   void _clearAll() {
     setState(() {
-      _careType = _CareType.fullTime;
-      _sortBy = _SortBy.nearest;
-      _maxDistance = 15;
-      _minRating = 4.0;
+      _careTypes.clear();
+      _schedule = null;
+      _maxDistance = 30;
+      _minRating = 0;
+      _languages.clear();
+      _skills.clear();
+      _experience = 'Any';
+      _education = 'Any';
+      _training = 'No preference';
+      _gender = 'Any';
     });
   }
 
@@ -724,9 +763,9 @@ class _FiltersSheetState extends State<FiltersSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(22, 17, 22, 20),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
         decoration: const BoxDecoration(
-          color: Color(0xFFF5EEDE),
+          color: sheetBg,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -734,154 +773,251 @@ class _FiltersSheetState extends State<FiltersSheet> {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 42,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: darkGreen.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(3),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+              child: Column(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: dragHandle,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filters',
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: titleBrown,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.close_rounded, color: closeIcon, size: 24),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionLabel('CARE TYPE'),
+                    const SizedBox(height: 9),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _careTypeOptions
+                          .map((o) => _pill(
+                                o,
+                                _careTypes.contains(o),
+                                () => setState(() {
+                                  if (_careTypes.contains(o)) {
+                                    _careTypes.remove(o);
+                                  } else {
+                                    _careTypes.add(o);
+                                  }
+                                }),
+                                amber: true,
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('SCHEDULE'),
+                    const SizedBox(height: 9),
+                    _radioRow(
+                      'Full-time only',
+                      _schedule == _Schedule.fullTime,
+                      () => setState(() => _schedule = _Schedule.fullTime),
+                    ),
+                    const SizedBox(height: 9),
+                    _radioRow(
+                      'Part-time only',
+                      _schedule == _Schedule.partTime,
+                      () => setState(() => _schedule = _Schedule.partTime),
+                    ),
+                    const SizedBox(height: 9),
+                    _radioRow(
+                      'Live-in only',
+                      _schedule == _Schedule.liveIn,
+                      () => setState(() => _schedule = _Schedule.liveIn),
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('MAXIMUM DISTANCE'),
+                    _sliderRow(
+                      value: _maxDistance,
+                      min: 1,
+                      max: 30,
+                      label: '${_maxDistance.round()} km',
+                      onChanged: (v) => setState(() => _maxDistance = v),
+                    ),
+                    const SizedBox(height: 9),
+                    _sectionLabel('MINIMUM RATING'),
+                    _sliderRow(
+                      value: _minRating,
+                      min: 0,
+                      max: 5,
+                      divisions: 50,
+                      label: '${_minRating.toStringAsFixed(1)} ★',
+                      onChanged: (v) => setState(() => _minRating = v),
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('LANGUAGE'),
+                    const SizedBox(height: 9),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _languageOptions
+                          .map((o) => _pill(
+                                o,
+                                _languages.contains(o),
+                                () => setState(() {
+                                  if (_languages.contains(o)) {
+                                    _languages.remove(o);
+                                  } else {
+                                    _languages.add(o);
+                                  }
+                                }),
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('SKILLS'),
+                    const SizedBox(height: 9),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _skillOptions
+                          .map((o) => _pill(
+                                o,
+                                _skills.contains(o),
+                                () => setState(() {
+                                  if (_skills.contains(o)) {
+                                    _skills.remove(o);
+                                  } else {
+                                    _skills.add(o);
+                                  }
+                                }),
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('EXPERIENCE'),
+                    const SizedBox(height: 9),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _experienceOptions
+                          .map((o) => _pill(o, _experience == o, () => setState(() => _experience = o)))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('EDUCATION LEVEL'),
+                    const SizedBox(height: 9),
+                    ..._educationOptions.expand((o) => [
+                          _radioRow(o, _education == o, () => setState(() => _education = o),
+                              labelColor: radioLabelDark),
+                          const SizedBox(height: 9),
+                        ]),
+                    const SizedBox(height: 9),
+                    _sectionLabel('FORMAL TRAINING'),
+                    const SizedBox(height: 9),
+                    Row(
+                      children: [
+                        _toggleButton('Trained only', _training == 'Trained only',
+                            () => setState(() => _training = 'Trained only')),
+                        const SizedBox(width: 10),
+                        _toggleButton('No preference', _training == 'No preference',
+                            () => setState(() => _training = 'No preference')),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('GENDER'),
+                    const SizedBox(height: 9),
+                    Row(
+                      children: [
+                        _toggleButton('Any', _gender == 'Any', () => setState(() => _gender = 'Any')),
+                        const SizedBox(width: 10),
+                        _toggleButton('Female', _gender == 'Female', () => setState(() => _gender = 'Female')),
+                        const SizedBox(width: 10),
+                        _toggleButton('Male', _gender == 'Male', () => setState(() => _gender = 'Male')),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 14),
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Filters',
-                  style: TextStyle(
-                    fontFamily: 'Quattrocento Sans',
-                    color: darkGreen,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close_rounded, color: darkGreen, size: 24),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _sectionLabel('CARE TYPE'),
-            const SizedBox(height: 9),
-            _radioRow(
-              'Full-time only',
-              _careType == _CareType.fullTime,
-              () => setState(() => _careType = _CareType.fullTime),
-            ),
-            const SizedBox(height: 9),
-            _radioRow(
-              'Part-time only',
-              _careType == _CareType.partTime,
-              () => setState(() => _careType = _CareType.partTime),
-            ),
-            const SizedBox(height: 9),
-            _radioRow(
-              'Live-in only',
-              _careType == _CareType.liveIn,
-              () => setState(() => _careType = _CareType.liveIn),
-            ),
-            const SizedBox(height: 9),
-            _radioRow(
-              'Flexible',
-              _careType == _CareType.flexible,
-              () => setState(() => _careType = _CareType.flexible),
-            ),
-            const SizedBox(height: 18),
-            _sectionLabel('MAXIMUM DISTANCE'),
-            _sliderRow(
-              value: _maxDistance,
-              min: 1,
-              max: 30,
-              label: '${_maxDistance.round()} km',
-              onChanged: (v) => setState(() => _maxDistance = v),
-            ),
-            const SizedBox(height: 9),
-            _sectionLabel('MINIMUM RATING'),
-            _sliderRow(
-              value: _minRating,
-              min: 0,
-              max: 5,
-              divisions: 50,
-              label: '${_minRating.toStringAsFixed(1)} ★',
-              onChanged: (v) => setState(() => _minRating = v),
-            ),
-            const SizedBox(height: 18),
-            _sectionLabel('SORT RESULTS BY'),
-            const SizedBox(height: 9),
-            _radioRow(
-              'Nearest first',
-              _sortBy == _SortBy.nearest,
-              () => setState(() => _sortBy = _SortBy.nearest),
-            ),
-            const SizedBox(height: 9),
-            _radioRow(
-              'Highest rated first',
-              _sortBy == _SortBy.highestRated,
-              () => setState(() => _sortBy = _SortBy.highestRated),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Material(
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
-                      onTap: _clearAll,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: darkGreen.withValues(alpha: 0.3)),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          'Clear all',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Quattrocento Sans',
-                            color: darkGreen,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: _clearAll,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: clearAllBorder),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'Clear all',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: pillDark,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: Material(
-                    color: darkGreen,
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: Material(
+                      color: applyBg,
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () => Navigator.pop(context),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        child: Text(
-                          'Apply filters',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Quattrocento Sans',
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => Navigator.pop(context),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Text(
+                            'Apply filters',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -892,9 +1028,9 @@ class _FiltersSheetState extends State<FiltersSheet> {
   Widget _sectionLabel(String text) {
     return Text(
       text,
-      style: TextStyle(
-        fontFamily: 'Quattrocento Sans',
-        color: darkGreen.withValues(alpha: 0.6),
+      style: const TextStyle(
+        fontFamily: 'Open Sans',
+        color: sectionLabel,
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
@@ -902,7 +1038,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
     );
   }
 
-  Widget _radioRow(String label, bool selected, VoidCallback onTap) {
+  Widget _radioRow(String label, bool selected, VoidCallback onTap, {Color labelColor = radioLabelLight}) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -911,35 +1047,17 @@ class _FiltersSheetState extends State<FiltersSheet> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontFamily: 'Quattrocento Sans',
-              color: darkGreen,
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: labelColor,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
-          Container(
-            width: 21,
-            height: 21,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? darkGreen : borderTan,
-                width: 2,
-              ),
-            ),
-            child: selected
-                ? Center(
-                    child: Container(
-                      width: 11,
-                      height: 11,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: darkGreen,
-                      ),
-                    ),
-                  )
-                : null,
+          Icon(
+            selected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+            color: selected ? radioIcon : radioIconUnchecked,
+            size: 21,
           ),
         ],
       ),
@@ -960,9 +1078,9 @@ class _FiltersSheetState extends State<FiltersSheet> {
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
               trackHeight: 5,
-              activeTrackColor: darkGreen,
-              inactiveTrackColor: darkGreen.withValues(alpha: 0.15),
-              thumbColor: darkGreen,
+              activeTrackColor: sliderFill,
+              inactiveTrackColor: sliderTrack,
+              thumbColor: sliderFill,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
               overlayShape: SliderComponentShape.noOverlay,
             ),
@@ -979,13 +1097,65 @@ class _FiltersSheetState extends State<FiltersSheet> {
         Text(
           label,
           style: const TextStyle(
-            fontFamily: 'Quattrocento Sans',
-            color: darkGreen,
+            fontFamily: 'Open Sans',
+            color: sliderLabel,
             fontSize: 13,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _pill(String label, bool selected, VoidCallback onTap, {bool amber = false}) {
+    final unselectedBg = amber ? amberBg : Colors.transparent;
+    final unselectedBorder = amber ? amberBorder : pillDark;
+    final unselectedText = amber ? amberBorder : pillDark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? pillDark : unselectedBg,
+          border: Border.all(color: selected ? pillDark : unselectedBorder),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Open Sans',
+            color: selected ? pillDarkText : unselectedText,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _toggleButton(String label, bool selected, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: selected ? pillDark : Colors.transparent,
+            border: Border.all(color: pillDark),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: selected ? pillDarkText : pillDark,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

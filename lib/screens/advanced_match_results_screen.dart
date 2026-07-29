@@ -101,6 +101,8 @@ class _AdvancedMatchResultsScreenState
       duration: _bookingArgs['duration'] as String?,
       endDate: _bookingArgs['endDate'] as String?,
       location: location,
+      locationLat: _bookingArgs['lat'] as double?,
+      locationLng: _bookingArgs['lng'] as double?,
       isAdvanced: true,
     );
     if (!mounted) return;
@@ -163,24 +165,25 @@ class _AdvancedMatchResultsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgCream,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(child: _buildBody(context)),
-            _buildBottomBar(context),
-          ],
-        ),
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(child: _buildBody(context)),
+          _buildBottomBar(context),
+        ],
       ),
     );
   }
 
   // ── Header ───────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
+  // Paints full-bleed behind the transparent status bar (edge-to-edge mode);
+  // the top padding below (not an outer SafeArea) keeps content clear of it.
+  Widget _buildHeader(BuildContext context) {
     final count = _matches.length;
+    final topInset = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+      padding: EdgeInsets.fromLTRB(22, topInset + 12, 22, 18),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -682,62 +685,67 @@ class _AdvancedMatchResultsScreenState
     ];
     return Container(
       width: double.infinity,
-      height: 67,
       color: darkGreen,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 67,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
 
-          if (index == 2) {
-            return const SizedBox(
-              width: 60,
-              child: Padding(
-                padding: EdgeInsets.only(top: 41),
-                child: Text(
-                  'Match',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Quattrocento Sans',
-                    color: navMatchLabel,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          return GestureDetector(
-            onTap: item.route != null
-                ? () => Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      item.route!,
-                      (route) => route.settings.name == '/patient-dashboard',
-                    )
-                : null,
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              width: 60,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, color: Colors.white, size: 25),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: const TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+              if (index == 2) {
+                return const SizedBox(
+                  width: 60,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 41),
+                    child: Text(
+                      'Match',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        color: navMatchLabel,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        }),
+                );
+              }
+
+              return GestureDetector(
+                onTap: item.route != null
+                    ? () => Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          item.route!,
+                          (route) => route.settings.name == '/patient-dashboard',
+                        )
+                    : null,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 60,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, color: Colors.white, size: 25),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: const TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

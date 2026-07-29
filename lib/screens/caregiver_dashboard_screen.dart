@@ -64,11 +64,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.surfaceColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                 child: Column(
@@ -170,18 +169,20 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 ),
               ),
             ),
-            _buildBottomNav(context),
-          ],
-        ),
+          _buildBottomNav(context),
+        ],
       ),
     );
   }
 
   // ── Header: greeting + avatar ─────────────────────────────
-  Widget _buildHeader() {
+  // Paints full-bleed behind the transparent status bar (edge-to-edge mode);
+  // the top padding below (not an outer SafeArea) keeps content clear of it.
+  Widget _buildHeader(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+      padding: EdgeInsets.fromLTRB(22, topInset + 14, 22, 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment(-0.3, -1),
@@ -1630,51 +1631,56 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     ];
 
     return Container(
-      height: 64,
       decoration: const BoxDecoration(
         color: AppTheme.surfaceColor,
         border: Border(top: BorderSide(color: AppTheme.borderColor)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == _selectedNavIndex;
-          final color = isSelected ? _indigo : const Color(0xFF64748B);
-          return GestureDetector(
-            onTap: () {
-              if (index == 0) {
-                setState(() => _selectedNavIndex = index);
-              } else if (index == 1) {
-                Navigator.pushNamed(context, '/caregiver-schedule');
-              } else if (index == 2) {
-                Navigator.pushNamed(context, '/caregiver-notifications');
-              } else if (index == 3) {
-                Navigator.pushNamed(context, '/caregiver-own-profile');
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${item.label} coming soon!')),
-                );
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(item.icon, color: color, size: 22),
-                const SizedBox(height: 4),
-                Text(
-                  item.label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              final isSelected = index == _selectedNavIndex;
+              final color = isSelected ? _indigo : const Color(0xFF64748B);
+              return GestureDetector(
+                onTap: () {
+                  if (index == 0) {
+                    setState(() => _selectedNavIndex = index);
+                  } else if (index == 1) {
+                    Navigator.pushNamed(context, '/caregiver-schedule');
+                  } else if (index == 2) {
+                    Navigator.pushNamed(context, '/caregiver-notifications');
+                  } else if (index == 3) {
+                    Navigator.pushNamed(context, '/caregiver-own-profile');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${item.label} coming soon!')),
+                    );
+                  }
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(item.icon, color: color, size: 22),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.label,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 10,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        }),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

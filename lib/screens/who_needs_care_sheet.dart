@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  "Who needs care?" bottom sheet
-//  Figma node: 498-5466 · shown when "Patient or Family" is
+//  Figma node: 296-5888 · shown when "Patient or Family" is
 //  tapped on the role selection screen.
 //
-//  - "I'm the patient"      → straight into patient onboarding.
-//  - "I'm a family member"  → patient details form first, then
-//                             the same onboarding flow.
+//  - "I'm the patient"      → straight into account registration.
+//  - "I'm a family member"  → family-details screen first (the
+//                             registrant's own contact info), then
+//                             account registration.
 // ─────────────────────────────────────────────────────────────
 enum _CareRecipient { patient, familyMember }
 
@@ -29,21 +29,41 @@ class _WhoNeedsCareSheet extends StatefulWidget {
 }
 
 class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
-  static const Color _indigo = Color(0xFF6366F1);
+  static const Color bgCream = Color(0xFFF5EEE8);
+  static const Color dragHandle = Color(0xFF334155);
+  static const Color titleBrown = Color(0xFF564732);
+  static const Color subtitleBrown = Color.fromRGBO(85, 73, 57, 0.63);
+  static const Color continueBg = Color(0xFF746553);
+
+  // "I'm the patient" — selected style
+  static const Color patientCardBg = Color(0xFFAB9089);
+  static const Color patientCardBorder = Color(0xFF5A413A);
+  static const Color patientIconBg = Color(0xFFD9BDB5);
+  static const Color patientIconColor = Color(0xFF41302B);
+  static const Color patientTitleColor = Color(0xFF352D2A);
+  static const Color patientSubtitleColor = Color.fromRGBO(57, 42, 27, 0.43);
+
+  // "I'm a family member" — unselected style
+  static const Color familyCardBg = Color(0xFFB1A28F);
+  static const Color familyCardBorder = Color(0xFF44392B);
+  static const Color familyIconBg = Color.fromRGBO(133, 107, 74, 0.54);
+  static const Color familyIconColor = Color(0xFF4B381F);
+  static const Color familyTitleColor = Color(0xFF4B381F);
+  static const Color familySubtitleColor = Color.fromRGBO(58, 39, 14, 0.52);
 
   _CareRecipient _selected = _CareRecipient.patient;
 
   void _continue() {
     Navigator.pop(context);
-    Navigator.pushNamed(
-      context,
-      '/register',
-      arguments: {
-        'role': 'patient',
-        'careRecipient':
-            _selected == _CareRecipient.patient ? 'self' : 'family',
-      },
-    );
+    if (_selected == _CareRecipient.familyMember) {
+      Navigator.pushNamed(context, '/patient-family-details');
+    } else {
+      Navigator.pushNamed(
+        context,
+        '/register',
+        arguments: {'role': 'patient', 'careRecipient': 'self'},
+      );
+    }
   }
 
   @override
@@ -52,14 +72,13 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
       top: false,
       child: Container(
         decoration: const BoxDecoration(
-          color: AppTheme.surfaceColor,
-          border: Border(top: BorderSide(color: AppTheme.cardColor)),
+          color: bgCream,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(26),
             topRight: Radius.circular(26),
           ),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,29 +87,26 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
               child: Container(
                 width: 40,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: 24),
+                margin: const EdgeInsets.only(bottom: 15),
                 decoration: BoxDecoration(
-                  color: AppTheme.borderColor,
+                  color: dragHandle,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
             ),
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.person_rounded, color: AppTheme.primaryGreen, size: 28),
+            Image.asset(
+              'assets/images/who_needs_care_avatar.png',
+              width: 68,
+              height: 68,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 15),
             const Text(
               'Who needs care?',
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                fontFamily: 'Open Sans',
+                color: titleBrown,
                 fontSize: 21,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 letterSpacing: -0.3,
               ),
             ),
@@ -98,10 +114,12 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
             const Text(
               'This helps us set up the right profile and permissions.',
               style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.35,
+                fontFamily: 'Open Sans',
+                color: subtitleBrown,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.3,
+                height: 1.3,
               ),
             ),
             const SizedBox(height: 20),
@@ -109,24 +127,34 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
             _buildOption(
               recipient: _CareRecipient.patient,
               icon: Icons.self_improvement_rounded,
-              iconColor: AppTheme.primaryGreen,
               title: "I'm the patient",
               subtitle: 'Care is for me',
+              cardBg: patientCardBg,
+              cardBorder: patientCardBorder,
+              iconBg: patientIconBg,
+              iconColor: patientIconColor,
+              titleColor: patientTitleColor,
+              subtitleColor: patientSubtitleColor,
             ),
             const SizedBox(height: 12),
             _buildOption(
               recipient: _CareRecipient.familyMember,
               icon: Icons.family_restroom_rounded,
-              iconColor: _indigo,
               title: "I'm a family member",
               subtitle: 'Booking on behalf of someone',
+              cardBg: familyCardBg,
+              cardBorder: familyCardBorder,
+              iconBg: familyIconBg,
+              iconColor: familyIconColor,
+              titleColor: familyTitleColor,
+              subtitleColor: familySubtitleColor,
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
               child: Material(
-                color: AppTheme.primaryGreen,
+                color: continueBg,
                 borderRadius: BorderRadius.circular(10),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
@@ -137,9 +165,11 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
                       'Continue',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: AppTheme.bottleGreen,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Open Sans',
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.3,
                       ),
                     ),
                   ),
@@ -155,23 +185,24 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
   Widget _buildOption({
     required _CareRecipient recipient,
     required IconData icon,
-    required Color iconColor,
     required String title,
     required String subtitle,
+    required Color cardBg,
+    required Color cardBorder,
+    required Color iconBg,
+    required Color iconColor,
+    required Color titleColor,
+    required Color subtitleColor,
   }) {
     final isSelected = _selected == recipient;
     return GestureDetector(
       onTap: () => setState(() => _selected = recipient),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+      child: Container(
         width: double.infinity,
-        padding: EdgeInsets.all(isSelected ? 17 : 18),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          border: Border.all(
-            color: isSelected ? iconColor : AppTheme.borderColor,
-            width: isSelected ? 2 : 1,
-          ),
+          color: cardBg,
+          border: Border.all(color: cardBorder, width: 2),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -180,7 +211,7 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.15),
+                color: iconBg,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: iconColor, size: 26),
@@ -192,19 +223,23 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                    style: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: titleColor,
+                      fontSize: recipient == _CareRecipient.patient ? 20 : 21,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                    style: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: subtitleColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ],
@@ -212,7 +247,7 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
             ),
             Icon(
               isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
-              color: isSelected ? iconColor : const Color(0xFF475569),
+              color: iconColor,
               size: 22,
             ),
           ],

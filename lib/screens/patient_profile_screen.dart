@@ -200,6 +200,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
     return Scaffold(
       backgroundColor: bgCream,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             Expanded(
@@ -1181,9 +1182,12 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
     ];
     return Container(
       width: double.infinity,
-      height: 67,
       color: darkGreen,
-      child: Row(
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 67,
+          child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(items.length, (index) {
           final item = items[index];
@@ -1238,6 +1242,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
             ),
           );
         }),
+          ),
+        ),
       ),
     );
   }

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
-import '../theme/app_theme.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Patient details (family member)
-//  Figma node: 498-5517 · P-03c · "Who are you caring for?"
+//  Family member details
+//  Figma node: 372-180 · "Who are you caring for?"
 //
-//  Shown when the person registering picked "I'm a family member"
-//  on the "Who needs care?" sheet. Collects the patient's basic
-//  details, then continues into the normal onboarding flow.
+//  Shown when the person registering picked "I'm a family member" on the
+//  "Who needs care?" sheet. Collects the REGISTRANT's own contact details
+//  (not the patient's — those are collected later, during the normal
+//  patient-onboarding flow, once the account exists). Continuing here
+//  proceeds straight into account registration.
 // ─────────────────────────────────────────────────────────────
 class PatientFamilyDetailsScreen extends StatefulWidget {
   const PatientFamilyDetailsScreen({super.key});
@@ -21,12 +22,23 @@ class PatientFamilyDetailsScreen extends StatefulWidget {
 
 class _PatientFamilyDetailsScreenState
     extends State<PatientFamilyDetailsScreen> {
-  static const Color _teal = Color(0xFF01D3A8);
+  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color titleBrown = Color(0xFF564732);
+  static const Color subtitleBrown = Color(0xFF90867A);
+  static const Color fieldBorder = Color(0xFF423423);
+  static const Color fieldLabel = Color(0xFF564732);
+  static const Color fieldValue = Color(0xFF76634B);
+  static const Color bannerBg = Color.fromRGBO(171, 144, 137, 0.47);
+  static const Color bannerBorder = Color(0xFF3B2E26);
+  static const Color bannerIcon = Color(0xFF352D2A);
+  static const Color bannerText = Color(0xFF47312B);
+  static const Color continueBg = Color(0xFF746553);
 
   final _nameController = TextEditingController();
-  final _ageController = TextEditingController();
+  final _nicController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _addressController = TextEditingController();
-  final _notesController = TextEditingController();
 
   final List<String> _relationships = [
     'Mother',
@@ -39,18 +51,25 @@ class _PatientFamilyDetailsScreenState
   String _relationship = 'Mother';
 
   @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
-    _ageController.dispose();
+    _nicController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
     _addressController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
   void _showRelationshipPicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardColor,
+      backgroundColor: bgCream,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),
@@ -66,13 +85,14 @@ class _PatientFamilyDetailsScreenState
               title: Text(
                 r,
                 style: TextStyle(
-                  color: selected ? AppTheme.primaryGreen : AppTheme.textPrimary,
+                  fontFamily: 'Open Sans',
+                  color: selected ? continueBg : fieldLabel,
                   fontSize: 15,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
               trailing: selected
-                  ? const Icon(Icons.check_rounded, color: AppTheme.primaryGreen)
+                  ? const Icon(Icons.check_rounded, color: continueBg)
                   : null,
               onTap: () {
                 setState(() => _relationship = r);
@@ -85,24 +105,32 @@ class _PatientFamilyDetailsScreenState
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    setStatusBarStyle(Brightness.light);
+  void _continue() {
+    AppState.familyMemberName.value = _nameController.text.trim();
+    AppState.familyMemberNic.value = _nicController.text.trim();
+    AppState.relationToPatient.value = _relationship;
+    AppState.familyMemberPhone.value = _phoneController.text.trim();
+    AppState.familyMemberEmail.value = _emailController.text.trim();
+    AppState.familyMemberAddress.value = _addressController.text.trim();
+    Navigator.pushNamed(
+      context,
+      '/register',
+      arguments: {'role': 'patient', 'careRecipient': 'family'},
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bgCream,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
+          padding: const EdgeInsets.fromLTRB(23, 8, 27, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: titleBrown, size: 20),
                 onPressed: () => Navigator.pop(context),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -111,9 +139,10 @@ class _PatientFamilyDetailsScreenState
               const Text(
                 'Who are you caring for?',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  fontFamily: 'Open Sans',
+                  color: titleBrown,
                   fontSize: 25,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -121,19 +150,21 @@ class _PatientFamilyDetailsScreenState
               const Text(
                 'Tell us a little about the patient',
                 style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Open Sans',
+                  color: subtitleBrown,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
                 ),
               ),
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 20),
+                    padding: const EdgeInsets.only(top: 18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel("Patient's full name"),
+                        _buildLabel('Your full name'),
                         const SizedBox(height: 7),
                         _buildTextField(
                           controller: _nameController,
@@ -149,12 +180,11 @@ class _PatientFamilyDetailsScreenState
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('Age'),
+                                    _buildLabel('NIC Number'),
                                     const SizedBox(height: 7),
                                     _buildTextField(
-                                      controller: _ageController,
-                                      keyboardType: TextInputType.number,
-                                      hintText: '78',
+                                      controller: _nicController,
+                                      hintText: '972345678V',
                                     ),
                                   ],
                                 ),
@@ -164,7 +194,7 @@ class _PatientFamilyDetailsScreenState
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildLabel('Relationship'),
+                                    _buildLabel('Relationship to patient'),
                                     const SizedBox(height: 7),
                                     GestureDetector(
                                       onTap: _showRelationshipPicker,
@@ -172,8 +202,7 @@ class _PatientFamilyDetailsScreenState
                                         width: double.infinity,
                                         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.inputBackground,
-                                          border: Border.all(color: AppTheme.borderColor),
+                                          border: Border.all(color: fieldBorder),
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Row(
@@ -182,14 +211,15 @@ class _PatientFamilyDetailsScreenState
                                             Text(
                                               _relationship,
                                               style: const TextStyle(
-                                                color: AppTheme.textPrimary,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w400,
+                                                fontFamily: 'Open Sans',
+                                                color: fieldValue,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                             const Icon(
                                               Icons.keyboard_arrow_down_rounded,
-                                              color: Color(0xFF64748B),
+                                              color: fieldValue,
                                               size: 18,
                                             ),
                                           ],
@@ -204,7 +234,25 @@ class _PatientFamilyDetailsScreenState
                         ),
                         const SizedBox(height: 13),
 
-                        _buildLabel('Care address'),
+                        _buildLabel('Mobile number'),
+                        const SizedBox(height: 7),
+                        _buildTextField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          hintText: '+94 71 234 5678',
+                        ),
+                        const SizedBox(height: 13),
+
+                        _buildLabel('Email address'),
+                        const SizedBox(height: 7),
+                        _buildTextField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          hintText: 'mala.perera@email.com',
+                        ),
+                        const SizedBox(height: 13),
+
+                        _buildLabel('Your address'),
                         const SizedBox(height: 7),
                         _buildTextField(
                           controller: _addressController,
@@ -212,77 +260,27 @@ class _PatientFamilyDetailsScreenState
                         ),
                         const SizedBox(height: 13),
 
-                        Row(
-                          children: [
-                            const Text(
-                              'Conditions / notes ',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const Text(
-                              '(optional)',
-                              style: TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 7),
                         Container(
                           width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 15.5, vertical: 13.5),
                           decoration: BoxDecoration(
-                            color: AppTheme.inputBackground,
-                            border: Border.all(color: AppTheme.borderColor),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: TextField(
-                            controller: _notesController,
-                            maxLines: 2,
-                            minLines: 2,
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 17, vertical: 15),
-                              hintText: 'e.g. diabetic, limited mobility…',
-                              hintStyle: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 13),
-
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-                          decoration: BoxDecoration(
-                            color: _teal.withValues(alpha: 0.08),
-                            border: Border.all(color: _teal.withValues(alpha: 0.25)),
+                            color: bannerBg,
+                            border: Border.all(color: bannerBorder, width: 1.5),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.verified_user_rounded, color: _teal, size: 19),
+                              Icon(Icons.verified_user_rounded, color: bannerIcon, size: 19),
                               SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  "We'll ask the patient to confirm access once their profile is set up.",
+                                  "Next you'll add the patient details and we'll ask them to confirm your access",
                                   style: TextStyle(
-                                    color: AppTheme.textSecondary,
+                                    fontFamily: 'Open Sans',
+                                    color: bannerText,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                     height: 1.4,
                                   ),
                                 ),
@@ -299,29 +297,22 @@ class _PatientFamilyDetailsScreenState
               SizedBox(
                 width: double.infinity,
                 child: Material(
-                  color: AppTheme.primaryGreen,
+                  color: continueBg,
                   borderRadius: BorderRadius.circular(10),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () {
-                      AppState.patientName.value = _nameController.text.trim();
-                      AppState.relationToPatient.value = _relationship;
-                      AppState.patientAge.value = _ageController.text.trim();
-                      AppState.patientAddress.value =
-                          _addressController.text.trim();
-                      AppState.additionalCareNotes.value =
-                          _notesController.text.trim();
-                      Navigator.pushNamed(context, '/patient-onboarding-1');
-                    },
+                    onTap: _continue,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
                       child: Text(
                         'Continue',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppTheme.bottleGreen,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontFamily: 'Open Sans',
+                          color: Colors.white,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ),
@@ -338,9 +329,11 @@ class _PatientFamilyDetailsScreenState
   Widget _buildLabel(String text) => Text(
         text,
         style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+          fontFamily: 'Open Sans',
+          color: fieldLabel,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.5,
         ),
       );
 
@@ -352,27 +345,32 @@ class _PatientFamilyDetailsScreenState
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.inputBackground,
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: fieldBorder),
         borderRadius: BorderRadius.circular(10),
       ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 15,
-          fontWeight: FontWeight.w400,
+          fontFamily: 'Open Sans',
+          color: fieldValue,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
           isDense: true,
+          filled: false,
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
           hintText: hintText,
           hintStyle: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 15,
-            fontWeight: FontWeight.w400,
+            fontFamily: 'Open Sans',
+            color: fieldValue,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),

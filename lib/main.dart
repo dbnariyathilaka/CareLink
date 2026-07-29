@@ -36,6 +36,7 @@ import 'screens/patient_profile_screen.dart';
 import 'screens/edit_care_requirements_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/patient_chat_screen.dart';
+import 'screens/track_caregiver_screen.dart';
 import 'screens/caregiver_messages_screen.dart';
 import 'screens/caregiver_chat_screen.dart';
 import 'screens/patient_settings_screen.dart';
@@ -130,6 +131,7 @@ class CareMatchApp extends StatelessWidget {
             const EditCareRequirementsScreen(),
         '/messages': (context) => const MessagesScreen(),
         '/chat': (context) => const PatientChatScreen(),
+        '/track-caregiver': (context) => const TrackCaregiverScreen(),
         '/settings': (context) => const PatientSettingsScreen(),
         '/caregiver-schedule': (context) => const CaregiverScheduleScreen(),
         '/caregiver-directions': (context) => const CaregiverDirectionsScreen(),

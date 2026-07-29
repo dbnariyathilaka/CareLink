@@ -104,39 +104,39 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgCream,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildEmergencyBanner(),
-                    const SizedBox(height: 14),
-                    _buildStatsRow(),
-                    const SizedBox(height: 20),
-                    _buildSectionHeader(),
-                    const SizedBox(height: 14),
-                    _buildFindCaregiverPrompt(),
-                  ],
-                ),
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildEmergencyBanner(),
+                  const SizedBox(height: 14),
+                  _buildStatsRow(),
+                  const SizedBox(height: 20),
+                  _buildSectionHeader(),
+                  const SizedBox(height: 14),
+                  _buildFindCaregiverPrompt(),
+                ],
               ),
             ),
-            _buildBottomBar(),
-          ],
-        ),
+          ),
+          _buildBottomBar(),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  // Paints full-bleed behind the transparent status bar (edge-to-edge mode),
+  // so the header's own top padding — not an outer SafeArea — keeps the
+  // greeting clear of the status bar icons.
+  Widget _buildHeader(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
-      height: 140,
       decoration: const BoxDecoration(
         color: darkGreen,
         borderRadius: BorderRadius.only(
@@ -144,7 +144,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
           bottomRight: Radius.circular(20),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 22),
+      padding: EdgeInsets.fromLTRB(22, topInset + 16, 22, 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -419,61 +419,68 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     ];
     return Container(
       width: double.infinity,
-      height: 67,
       color: darkGreen,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
+      // top:false — the system nav/gesture bar inset only applies at the
+      // bottom here; without this the OS nav buttons overlap these icons.
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 67,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
 
-          if (index == 2) {
-            // Empty slot reserved for the floating Match button; only the
-            // label is drawn here so it sits centered beneath the FAB.
-            return const SizedBox(
-              width: 60,
-              child: Padding(
-                padding: EdgeInsets.only(top: 41),
-                child: Text(
-                  'Match',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Quattrocento Sans',
-                    color: navMatchLabel,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          final color = index == 0 ? navHomeLabel : Colors.white;
-          return GestureDetector(
-            onTap: item.route != null
-                ? () => Navigator.pushNamed(context, item.route!)
-                : null,
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              width: 60,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, color: color, size: 25),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+              if (index == 2) {
+                // Empty slot reserved for the floating Match button; only the
+                // label is drawn here so it sits centered beneath the FAB.
+                return const SizedBox(
+                  width: 60,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 41),
+                    child: Text(
+                      'Match',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        color: navMatchLabel,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        }),
+                );
+              }
+
+              final color = index == 0 ? navHomeLabel : Colors.white;
+              return GestureDetector(
+                onTap: item.route != null
+                    ? () => Navigator.pushNamed(context, item.route!)
+                    : null,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 60,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, color: color, size: 25),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }

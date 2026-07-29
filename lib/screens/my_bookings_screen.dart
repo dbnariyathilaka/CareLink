@@ -341,6 +341,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     return Scaffold(
       backgroundColor: bgCream,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
@@ -854,66 +855,71 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     ];
     return Container(
       width: double.infinity,
-      height: 67,
       color: darkGreen,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 67,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(items.length, (index) {
+              final item = items[index];
 
-          if (index == 2) {
-            return const SizedBox(
-              width: 60,
-              child: Padding(
-                padding: EdgeInsets.only(top: 41),
-                child: Text(
-                  'Match',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Quattrocento Sans',
-                    color: navMatchLabel,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            );
-          }
-
-          // "Booking" tab is the current screen.
-          final color = index == 3
-              ? navHomeLabel
-              : Colors.white;
-          return GestureDetector(
-            onTap: item.route != null
-                ? () => Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      item.route!,
-                      (route) => route.settings.name == '/patient-dashboard',
-                    )
-                : null,
-            behavior: HitTestBehavior.opaque,
-            child: SizedBox(
-              width: 60,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, color: color, size: 25),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+              if (index == 2) {
+                return const SizedBox(
+                  width: 60,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 41),
+                    child: Text(
+                      'Match',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Quattrocento Sans',
+                        color: navMatchLabel,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          );
-        }),
+                );
+              }
+
+              // "Booking" tab is the current screen.
+              final color = index == 3
+                  ? navHomeLabel
+                  : Colors.white;
+              return GestureDetector(
+                onTap: item.route != null
+                    ? () => Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          item.route!,
+                          (route) => route.settings.name == '/patient-dashboard',
+                        )
+                    : null,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 60,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, color: color, size: 25),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
