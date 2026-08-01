@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
-import '../theme/app_theme.dart';
+import '../data/sri_lankan_cities.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 3 of 6
-//  Figma node: 498-6556 · "Location & bio"
+//  Figma node: 426-362 · "Location & bio"
+//  "Areas covered" is computed for real from sriLankanCities lat/lng via
+//  haversineKm — not a hardcoded list — so it reflects whatever city and
+//  radius the caregiver actually picks.
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding3Screen extends StatefulWidget {
   const CaregiverOnboarding3Screen({super.key});
@@ -17,9 +20,23 @@ class CaregiverOnboarding3Screen extends StatefulWidget {
 
 class _CaregiverOnboarding3ScreenState
     extends State<CaregiverOnboarding3Screen> {
-  static const Color _indigo = Color(0xFF6366F1);
+  static const Color bg = Color(0xFFF1F8E1);
+  static const Color titleDark = Color(0xFF112541);
+  static const Color fieldLabel = Color(0xFF627590);
+  static const Color stepLabel = Color(0xFF94A3B8);
+  static const Color fieldBorder = Color(0xFF334155);
+  static const Color locationIcon = Color(0xFF323D48);
+  static const Color progressActive = Color(0xFF345058);
+  static const Color progressInactive = Color.fromRGBO(137, 171, 199, 0.37);
+  static const Color coverageBg = Color.fromRGBO(2, 33, 64, 0.18);
+  static const Color coverageBorder = Color(0xFF323D48);
+  static const Color coverageLabel = Color(0xFF4D607B);
+  static const Color chipBg = Color(0xFF323D48);
+  static const Color chipText = Color(0xFFCBD5E1);
+  static const Color bioBg = Color.fromRGBO(30, 41, 59, 0.43);
+  static const Color continueBg = Color(0xFF223A5C);
 
-  final _cityController = TextEditingController();
+  final _cityController = TextEditingController(text: 'Negombo, Western Province');
   final _bioController = TextEditingController();
 
   static const List<String> _radiusOptions = [
@@ -32,22 +49,12 @@ class _CaregiverOnboarding3ScreenState
   ];
   String _radius = '10 km';
 
-  static const Map<String, List<String>> _coveredAreas = {
-    '5 km': ['Negombo', 'Katunayake'],
-    '10 km': ['Negombo', 'Katunayake', 'Ja-Ela', 'Seeduwa', 'Wennappuwa'],
-    '15 km': ['Negombo', 'Katunayake', 'Ja-Ela', 'Seeduwa', 'Wennappuwa', 'Kochchikade'],
-    '20 km': [
-      'Negombo', 'Katunayake', 'Ja-Ela', 'Seeduwa', 'Wennappuwa', 'Kochchikade', 'Marawila',
-    ],
-    '25 km': [
-      'Negombo', 'Katunayake', 'Ja-Ela', 'Seeduwa', 'Wennappuwa', 'Kochchikade', 'Marawila',
-      'Chilaw',
-    ],
-    '30 km': [
-      'Negombo', 'Katunayake', 'Ja-Ela', 'Seeduwa', 'Wennappuwa', 'Kochchikade', 'Marawila',
-      'Chilaw', 'Waikkal',
-    ],
-  };
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+    _cityController.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -59,7 +66,7 @@ class _CaregiverOnboarding3ScreenState
   void _showRadiusPicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardColor,
+      backgroundColor: bg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),
@@ -75,12 +82,12 @@ class _CaregiverOnboarding3ScreenState
               title: Text(
                 r,
                 style: TextStyle(
-                  color: selected ? _indigo : AppTheme.textPrimary,
+                  color: selected ? continueBg : titleDark,
                   fontSize: 15,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
-              trailing: selected ? const Icon(Icons.check_rounded, color: _indigo) : null,
+              trailing: selected ? const Icon(Icons.check_rounded, color: continueBg) : null,
               onTap: () {
                 setState(() => _radius = r);
                 Navigator.pop(context);
@@ -92,16 +99,35 @@ class _CaregiverOnboarding3ScreenState
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    setStatusBarStyle(Brightness.light);
+  /// Real nearby cities within the chosen radius of the typed city, computed
+  /// from sriLankanCities lat/lng via the haversine formula — empty (rather
+  /// than a guess) if the typed text doesn't match a known city.
+  List<String> _computeCoveredAreas() {
+    final cityName = _cityController.text.split(',').first.trim();
+    final origin = cityCoords(cityName);
+    if (origin == null) return const [];
+    final radiusKm = double.tryParse(_radius.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 10;
+    final originLat = double.parse(origin['lat']!);
+    final originLng = double.parse(origin['lng']!);
+
+    final matches = <MapEntry<String, double>>[];
+    for (final c in sriLankanCities) {
+      final lat = double.parse(c['lat']!);
+      final lng = double.parse(c['lng']!);
+      final dist = haversineKm(originLat, originLng, lat, lng);
+      if (dist <= radiusKm) {
+        matches.add(MapEntry(c['city']!, dist));
+      }
+    }
+    matches.sort((a, b) => a.value.compareTo(b.value));
+    return matches.map((e) => e.key).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final coveredAreas = _computeCoveredAreas();
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -115,11 +141,7 @@ class _CaregiverOnboarding3ScreenState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppTheme.textPrimary,
-                      size: 24,
-                    ),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: titleDark, size: 20),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
                     constraints:
@@ -128,7 +150,8 @@ class _CaregiverOnboarding3ScreenState
                   const Text(
                     'Step 3 of 6',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      fontFamily: 'Open Sans',
+                      color: stepLabel,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -145,9 +168,10 @@ class _CaregiverOnboarding3ScreenState
               const Text(
                 'Location & bio',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
+                  fontFamily: 'Open Sans',
+                  color: titleDark,
                   fontSize: 23,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.4,
                 ),
               ),
@@ -159,44 +183,43 @@ class _CaregiverOnboarding3ScreenState
                     children: [
                       const SizedBox(height: 22),
 
-                      const Text(
-                        'City / area',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('City / area'),
                       const SizedBox(height: 8),
 
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: AppTheme.inputBackground,
-                          border: Border.all(color: AppTheme.borderColor),
+                          border: Border.all(color: fieldBorder, width: 1.5),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           children: [
-                            const SizedBox(width: 17),
-                            const Icon(Icons.location_on, color: _indigo, size: 20),
+                            const SizedBox(width: 17.5),
+                            const Icon(Icons.location_on_rounded, color: locationIcon, size: 20),
                             const SizedBox(width: 10),
                             Expanded(
                               child: TextField(
                                 controller: _cityController,
                                 style: const TextStyle(
-                                  color: AppTheme.textPrimary,
+                                  fontFamily: 'Open Sans',
+                                  color: titleDark,
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w400,
+                                  fontWeight: FontWeight.w600,
                                 ),
                                 decoration: const InputDecoration(
                                   isDense: true,
+                                  filled: false,
                                   border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 15),
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(vertical: 15.5),
                                   hintText: 'Negombo, Western Province',
                                   hintStyle: TextStyle(
-                                    color: AppTheme.textSecondary,
+                                    fontFamily: 'Open Sans',
+                                    color: fieldLabel,
                                     fontSize: 15,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -208,24 +231,16 @@ class _CaregiverOnboarding3ScreenState
 
                       const SizedBox(height: 18),
 
-                      const Text(
-                        'Service radius',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('Service radius'),
                       const SizedBox(height: 8),
 
                       GestureDetector(
                         onTap: _showRadiusPicker,
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                          padding: const EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
                           decoration: BoxDecoration(
-                            color: AppTheme.inputBackground,
-                            border: Border.all(color: AppTheme.borderColor),
+                            border: Border.all(color: fieldBorder, width: 1.5),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -234,16 +249,13 @@ class _CaregiverOnboarding3ScreenState
                               Text(
                                 _radius,
                                 style: const TextStyle(
-                                  color: AppTheme.textPrimary,
+                                  fontFamily: 'Open Sans',
+                                  color: titleDark,
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w400,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                color: AppTheme.textSecondary,
-                                size: 22,
-                              ),
+                              const Icon(Icons.keyboard_arrow_down_rounded, color: stepLabel, size: 22),
                             ],
                           ),
                         ),
@@ -253,10 +265,10 @@ class _CaregiverOnboarding3ScreenState
 
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+                        padding: const EdgeInsets.symmetric(horizontal: 15.5, vertical: 13.5),
                         decoration: BoxDecoration(
-                          color: _indigo.withValues(alpha: 0.08),
-                          border: Border.all(color: AppTheme.borderColor),
+                          color: coverageBg,
+                          border: Border.all(color: coverageBorder, width: 1.5),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Column(
@@ -265,56 +277,62 @@ class _CaregiverOnboarding3ScreenState
                             Text(
                               'Areas covered within $_radius',
                               style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
+                                fontFamily: 'Open Sans',
+                                color: coverageLabel,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: (_coveredAreas[_radius] ?? const [])
-                                  .map((area) => Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 13, vertical: 7),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.inputBackground,
-                                          border: Border.all(color: AppTheme.borderColor),
-                                          borderRadius: BorderRadius.circular(999),
-                                        ),
-                                        child: Text(
-                                          area,
-                                          style: const TextStyle(
-                                            color: Color(0xFFCBD5E1),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
+                            if (coveredAreas.isEmpty)
+                              const Text(
+                                'Enter a recognised Sri Lankan city to see the areas within range.',
+                                style: TextStyle(
+                                  fontFamily: 'Open Sans',
+                                  color: coverageLabel,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.4,
+                                ),
+                              )
+                            else
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: coveredAreas
+                                    .map((area) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 13, vertical: 7),
+                                          decoration: BoxDecoration(
+                                            color: chipBg,
+                                            border: Border.all(color: fieldBorder),
+                                            borderRadius: BorderRadius.circular(999),
                                           ),
-                                        ),
-                                      ))
-                                  .toList(),
-                            ),
+                                          child: Text(
+                                            area,
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              color: chipText,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ))
+                                    .toList(),
+                              ),
                           ],
                         ),
                       ),
 
                       const SizedBox(height: 18),
 
-                      const Text(
-                        'Short bio',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('Short bio'),
                       const SizedBox(height: 8),
 
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: AppTheme.inputBackground,
-                          border: Border.all(color: AppTheme.borderColor),
+                          color: bioBg,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: TextField(
@@ -322,20 +340,26 @@ class _CaregiverOnboarding3ScreenState
                           maxLines: 4,
                           minLines: 4,
                           style: const TextStyle(
-                            color: Color(0xFFCBD5E1),
+                            fontFamily: 'Open Sans',
+                            color: titleDark,
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
                             height: 1.5,
                           ),
                           decoration: const InputDecoration(
                             isDense: true,
+                            filled: false,
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 13.25),
                             hintText: 'Compassionate elder-care nurse with 5 years supporting '
                                 'families across the Western Province. I specialise in '
                                 'dementia and post-surgery recovery.',
                             hintStyle: TextStyle(
-                              color: AppTheme.textSecondary,
+                              fontFamily: 'Open Sans',
+                              color: locationIcon,
                               fontSize: 13,
                               height: 1.5,
                             ),
@@ -354,7 +378,7 @@ class _CaregiverOnboarding3ScreenState
                 child: SizedBox(
                   width: double.infinity,
                   child: Material(
-                    color: _indigo,
+                    color: continueBg,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
@@ -372,6 +396,7 @@ class _CaregiverOnboarding3ScreenState
                           'Continue',
                           textAlign: TextAlign.center,
                           style: TextStyle(
+                            fontFamily: 'Inter',
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -389,6 +414,16 @@ class _CaregiverOnboarding3ScreenState
     );
   }
 
+  Widget _buildLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+          fontFamily: 'Open Sans',
+          color: fieldLabel,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+
   /// Progress bar with segmented steps
   Widget _buildProgressBar({required int currentStep, required int totalSteps}) {
     return Row(
@@ -399,7 +434,7 @@ class _CaregiverOnboarding3ScreenState
             margin: EdgeInsets.only(right: index < totalSteps - 1 ? 6 : 0),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _indigo : AppTheme.inputBackground,
+              color: isActive ? progressActive : progressInactive,
               borderRadius: BorderRadius.circular(3),
             ),
           ),

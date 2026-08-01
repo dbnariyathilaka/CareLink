@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/upload_picker_sheet.dart';
+import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 5 of 6
-//  Figma node: 498-6677 · "Police clearance certificate"
+//  Figma node: 436-466 · "Police clearance certificate"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding5Screen extends StatefulWidget {
   const CaregiverOnboarding5Screen({super.key});
@@ -25,11 +25,22 @@ class _UploadedDoc {
 
 class _CaregiverOnboarding5ScreenState
     extends State<CaregiverOnboarding5Screen> {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _amber = Color(0xFFF59E0B);
-  static const Color _mustard = Color(0xFFFCD34D);
-  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color bg = Color(0xFFF1F8E1);
+  static const Color titleDark = Color(0xFF112541);
+  static const Color stepLabel = Color(0xFF94A3B8);
+  static const Color progressActive = Color(0xFF345058);
+  static const Color progressInactive = Color.fromRGBO(137, 171, 199, 0.37);
+  static const Color dropzoneBg = Color.fromRGBO(193, 179, 157, 0.18);
+  static const Color dropzoneBorder = Color.fromRGBO(68, 51, 28, 0.34);
+  static const Color dropzoneLabel = Color(0xFF2E2A1F);
+  static const Color dropzoneCaption = Color(0xFF64748B);
+  static const Color warningBg = Color(0xFFE6E9D2);
+  static const Color warningBorder = Color(0xFFAD9067);
+  static const Color warningText = Color(0xFF8B5C27);
+  static const Color fileRowBorder = Color.fromRGBO(0, 0, 0, 0.4);
+  static const Color fileRowText = Color(0xFF2F2313);
+  static const Color removeIcon = Color(0xFFA34207);
+  static const Color continueBg = Color(0xFF223A5C);
 
   _UploadedDoc? _policeClearance;
   final List<_UploadedDoc> _otherDocuments = [];
@@ -37,6 +48,12 @@ class _CaregiverOnboarding5ScreenState
   bool _uploadingOtherDocument = false;
 
   bool get _busy => _uploadingPoliceClearance || _uploadingOtherDocument;
+
+  @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+  }
 
   Future<void> _pickPoliceClearance() async {
     final picked = await pickImageOrDocument(context);
@@ -102,7 +119,7 @@ class _CaregiverOnboarding5ScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -116,7 +133,7 @@ class _CaregiverOnboarding5ScreenState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: titleDark, size: 20),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -124,7 +141,8 @@ class _CaregiverOnboarding5ScreenState
                   const Text(
                     'Step 5 of 6',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      fontFamily: 'Open Sans',
+                      color: stepLabel,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -141,10 +159,10 @@ class _CaregiverOnboarding5ScreenState
               const Text(
                 'Police clearance certificate',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
+                  fontFamily: 'Open Sans',
+                  color: titleDark,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 7),
@@ -153,9 +171,10 @@ class _CaregiverOnboarding5ScreenState
                 'certificate for verification (optional — you can add this '
                 'later from your profile).',
                 style: TextStyle(
-                  color: AppTheme.textSecondary,
+                  fontFamily: 'Open Sans',
+                  color: stepLabel,
                   fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w400,
                   height: 1.5,
                 ),
               ),
@@ -173,7 +192,8 @@ class _CaregiverOnboarding5ScreenState
                           width: double.infinity,
                           padding: const EdgeInsets.all(25),
                           decoration: BoxDecoration(
-                            border: Border.all(color: AppTheme.borderColor),
+                            color: dropzoneBg,
+                            border: Border.all(color: dropzoneBorder),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: _uploadingPoliceClearance
@@ -182,26 +202,27 @@ class _CaregiverOnboarding5ScreenState
                                     SizedBox(
                                       width: 22,
                                       height: 22,
-                                      child: CircularProgressIndicator(color: _indigo, strokeWidth: 2.5),
+                                      child: CircularProgressIndicator(color: continueBg, strokeWidth: 2.5),
                                     ),
                                     SizedBox(height: 6),
                                     Text(
                                       'Uploading...',
-                                      style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                                      style: TextStyle(fontFamily: 'Open Sans', color: dropzoneLabel, fontSize: 12, fontWeight: FontWeight.w600),
                                     ),
                                   ],
                                 )
                               : Column(
                                   children: [
-                                    const Icon(Icons.gavel_rounded, color: _indigo, size: 26),
+                                    const Icon(Icons.cloud_upload_outlined, color: Colors.black54, size: 48),
                                     const SizedBox(height: 6),
                                     Text(
                                       _policeClearance == null
-                                          ? 'Tap to upload certificate (optional)'
+                                          ? 'Tap to upload certificate'
                                           : 'Tap to replace certificate',
                                       style: const TextStyle(
-                                        color: _geyser,
-                                        fontSize: 12,
+                                        fontFamily: 'Open Sans',
+                                        color: dropzoneLabel,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -209,7 +230,8 @@ class _CaregiverOnboarding5ScreenState
                                     const Text(
                                       'PDF, JPG or PNG',
                                       style: TextStyle(
-                                        color: Color(0xFF64748B),
+                                        fontFamily: 'Inter',
+                                        color: dropzoneCaption,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -220,7 +242,7 @@ class _CaregiverOnboarding5ScreenState
                       ),
                       if (_policeClearance != null) ...[
                         const SizedBox(height: 10),
-                        _buildFileChip(
+                        _buildFileRow(
                           name: _policeClearance!.name,
                           onRemove: () => setState(() => _policeClearance = null),
                         ),
@@ -232,21 +254,22 @@ class _CaregiverOnboarding5ScreenState
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
                         decoration: BoxDecoration(
-                          color: _amber.withValues(alpha: 0.1),
-                          border: Border.all(color: _amber.withValues(alpha: 0.35)),
+                          color: warningBg,
+                          border: Border.all(color: warningBorder),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.warning_rounded, color: _amber, size: 16),
+                            Icon(Icons.warning_rounded, color: warningBorder, size: 16),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Once submitted, this certificate cannot be edited or '
                                 'changed. Please review before sending.',
                                 style: TextStyle(
-                                  color: _mustard,
+                                  fontFamily: 'Inter',
+                                  color: warningText,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                   height: 1.5,
@@ -262,17 +285,19 @@ class _CaregiverOnboarding5ScreenState
                       const Text(
                         'Other qualification documents',
                         style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Open Sans',
+                          color: titleDark,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 6),
                       const Text(
                         'Add any additional certifications, licenses or awards '
                         'that support your profile.',
                         style: TextStyle(
-                          color: Color(0xFF64748B),
+                          fontFamily: 'Inter',
+                          color: dropzoneCaption,
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
                           height: 1.4,
@@ -286,7 +311,8 @@ class _CaregiverOnboarding5ScreenState
                           width: double.infinity,
                           padding: const EdgeInsets.all(21),
                           decoration: BoxDecoration(
-                            border: Border.all(color: AppTheme.borderColor),
+                            color: dropzoneBg,
+                            border: Border.all(color: dropzoneBorder),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: _uploadingOtherDocument
@@ -295,24 +321,25 @@ class _CaregiverOnboarding5ScreenState
                                     SizedBox(
                                       width: 22,
                                       height: 22,
-                                      child: CircularProgressIndicator(color: _indigo, strokeWidth: 2.5),
+                                      child: CircularProgressIndicator(color: continueBg, strokeWidth: 2.5),
                                     ),
                                     SizedBox(height: 6),
                                     Text(
                                       'Uploading...',
-                                      style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                                      style: TextStyle(fontFamily: 'Open Sans', color: dropzoneLabel, fontSize: 12, fontWeight: FontWeight.w600),
                                     ),
                                   ],
                                 )
                               : const Column(
                                   children: [
-                                    Icon(Icons.note_add_rounded, color: _indigo, size: 26),
+                                    Icon(Icons.cloud_upload_outlined, color: Colors.black54, size: 48),
                                     SizedBox(height: 6),
                                     Text(
                                       'Tap to add a document',
                                       style: TextStyle(
-                                        color: _geyser,
-                                        fontSize: 12,
+                                        fontFamily: 'Open Sans',
+                                        color: dropzoneLabel,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -320,7 +347,8 @@ class _CaregiverOnboarding5ScreenState
                                     Text(
                                       'PDF, JPG or PNG · multiple files allowed',
                                       style: TextStyle(
-                                        color: Color(0xFF64748B),
+                                        fontFamily: 'Inter',
+                                        color: dropzoneCaption,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -330,17 +358,26 @@ class _CaregiverOnboarding5ScreenState
                         ),
                       ),
                       if (_otherDocuments.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Uploaded',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: Color.fromRGBO(68, 51, 28, 0.85),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: List.generate(_otherDocuments.length, (i) {
-                            return _buildFileChip(
+                        ...List.generate(_otherDocuments.length, (i) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _buildFileRow(
                               name: _otherDocuments[i].name,
                               onRemove: () => setState(() => _otherDocuments.removeAt(i)),
-                            );
-                          }),
-                        ),
+                            ),
+                          );
+                        }),
                       ],
 
                       const SizedBox(height: 24),
@@ -357,20 +394,20 @@ class _CaregiverOnboarding5ScreenState
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppTheme.borderColor),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: continueBg, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 14.5),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(color: _geyser, fontSize: 14, fontWeight: FontWeight.w600),
+                          style: TextStyle(fontFamily: 'Inter', color: continueBg, fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Material(
-                        color: _indigo,
+                        color: continueBg,
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
@@ -380,7 +417,7 @@ class _CaregiverOnboarding5ScreenState
                             child: Text(
                               'Submit',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                              style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                             ),
                           ),
                         ),
@@ -396,32 +433,32 @@ class _CaregiverOnboarding5ScreenState
     );
   }
 
-  Widget _buildFileChip({required String name, required VoidCallback onRemove}) {
+  Widget _buildFileRow({required String name, required VoidCallback onRemove}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      width: double.infinity,
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: fileRowBorder, width: 1.5),
+        borderRadius: BorderRadius.circular(5),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.description_rounded, color: _indigoLight, size: 14),
-          const SizedBox(width: 5),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 140),
+          Expanded(
             child: Text(
               name,
               overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              style: const TextStyle(color: _geyser, fontSize: 11, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: fileRowText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(width: 5),
           GestureDetector(
             onTap: onRemove,
-            child: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 14),
+            child: const Icon(Icons.cancel_rounded, color: removeIcon, size: 22),
           ),
         ],
       ),
@@ -438,7 +475,7 @@ class _CaregiverOnboarding5ScreenState
             margin: EdgeInsets.only(right: index < totalSteps - 1 ? 6 : 0),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _indigo : AppTheme.inputBackground,
+              color: isActive ? progressActive : progressInactive,
               borderRadius: BorderRadius.circular(3),
             ),
           ),

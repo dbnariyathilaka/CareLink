@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'patient_service.dart';
 
 /// Thin wrapper around the `bookingRequests` Firestore collection — each
 /// document is one patient→caregiver care request, from the moment it's
@@ -23,8 +25,8 @@ class BookingService {
     double? locationLat,
     double? locationLng,
     bool isAdvanced = false,
-  }) {
-    return _collection.add({
+  }) async {
+    await _collection.add({
       'patientUid': patientUid,
       'caregiverId': caregiverId,
       'caregiverName': caregiverName,
@@ -42,6 +44,12 @@ class BookingService {
       'arrivalConfirmed': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    // Best-effort care-circle activity log — never block the booking on it.
+    unawaited(PatientService.logActivity(
+      patientUid,
+      '$caregiverName requested for $startDate at $startTime',
+      icon: 'event_available',
+    ));
   }
 
   /// Sorted client-side (newest first) to avoid requiring a composite

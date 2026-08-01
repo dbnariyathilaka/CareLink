@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/upload_picker_sheet.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 4 of 6
-//  Figma node: 498-6626 · "Profile photo"
+//  Figma node: 434-426 · "Profile photo"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding4Screen extends StatefulWidget {
   const CaregiverOnboarding4Screen({super.key});
@@ -22,7 +21,19 @@ class CaregiverOnboarding4Screen extends StatefulWidget {
 
 class _CaregiverOnboarding4ScreenState
     extends State<CaregiverOnboarding4Screen> {
-  static const Color _indigo = Color(0xFF6366F1);
+  static const Color bg = Color(0xFFF1F8E1);
+  static const Color titleDark = Color(0xFF112541);
+  static const Color stepLabel = Color(0xFF94A3B8);
+  static const Color progressActive = Color(0xFF345058);
+  static const Color progressInactive = Color.fromRGBO(137, 171, 199, 0.37);
+  static const Color avatarBg = Color(0xFFE6E9D2);
+  static const Color avatarBorder = Color(0xFFAFAB94);
+  static const Color avatarIcon = Color(0xFF212D3F);
+  static const Color cameraBadgeBg = Color(0xFF1E293B);
+  static const Color cameraBadgeBorder = Color(0xFF0F172A);
+  static const Color optionButtonBg = Color.fromRGBO(19, 65, 61, 0.89);
+  static const Color optionIcon = Color(0xFFFBBC05);
+  static const Color continueBg = Color(0xFF223A5C);
 
   Uint8List? _photoPreview;
   bool _uploading = false;
@@ -67,13 +78,13 @@ class _CaregiverOnboarding4ScreenState
   @override
   void initState() {
     super.initState();
-    setStatusBarStyle(Brightness.light);
+    setStatusBarStyle(Brightness.dark);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -87,7 +98,7 @@ class _CaregiverOnboarding4ScreenState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: titleDark, size: 20),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -95,7 +106,8 @@ class _CaregiverOnboarding4ScreenState
                   const Text(
                     'Step 4 of 6',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      fontFamily: 'Open Sans',
+                      color: stepLabel,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -112,9 +124,10 @@ class _CaregiverOnboarding4ScreenState
               const Text(
                 'Profile photo',
                 style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Open Sans',
+                  color: titleDark,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.4,
                 ),
               ),
@@ -122,9 +135,11 @@ class _CaregiverOnboarding4ScreenState
               const Text(
                 'A clear photo helps patients recognise and trust you',
                 style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Open Sans',
+                  color: stepLabel,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.4,
                   height: 1.4,
                 ),
               ),
@@ -143,10 +158,10 @@ class _CaregiverOnboarding4ScreenState
                               height: 160,
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                color: AppTheme.cardColor,
+                                color: avatarBg,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: AppTheme.borderColor,
+                                  color: avatarBorder,
                                   width: 2,
                                   style: BorderStyle.solid,
                                 ),
@@ -162,14 +177,14 @@ class _CaregiverOnboarding4ScreenState
                                     )
                                   : const Icon(
                                       Icons.person_rounded,
-                                      color: Color(0xFF475569),
+                                      color: avatarIcon,
                                       size: 56,
                                     ),
                             ),
                             if (_uploading)
                               const Positioned.fill(
                                 child: Center(
-                                  child: CircularProgressIndicator(color: _indigo),
+                                  child: CircularProgressIndicator(color: continueBg),
                                 ),
                               ),
                             Positioned(
@@ -179,9 +194,9 @@ class _CaregiverOnboarding4ScreenState
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: _indigo,
+                                  color: cameraBadgeBg,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: AppTheme.surfaceColor, width: 3),
+                                  border: Border.all(color: cameraBadgeBorder, width: 2),
                                 ),
                                 child: const Icon(
                                   Icons.photo_camera_rounded,
@@ -221,7 +236,7 @@ class _CaregiverOnboarding4ScreenState
                 child: SizedBox(
                   width: double.infinity,
                   child: Material(
-                    color: _indigo,
+                    color: continueBg,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
@@ -236,6 +251,7 @@ class _CaregiverOnboarding4ScreenState
                           'Continue',
                           textAlign: TextAlign.center,
                           style: TextStyle(
+                            fontFamily: 'Inter',
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -263,7 +279,7 @@ class _CaregiverOnboarding4ScreenState
             margin: EdgeInsets.only(right: index < totalSteps - 1 ? 6 : 0),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _indigo : AppTheme.inputBackground,
+              color: isActive ? progressActive : progressInactive,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -278,28 +294,26 @@ class _CaregiverOnboarding4ScreenState
     required VoidCallback? onTap,
   }) {
     return Material(
-      color: AppTheme.cardColor,
+      color: optionButtonBg,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppTheme.borderColor),
-            borderRadius: BorderRadius.circular(10),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: _indigo, size: 20),
+              Icon(icon, color: optionIcon, size: 20),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
+                  fontFamily: 'Open Sans',
+                  color: Color(0xFFF8FAFC),
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: -0.4,
                 ),
               ),
             ],

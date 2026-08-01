@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  "Submit training certificates" dialog
-//  Figma node: 498-6531 · shown when a caregiver selects "Yes"
+//  Figma node: 355-1659 · shown when a caregiver selects "Yes"
 //  for "Formal caregiving training" during onboarding.
 //
 //  Uploads each picked file to Storage as it's selected and returns
@@ -28,11 +27,17 @@ class CertificateUploadDialog extends StatefulWidget {
 }
 
 class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _amber = Color(0xFFF59E0B);
-  static const Color _mustard = Color(0xFFFCD34D);
-  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _dialogBg = Color(0xFFDAD5D1);
+  static const Color _dialogBorder = Color(0xFF334155);
+  static const Color _titleDark = Color(0xFF112541);
+  static const Color _subtitle = Color(0xFF475467);
+  static const Color _dropzoneIcon = Color(0xFF505185);
+  static const Color _dropzoneLabel = Color(0xFF334155);
+  static const Color _dropzoneCaption = Color(0xFF64748B);
+  static const Color _warningBg = Color(0xFFC2A792);
+  static const Color _warningBorder = Color(0xFF94521F);
+  static const Color _warningText = Color(0xFF7D583B);
+  static const Color _continueBg = Color(0xFF223A5C);
 
   final List<_Certificate> _files = [];
   bool _uploading = false;
@@ -82,9 +87,16 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 25),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          border: Border.all(color: AppTheme.borderColor),
+          color: _dialogBg,
+          border: Border.all(color: _dialogBorder),
           borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 30,
+              offset: const Offset(0, 20),
+            ),
+          ],
         ),
         padding: const EdgeInsets.all(23),
         child: Column(
@@ -94,18 +106,20 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
             const Text(
               'Submit training certificates',
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                fontFamily: 'Open Sans',
+                color: _titleDark,
                 fontSize: 17,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 6),
             const Text(
               'Upload your caregiving training certificate(s) for verification.',
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                fontFamily: 'Open Sans',
+                color: _subtitle,
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w400,
                 height: 1.5,
               ),
             ),
@@ -116,7 +130,7 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 21),
                 decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.borderColor),
+                  border: Border.all(color: _dialogBorder),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: _uploading
@@ -125,27 +139,27 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                           SizedBox(
                             width: 22,
                             height: 22,
-                            child: CircularProgressIndicator(color: _indigo, strokeWidth: 2.5),
+                            child: CircularProgressIndicator(color: _continueBg, strokeWidth: 2.5),
                           ),
                           SizedBox(height: 6),
                           Text(
                             'Uploading...',
-                            style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                            style: TextStyle(fontFamily: 'Open Sans', color: _dropzoneLabel, fontSize: 12, fontWeight: FontWeight.w600),
                           ),
                         ],
                       )
                     : const Column(
                         children: [
-                          Icon(Icons.upload_file_rounded, color: _indigo, size: 26),
+                          Icon(Icons.upload_file_rounded, color: _dropzoneIcon, size: 26),
                           SizedBox(height: 6),
                           Text(
                             'Tap to upload certificate',
-                            style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w600),
+                            style: TextStyle(fontFamily: 'Open Sans', color: _dropzoneLabel, fontSize: 12, fontWeight: FontWeight.w600),
                           ),
                           SizedBox(height: 3),
                           Text(
                             'PDF, JPG or PNG',
-                            style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500),
+                            style: TextStyle(fontFamily: 'Inter', color: _dropzoneCaption, fontSize: 11, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
@@ -160,14 +174,14 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceColor,
-                      border: Border.all(color: AppTheme.borderColor),
+                      color: Colors.white,
+                      border: Border.all(color: _dialogBorder),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.description_rounded, color: _indigoLight, size: 14),
+                        const Icon(Icons.description_rounded, color: _dropzoneIcon, size: 14),
                         const SizedBox(width: 5),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 90),
@@ -175,13 +189,13 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                             _files[i].name,
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
-                            style: const TextStyle(color: _geyser, fontSize: 11, fontWeight: FontWeight.w500),
+                            style: const TextStyle(fontFamily: 'Open Sans', color: _dropzoneLabel, fontSize: 11, fontWeight: FontWeight.w500),
                           ),
                         ),
                         const SizedBox(width: 5),
                         GestureDetector(
                           onTap: () => setState(() => _files.removeAt(i)),
-                          child: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 14),
+                          child: const Icon(Icons.close_rounded, color: _dropzoneCaption, size: 14),
                         ),
                       ],
                     ),
@@ -194,21 +208,22 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
               decoration: BoxDecoration(
-                color: _amber.withValues(alpha: 0.1),
-                border: Border.all(color: _amber.withValues(alpha: 0.35)),
+                color: _warningBg,
+                border: Border.all(color: _warningBorder),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_rounded, color: _amber, size: 16),
+                  Icon(Icons.warning_rounded, color: _warningText, size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Once submitted, certificates cannot be edited or changed. '
                       'Please review before sending.',
                       style: TextStyle(
-                        color: _mustard,
+                        fontFamily: 'Open Sans',
+                        color: _warningText,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         height: 1.5,
@@ -225,20 +240,20 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, null),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.borderColor),
+                      side: const BorderSide(color: _continueBg),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: const Text(
                       'Cancel',
-                      style: TextStyle(color: _geyser, fontSize: 14, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontFamily: 'Open Sans', color: _continueBg, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Material(
-                    color: _indigo,
+                    color: _continueBg,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
@@ -248,7 +263,7 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                         child: Text(
                           'Submit',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                          style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),

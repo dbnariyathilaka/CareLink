@@ -563,7 +563,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
           children: [
             _buildSectionLabel('Family Members'),
             GestureDetector(
-              onTap: () => _showComingSoon('Adding family members'),
+              onTap: () => Navigator.pushNamed(context, '/care-circle'),
               child: const Text(
                 'Add',
                 style: TextStyle(
@@ -698,56 +698,59 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
 
   // ── Care circle section ────────────────────────────────────
   Widget _buildCareCircleSection() {
+    final hasMembers = _familyMembers.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionLabel('Care circle'),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: careCircleBg,
-            border: Border.all(color: careCircleBorder),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.family_restroom_rounded, color: Colors.white, size: 30),
-              const SizedBox(height: 10),
-              const Text(
-                'No care circle yet',
-                style: TextStyle(
-                  fontFamily: 'Open Sans',
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
+        GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/care-circle'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: careCircleBg,
+              border: Border.all(color: careCircleBorder),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.family_restroom_rounded, color: Colors.white, size: 30),
+                const SizedBox(height: 10),
+                Text(
+                  hasMembers
+                      ? '${_familyMembers.length + 1} in your care circle'
+                      : 'No care circle yet',
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                "Your care circle brings family and your caregiver together "
-                "once a booking is confirmed.",
-                style: TextStyle(
-                  fontFamily: 'Open Sans',
-                  color: careCircleMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
+                const SizedBox(height: 4),
+                const Text(
+                  "Your care circle brings family and your caregiver together "
+                  "once a booking is confirmed.",
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: careCircleMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              GestureDetector(
-                onTap: () => _showComingSoon('Adding family members'),
-                child: Row(
+                const SizedBox(height: 14),
+                Row(
                   children: [
                     const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 16),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Add family member',
-                      style: TextStyle(
+                    Text(
+                      hasMembers ? 'Manage care circle' : 'Add family member',
+                      style: const TextStyle(
                         fontFamily: 'Open Sans',
                         color: Colors.white,
                         fontSize: 12,
@@ -757,8 +760,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

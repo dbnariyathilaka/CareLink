@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
-import '../theme/app_theme.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 1 of 6
-//  Figma node: 498-6360 · "What care do you offer?"
+//  Figma node: 423-148 · "What care do you offer?"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding1Screen extends StatefulWidget {
   const CaregiverOnboarding1Screen({super.key});
@@ -17,8 +16,20 @@ class CaregiverOnboarding1Screen extends StatefulWidget {
 
 class _CaregiverOnboarding1ScreenState
     extends State<CaregiverOnboarding1Screen> {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _indigoLight = Color(0xFF818CF8);
+  static const Color bg = Color(0xFFF1F8E1);
+  static const Color titleDark = Color(0xFF112541);
+  static const Color fieldLabel = Color(0xFF94A3B8);
+  static const Color fieldBorder = Color(0xFF334155);
+  static const Color fieldHint = Color.fromRGBO(51, 76, 85, 0.42);
+  static const Color progressActive = Color(0xFF345058);
+  static const Color progressInactive = Color.fromRGBO(137, 171, 199, 0.37);
+  static const Color stepperAdd = Color(0xFF293855);
+  static const Color chipBg = Color(0xFFB4BDBB);
+  static const Color chipBorder = Color(0xFF263C4A);
+  static const Color chipText = Color(0xFF263C4A);
+  static const Color chipSelectedBg = Color(0xFF323D48);
+  static const Color chipSelectedText = Color(0xFFCBD5E1);
+  static const Color continueBg = Color(0xFF223A5C);
 
   final List<String> _genderOptions = ['Male', 'Female', 'Other'];
   String _selectedGender = 'Male';
@@ -31,6 +42,12 @@ class _CaregiverOnboarding1ScreenState
   final _refPhoneController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    setStatusBarStyle(Brightness.dark);
+  }
+
+  @override
   void dispose() {
     _nicController.dispose();
     _refPhoneController.dispose();
@@ -40,7 +57,7 @@ class _CaregiverOnboarding1ScreenState
   void _showGenderPicker() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardColor,
+      backgroundColor: bg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20),
@@ -56,13 +73,13 @@ class _CaregiverOnboarding1ScreenState
               title: Text(
                 gender,
                 style: TextStyle(
-                  color: selected ? _indigo : AppTheme.textPrimary,
+                  color: selected ? continueBg : titleDark,
                   fontSize: 15,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
               trailing: selected
-                  ? const Icon(Icons.check_rounded, color: _indigo)
+                  ? const Icon(Icons.check_rounded, color: continueBg)
                   : null,
               onTap: () {
                 setState(() => _selectedGender = gender);
@@ -75,16 +92,20 @@ class _CaregiverOnboarding1ScreenState
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    setStatusBarStyle(Brightness.light);
+  void _toggleCareType(String type) {
+    setState(() {
+      if (_selectedCareTypes.contains(type)) {
+        _selectedCareTypes.remove(type);
+      } else {
+        _selectedCareTypes.add(type);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -92,17 +113,11 @@ class _CaregiverOnboarding1ScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-
-              // Top row: back arrow + step indicator
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: AppTheme.textPrimary,
-                      size: 24,
-                    ),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: titleDark, size: 20),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -110,20 +125,17 @@ class _CaregiverOnboarding1ScreenState
                   const Text(
                     'Step 1 of 6',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      fontFamily: 'Open Sans',
+                      color: fieldLabel,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
               _buildProgressBar(currentStep: 1, totalSteps: 6),
-
               const SizedBox(height: 24),
-
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
@@ -132,32 +144,23 @@ class _CaregiverOnboarding1ScreenState
                       const Text(
                         'What care do you offer?',
                         style: TextStyle(
-                          color: AppTheme.textPrimary,
+                          fontFamily: 'Open Sans',
+                          color: titleDark,
                           fontSize: 23,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: -0.4,
                         ),
                       ),
                       const SizedBox(height: 18),
-
-                      const Text(
-                        'Gender',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('Gender'),
                       const SizedBox(height: 12),
-
                       GestureDetector(
                         onTap: _showGenderPicker,
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                          padding: const EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
                           decoration: BoxDecoration(
-                            color: AppTheme.inputBackground,
-                            border: Border.all(color: AppTheme.borderColor),
+                            border: Border.all(color: fieldBorder, width: 1.5),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -166,39 +169,25 @@ class _CaregiverOnboarding1ScreenState
                               Text(
                                 _selectedGender,
                                 style: const TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
+                                  fontFamily: 'Open Sans',
+                                  color: titleDark,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                color: AppTheme.textSecondary,
-                                size: 22,
-                              ),
+                              const Icon(Icons.keyboard_arrow_down_rounded, color: fieldBorder, size: 22),
                             ],
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 26),
-
-                      const Text(
-                        'Years of experience',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('Years of experience'),
                       const SizedBox(height: 12),
-
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
                         decoration: BoxDecoration(
-                          color: AppTheme.inputBackground,
-                          border: Border.all(color: AppTheme.borderColor),
+                          border: Border.all(color: fieldBorder, width: 1.5),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
@@ -207,9 +196,10 @@ class _CaregiverOnboarding1ScreenState
                             Text(
                               '$_yearsExperience ${_yearsExperience == 1 ? 'year' : 'years'}',
                               style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w400,
+                                fontFamily: 'Open Sans',
+                                color: titleDark,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                             Row(
@@ -220,31 +210,21 @@ class _CaregiverOnboarding1ScreenState
                                       setState(() => _yearsExperience--);
                                     }
                                   },
-                                  child: const Icon(Icons.remove_rounded, color: AppTheme.textSecondary, size: 22),
+                                  child: const Icon(Icons.remove_rounded, color: fieldLabel, size: 22),
                                 ),
                                 const SizedBox(width: 14),
                                 GestureDetector(
                                   onTap: () => setState(() => _yearsExperience++),
-                                  child: const Icon(Icons.add_rounded, color: _indigo, size: 22),
+                                  child: const Icon(Icons.add_rounded, color: stepperAdd, size: 22),
                                 ),
                               ],
                             ),
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 26),
-
-                      const Text(
-                        'Care type',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('Care type'),
                       const SizedBox(height: 12),
-
                       Row(
                         children: [
                           Expanded(
@@ -284,54 +264,32 @@ class _CaregiverOnboarding1ScreenState
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 26),
-
-                      const Text(
-                        'NIC number',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('NIC number'),
                       const SizedBox(height: 12),
-
                       _buildTextField(
                         controller: _nicController,
                         hintText: 'e.g. 200012345678',
                       ),
-
                       const SizedBox(height: 26),
-
-                      const Text(
-                        'Reference phone number',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      _buildLabel('Reference phone number'),
                       const SizedBox(height: 12),
-
                       _buildTextField(
                         controller: _refPhoneController,
                         hintText: 'e.g. 077 123 4567',
                         keyboardType: TextInputType.phone,
                       ),
-
                       const SizedBox(height: 32),
                     ],
                   ),
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.only(bottom: 24),
                 child: SizedBox(
                   width: double.infinity,
                   child: Material(
-                    color: _indigo,
+                    color: continueBg,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
@@ -350,6 +308,7 @@ class _CaregiverOnboarding1ScreenState
                           'Continue',
                           textAlign: TextAlign.center,
                           style: TextStyle(
+                            fontFamily: 'Inter',
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -367,15 +326,15 @@ class _CaregiverOnboarding1ScreenState
     );
   }
 
-  void _toggleCareType(String type) {
-    setState(() {
-      if (_selectedCareTypes.contains(type)) {
-        _selectedCareTypes.remove(type);
-      } else {
-        _selectedCareTypes.add(type);
-      }
-    });
-  }
+  Widget _buildLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+          fontFamily: 'Open Sans',
+          color: fieldLabel,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      );
 
   /// Progress bar with segmented steps
   Widget _buildProgressBar({required int currentStep, required int totalSteps}) {
@@ -387,7 +346,7 @@ class _CaregiverOnboarding1ScreenState
             margin: EdgeInsets.only(right: index < totalSteps - 1 ? 6 : 0),
             height: 5,
             decoration: BoxDecoration(
-              color: isActive ? _indigo : AppTheme.inputBackground,
+              color: isActive ? progressActive : progressInactive,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -408,10 +367,10 @@ class _CaregiverOnboarding1ScreenState
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: isSelected ? _indigo.withValues(alpha: 0.15) : AppTheme.inputBackground,
+          color: isSelected ? chipSelectedBg : chipBg,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: isSelected ? _indigo : AppTheme.borderColor,
+            color: isSelected ? fieldBorder : chipBorder,
             width: 1,
           ),
         ),
@@ -419,9 +378,10 @@ class _CaregiverOnboarding1ScreenState
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isSelected ? _indigoLight : const Color(0xFFCBD5E1),
+            fontFamily: 'Open Sans',
+            color: isSelected ? chipSelectedText : chipText,
             fontSize: 13,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -436,26 +396,32 @@ class _CaregiverOnboarding1ScreenState
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.inputBackground,
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: fieldBorder, width: 1.5),
         borderRadius: BorderRadius.circular(10),
       ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 15,
-          fontWeight: FontWeight.w400,
+          fontFamily: 'Open Sans',
+          color: titleDark,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
           isDense: true,
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
           hintText: hintText,
           hintStyle: const TextStyle(
-            color: Color(0xFF757575),
-            fontSize: 15,
+            fontFamily: 'Open Sans',
+            color: fieldHint,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
