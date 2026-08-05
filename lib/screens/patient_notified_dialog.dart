@@ -1,39 +1,39 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  "Patient notified" confirmation dialog
-//  Figma node: 498-7717 · shown after "Notify patient" is tapped
-//  on the Report unavailability dialog.
+//  "Report submitted" confirmation dialog
+//  Figma node: 355-2813 · shown after submitting the "Report
+//  unavailability" dialog. Figma titles this "Patient notified"
+//  and claims "CareLink support is arranging a replacement" /
+//  "Support will confirm reassignment within 30 minutes" — none
+//  of that exists (no notification pipeline, no support queue),
+//  so the copy below says what's actually true: the report was
+//  saved, and reaching the patient is on the caregiver.
 // ─────────────────────────────────────────────────────────────
 Future<void> showPatientNotifiedDialog(
   BuildContext context, {
   required String patientName,
-  required String bookingDetail,
+  required String schedule,
 }) {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => PatientNotifiedDialog(
-      patientName: patientName,
-      bookingDetail: bookingDetail,
-    ),
+    builder: (_) => PatientNotifiedDialog(patientName: patientName, schedule: schedule),
   );
 }
 
 class PatientNotifiedDialog extends StatelessWidget {
+  const PatientNotifiedDialog({super.key, required this.patientName, required this.schedule});
+
   final String patientName;
-  final String bookingDetail;
+  final String schedule;
 
-  const PatientNotifiedDialog({
-    super.key,
-    required this.patientName,
-    required this.bookingDetail,
-  });
-
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _amber = Color(0xFFF59E0B);
-  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _dialogBg = Color(0xFF4E3B30);
+  static const Color _titleText = Color(0xFFF8FAFC);
+  static const Color _bodyText = Color(0xFF987460);
+  static const Color _infoBg = Color(0xFFBEA495);
+  static const Color _infoIcon = Color(0xFFFBBC05);
+  static const Color _infoText = Color(0xFF371E0F);
 
   @override
   Widget build(BuildContext context) {
@@ -42,59 +42,44 @@ class PatientNotifiedDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 25),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          border: Border.all(color: AppTheme.borderColor),
+          color: _dialogBg,
           borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 30, offset: const Offset(0, 20)),
+          ],
         ),
-        padding: const EdgeInsets.all(27),
+        padding: const EdgeInsets.all(26),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(36),
-              ),
-              child: const Icon(Icons.check_circle_rounded, color: AppTheme.primaryGreen, size: 38),
-            ),
+            const Icon(Icons.verified_rounded, color: Colors.white, size: 74),
             const SizedBox(height: 18),
             const Text(
-              'Patient notified',
+              'Report submitted',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(fontFamily: 'Open Sans', color: _titleText, fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 7),
             Text(
-              "$patientName has been told you can't attend "
-              '$bookingDetail. CareLink support is arranging a replacement.',
+              "You've recorded that you can't attend $schedule with $patientName. It's saved on your schedule.",
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                height: 1.5,
-              ),
+              style: const TextStyle(fontFamily: 'Open Sans', color: _bodyText, fontSize: 14, fontWeight: FontWeight.w600, height: 1.4),
             ),
             const SizedBox(height: 20),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
-                border: Border.all(color: AppTheme.borderColor),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(color: _infoBg, borderRadius: BorderRadius.circular(12)),
               child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.support_agent_rounded, color: _amber, size: 20),
+                  Icon(Icons.support_agent_rounded, color: _infoIcon, size: 20),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Support will confirm reassignment within 30 minutes.',
-                      style: TextStyle(color: _geyser, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
+                      "CareLink doesn't send this automatically — message or call the patient yourself to let them know.",
+                      style: TextStyle(fontFamily: 'Open Sans', color: _infoText, fontSize: 12, fontWeight: FontWeight.w600, height: 1.4),
                     ),
                   ),
                 ],
@@ -103,20 +88,17 @@ class PatientNotifiedDialog extends StatelessWidget {
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
-              child: Material(
-                color: _indigo,
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () => Navigator.pop(context),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 13),
-                    child: Text(
-                      'Back to schedule',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                    ),
-                  ),
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text(
+                  'Back to schedule',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
             ),

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
@@ -11,7 +10,7 @@ import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Edit Profile Screen
-//  Figma node: 498-7932 · P-27b · Edit Profile (Caregiver)
+//  Figma node: 487-604 · Edit Profile (Caregiver)
 //  Reached from the "Edit profile" pencil icon on My Profile.
 // ─────────────────────────────────────────────────────────────
 class CaregiverEditProfileScreen extends StatefulWidget {
@@ -24,9 +23,27 @@ class CaregiverEditProfileScreen extends StatefulWidget {
 
 class _CaregiverEditProfileScreenState
     extends State<CaregiverEditProfileScreen> {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _bg = Color(0xFFF5EEDE);
+  static const Color _titleDark = Color(0xFF1B1E48);
+  static const Color _fieldLabel = Color(0xFF4F5B6C);
+  static const Color _fieldBg = Color.fromRGBO(123, 114, 97, 0.26);
+  static const Color _fieldBorder = Color(0xFF7B7261);
+  static const Color _fieldText = Color(0xFF312714);
+  static const Color _stepperIcon = Color(0xFF44331C);
+  static const Color _addPhoneIcon = Color(0xFF6F5620);
+  static const Color _addPhoneText = Color(0xFF885F36);
+  static const Color _chipSelectedBg = Color(0xFF223A5C);
+  static const Color _chipSelectedText = Color(0xFFE8EBFE);
+  static const Color _chipUnselectedText = Color(0xFF223A5C);
+  static const Color _bioBg = Color.fromRGBO(123, 114, 97, 0.71);
+  static const Color _bioText = Color(0xFF2E271A);
+  static const Color _certBg = Color(0xFFF4D9BF);
+  static const Color _certIcon = Color(0xFF9C7919);
+  static const Color _certText = Color(0xFF44331C);
+  static const Color _certDelete = Color(0xFF7A5A2E);
+  static const Color _addCertBorder = Color(0xFF44331C);
+  static const Color _addCertIcon = Color(0xFFFBBC05);
+  static const Color _saveBg = Color(0xFF1F3554);
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -64,7 +81,7 @@ class _CaregiverEditProfileScreenState
   @override
   void initState() {
     super.initState();
-    setStatusBarStyle(Brightness.light);
+    setStatusBarStyle(Brightness.dark);
     _loadProfile();
   }
 
@@ -207,10 +224,24 @@ class _CaregiverEditProfileScreenState
     }
   }
 
+  Future<void> _removeCertificate(int index) async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+    final url = _certificateUrls[index];
+    setState(() {
+      _certificateUrls.removeAt(index);
+      _certificateLabels.removeAt(index);
+    });
+    await CaregiverService.saveCaregiverProfile(
+      uid: uid,
+      data: {'certificateUrls': FieldValue.arrayRemove([url])},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: _bg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,16 +251,17 @@ class _CaregiverEditProfileScreenState
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _titleDark, size: 20),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 4),
                   const Text(
                     'Edit profile',
                     style: TextStyle(
-                      color: AppTheme.textPrimary,
+                      fontFamily: 'Open Sans',
+                      color: _titleDark,
                       fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -238,7 +270,7 @@ class _CaregiverEditProfileScreenState
             Expanded(
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+                      child: CircularProgressIndicator(color: Color(0xFF223A5C)))
                   : SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
                 child: Column(
@@ -249,12 +281,12 @@ class _CaregiverEditProfileScreenState
 
                     _buildLabel('Full name'),
                     const SizedBox(height: 8),
-                    _buildTextField(_nameController),
+                    _buildTextField(_nameController, showEditIcon: true),
                     const SizedBox(height: 18),
 
                     _buildLabel('Email address'),
                     const SizedBox(height: 8),
-                    _buildTextField(_emailController, keyboardType: TextInputType.emailAddress),
+                    _buildTextField(_emailController, keyboardType: TextInputType.emailAddress, showEditIcon: true),
                     const SizedBox(height: 18),
 
                     _buildLabel('Phone numbers'),
@@ -273,11 +305,11 @@ class _CaregiverEditProfileScreenState
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.add_circle_rounded, color: _indigoLight, size: 18),
+                          Icon(Icons.add_circle_rounded, color: _addPhoneIcon, size: 18),
                           SizedBox(width: 6),
                           Text(
                             'Add another phone number',
-                            style: TextStyle(color: _indigoLight, fontSize: 13, fontWeight: FontWeight.w600),
+                            style: TextStyle(fontFamily: 'Open Sans', color: _addPhoneText, fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -363,10 +395,9 @@ class _CaregiverEditProfileScreenState
                     const SizedBox(height: 8),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                       decoration: BoxDecoration(
-                        color: AppTheme.inputBackground,
-                        border: Border.all(color: AppTheme.borderColor),
+                        color: _bioBg,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: TextField(
@@ -374,7 +405,8 @@ class _CaregiverEditProfileScreenState
                         maxLines: 4,
                         minLines: 3,
                         style: const TextStyle(
-                          color: _geyser,
+                          fontFamily: 'Inter',
+                          color: _bioText,
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
                           height: 1.5,
@@ -385,6 +417,8 @@ class _CaregiverEditProfileScreenState
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
+                          hintText: 'Tell patients a little about yourself...',
+                          hintStyle: TextStyle(fontFamily: 'Inter', color: Color.fromRGBO(46, 39, 26, 0.55), fontSize: 13, fontWeight: FontWeight.w400),
                         ),
                       ),
                     ),
@@ -396,7 +430,7 @@ class _CaregiverEditProfileScreenState
                       children: [
                         for (int i = 0; i < _certificateLabels.length; i++) ...[
                           if (i > 0) const SizedBox(height: 10),
-                          _buildCertRow(_certificateLabels[i]),
+                          _buildCertRow(_certificateLabels[i], () => _removeCertificate(i)),
                         ],
                       ],
                     ),
@@ -405,9 +439,9 @@ class _CaregiverEditProfileScreenState
                       onTap: _addingCertificate ? null : _addCertificate,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                         decoration: BoxDecoration(
-                          border: Border.all(color: AppTheme.borderColor),
+                          border: Border.all(color: _addCertBorder),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: _addingCertificate
@@ -417,23 +451,23 @@ class _CaregiverEditProfileScreenState
                                   SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child: CircularProgressIndicator(color: _indigoLight, strokeWidth: 2),
+                                    child: CircularProgressIndicator(color: _addCertIcon, strokeWidth: 2),
                                   ),
                                   SizedBox(width: 8),
                                   Text(
                                     'Uploading...',
-                                    style: TextStyle(color: _indigoLight, fontSize: 13, fontWeight: FontWeight.w600),
+                                    style: TextStyle(fontFamily: 'Open Sans', color: _certText, fontSize: 13, fontWeight: FontWeight.w600),
                                   ),
                                 ],
                               )
                             : const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.upload_file_rounded, color: _indigoLight, size: 18),
+                                  Icon(Icons.upload_file_rounded, color: _addCertIcon, size: 18),
                                   SizedBox(width: 8),
                                   Text(
                                     'Add certificate',
-                                    style: TextStyle(color: _indigoLight, fontSize: 13, fontWeight: FontWeight.w600),
+                                    style: TextStyle(fontFamily: 'Open Sans', color: _certText, fontSize: 13, fontWeight: FontWeight.w600),
                                   ),
                                 ],
                               ),
@@ -444,7 +478,7 @@ class _CaregiverEditProfileScreenState
                     SizedBox(
                       width: double.infinity,
                       child: Material(
-                        color: _indigo,
+                        color: _saveBg,
                         borderRadius: BorderRadius.circular(10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
@@ -463,9 +497,10 @@ class _CaregiverEditProfileScreenState
                                       'Save changes',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
+                                        fontFamily: 'Open Sans',
                                         color: Colors.white,
                                         fontSize: 16,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                             ),
@@ -504,26 +539,26 @@ class _CaregiverEditProfileScreenState
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 90,
-                height: 90,
+                width: 88,
+                height: 88,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: imagePath == null
                       ? const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [_indigo, Color(0xFF4F46E5)],
+                          colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
                         )
                       : null,
                 ),
                 child: imagePath != null
                     ? ClipOval(
-                        child: RemoteOrLocalImage(source: imagePath, width: 90, height: 90),
+                        child: RemoteOrLocalImage(source: imagePath, width: 88, height: 88),
                       )
                     : Center(
                         child: Text(
                           _initials(),
-                          style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
+                          style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
                         ),
                       ),
               ),
@@ -534,9 +569,9 @@ class _CaregiverEditProfileScreenState
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: _indigo,
+                    color: const Color(0xFF383A81),
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.surfaceColor, width: 3),
+                    border: Border.all(color: const Color(0xFFFDFAF3), width: 3),
                   ),
                   child: const Icon(Icons.photo_camera_rounded, color: Colors.white, size: 15),
                 ),
@@ -552,37 +587,53 @@ class _CaregiverEditProfileScreenState
     return Text(
       text,
       style: const TextStyle(
-        color: AppTheme.textSecondary,
+        fontFamily: 'Open Sans',
+        color: _fieldLabel,
         fontSize: 13,
         fontWeight: FontWeight.w500,
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+    bool showEditIcon = false,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
       decoration: BoxDecoration(
-        color: AppTheme.inputBackground,
-        border: Border.all(color: AppTheme.borderColor),
+        color: _fieldBg,
+        border: Border.all(color: _fieldBorder),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(
-          color: AppTheme.textPrimary,
-          fontSize: 15,
-          fontWeight: FontWeight.w400,
-        ),
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType: keyboardType,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: _fieldText,
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+              ),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+          if (showEditIcon) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.edit_rounded, color: Color(0xFF1A3253), size: 20),
+          ],
+        ],
       ),
     );
   }
@@ -596,8 +647,8 @@ class _CaregiverEditProfileScreenState
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
       decoration: BoxDecoration(
-        color: AppTheme.inputBackground,
-        border: Border.all(color: AppTheme.borderColor),
+        color: _fieldBg,
+        border: Border.all(color: _fieldBorder),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -605,18 +656,18 @@ class _CaregiverEditProfileScreenState
         children: [
           Text(
             value,
-            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w400),
+            style: const TextStyle(fontFamily: 'Open Sans', color: _fieldText, fontSize: 15, fontWeight: FontWeight.w400),
           ),
           Row(
             children: [
               GestureDetector(
                 onTap: onDecrement,
-                child: const Icon(Icons.remove_rounded, color: AppTheme.textSecondary, size: 22),
+                child: const Icon(Icons.remove_rounded, color: _stepperIcon, size: 22),
               ),
               const SizedBox(width: 14),
               GestureDetector(
                 onTap: onIncrement,
-                child: const Icon(Icons.add_rounded, color: _indigo, size: 22),
+                child: const Icon(Icons.add_rounded, color: _stepperIcon, size: 22),
               ),
             ],
           ),
@@ -634,26 +685,24 @@ class _CaregiverEditProfileScreenState
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         decoration: BoxDecoration(
-          color: isSelected ? _indigo.withValues(alpha: 0.15) : AppTheme.inputBackground,
+          color: isSelected ? _chipSelectedBg : Colors.transparent,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isSelected ? _indigo : AppTheme.borderColor,
-            width: 1,
-          ),
+          border: isSelected ? null : Border.all(color: _chipUnselectedText, width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isSelected) ...[
-              const Icon(Icons.check_rounded, color: _indigoLight, size: 15),
-              const SizedBox(width: 5),
+              const Icon(Icons.check_rounded, color: _chipSelectedText, size: 15),
+              const SizedBox(width: 6),
             ],
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? _indigoLight : _geyser,
+                fontFamily: 'Open Sans',
+                color: isSelected ? _chipSelectedText : _chipUnselectedText,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -664,24 +713,30 @@ class _CaregiverEditProfileScreenState
     );
   }
 
-  Widget _buildCertRow(String filename) {
+  Widget _buildCertRow(String filename, VoidCallback onRemove) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.inputBackground,
-        border: Border.all(color: AppTheme.borderColor),
+        color: _certBg,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          const Icon(Icons.description_rounded, color: _indigo, size: 18),
+          const Icon(Icons.description_rounded, color: _certIcon, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               filename,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontFamily: 'Inter', color: _certText, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(Icons.delete_outline_rounded, color: _certDelete, size: 22),
             ),
           ),
         ],

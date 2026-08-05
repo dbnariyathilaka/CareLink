@@ -5,19 +5,21 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import '../theme/app_theme.dart';
 import '../data/patient_locations.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Get Directions Screen (Caregiver)
-//  Figma node: 498-7630 · "Directions to {patient}"
+//  Figma node: 485-256 · "Directions to {patient}"
 //
 //  Renders a real OpenStreetMap of Sri Lanka and requests an
 //  actual driving route (via the public OSRM routing engine)
 //  from the caregiver's current GPS position to the patient's
 //  saved care address — real road geometry, distance and ETA,
-//  not a mocked line.
+//  not the fictional POI-labeled map illustration or hardcoded
+//  "18 min / Light traffic" Figma mocks up. Traffic conditions
+//  in particular are dropped entirely — OSRM's routing has no
+//  live-traffic data, so there's nothing real to show there.
 // ─────────────────────────────────────────────────────────────
 class CaregiverDirectionsScreen extends StatefulWidget {
   const CaregiverDirectionsScreen({super.key});
@@ -28,9 +30,16 @@ class CaregiverDirectionsScreen extends StatefulWidget {
 
 class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
   static const Color _indigo = Color(0xFF6366F1);
-  static const Color _green = AppTheme.primaryGreen;
+  static const Color _green = Color(0xFF22C55E);
   static const Color _red = Color(0xFFEF4444);
-  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _headerCardBg = Color(0xFF202833);
+  static const Color _sheetBg = Color(0xFF223A5C);
+  static const Color _sheetBorder = Color(0xFF334155);
+  static const Color _textPrimary = Color(0xFFF8FAFC);
+  static const Color _textSecondary = Color(0xFF94A3B8);
+  static const Color _instructionBg = Color(0xFF459B8F);
+  static const Color _instructionIconColor = Color(0xFFFBBC05);
+  static const Color _navigateBg = Color(0xFFBB6B46);
 
   // Reasonable default origin (Colombo Fort) used only if GPS is
   // unavailable/denied, so the screen still shows a real route.
@@ -276,7 +285,7 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
         : LatLng(_destination.lat, _destination.lng);
 
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: _sheetBg,
       body: Stack(
         children: [
           Positioned.fill(
@@ -339,26 +348,21 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
             top: 0,
             child: SafeArea(
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                       decoration: BoxDecoration(
-                        color: AppTheme.cardColor.withValues(alpha: 0.95),
+                        color: _headerCardBg,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -367,8 +371,9 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
                           Text(
                             'Directions to $_patientName',
                             style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 14,
+                              fontFamily: 'Inter',
+                              color: _textPrimary,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -376,7 +381,8 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
                           Text(
                             _destination.address,
                             style: const TextStyle(
-                              color: AppTheme.textSecondary,
+                              fontFamily: 'Inter',
+                              color: _textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
@@ -396,10 +402,11 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
             child: Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                color: AppTheme.surfaceColor,
+                color: _sheetBg,
+                border: Border(top: BorderSide(color: _sheetBorder)),
                 borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(22),
-                  topRight: Radius.circular(22),
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
                 boxShadow: [
                   BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, -6)),
@@ -420,7 +427,8 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
                             Text(
                               _durationLabel,
                               style: const TextStyle(
-                                color: AppTheme.textPrimary,
+                                fontFamily: 'Inter',
+                                color: _textPrimary,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -431,7 +439,8 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
                                   ? '$_distanceLabel · Estimated route'
                                   : '$_distanceLabel · Fastest route',
                               style: const TextStyle(
-                                color: AppTheme.textSecondary,
+                                fontFamily: 'Inter',
+                                color: _textSecondary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -444,23 +453,23 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
                   const SizedBox(height: 14),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(13),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.cardColor,
-                      border: Border.all(color: AppTheme.borderColor),
+                      color: _instructionBg,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
-                        Icon(_instructionIcon, color: _indigo, size: 20),
+                        Icon(_instructionIcon, color: _instructionIconColor, size: 28),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             _instruction,
                             style: const TextStyle(
-                              color: _geyser,
+                              fontFamily: 'Open Sans',
+                              color: Colors.white,
                               fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               height: 1.35,
                             ),
                           ),
@@ -472,23 +481,24 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: Material(
-                      color: _indigo,
-                      borderRadius: BorderRadius.circular(10),
+                      color: _navigateBg,
+                      borderRadius: BorderRadius.circular(12),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         onTap: _loading ? null : _startNavigation,
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
+                          padding: EdgeInsets.symmetric(vertical: 14),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.navigation_rounded, color: Colors.white, size: 18),
+                              Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
                               SizedBox(width: 8),
                               Text(
                                 'Start navigation',
                                 style: TextStyle(
+                                  fontFamily: 'Inter',
                                   color: Colors.white,
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),

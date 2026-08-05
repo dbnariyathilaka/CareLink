@@ -74,7 +74,46 @@ class BookingService {
   }
 
   static Future<void> cancelBooking(String bookingId) {
-    return _collection.doc(bookingId).update({'status': 'cancelled'});
+    return _collection.doc(bookingId).update({
+      'status': 'cancelled',
+      'cancelledAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Caregiver's response to a direct booking request — the real
+  /// accept/decline action behind the caregiver's bookings screen.
+  static Future<void> respondToRequest(String bookingId, {required bool accept}) {
+    return _collection.doc(bookingId).update({
+      'status': accept ? 'confirmed' : 'declined',
+      'respondedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Caregiver flags that they personally can't make an already-scheduled
+  /// shift, with a reason and optional note. Doesn't cancel the booking or
+  /// notify anyone (no such pipeline exists) — just records the real
+  /// exception so it's visible on the caregiver's own schedule.
+  static Future<void> reportCantAttend(
+    String bookingId, {
+    required String reason,
+    String? note,
+  }) {
+    return _collection.doc(bookingId).update({
+      'cantAttend': true,
+      'cantAttendReason': reason,
+      'cantAttendNote': note,
+      'cantAttendAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Clears a previously-recorded "can't attend" flag.
+  static Future<void> clearCantAttend(String bookingId) {
+    return _collection.doc(bookingId).update({
+      'cantAttend': false,
+      'cantAttendReason': FieldValue.delete(),
+      'cantAttendNote': FieldValue.delete(),
+      'cantAttendAt': FieldValue.delete(),
+    });
   }
 
   /// Bookings assigned to a specific caregiver — used for the caregiver's
@@ -155,5 +194,22 @@ class BookingService {
         'requestedAt': FieldValue.serverTimestamp(),
       },
     });
+  }
+
+  /// Caregiver's response to a patient's pending extension request — accepting
+  /// applies the new end time, declining just clears the request.
+  static Future<void> resolveExtension(String bookingId, {required bool accept}) async {
+    final doc = _collection.doc(bookingId);
+    if (accept) {
+      final snap = await doc.get();
+      final pending = snap.data()?['pendingExtension'] as Map<String, dynamic>?;
+      final newEndTime = pending?['newEndTime'] as String?;
+      await doc.update({
+        if (newEndTime != null) 'endTime': newEndTime,
+        'pendingExtension': FieldValue.delete(),
+      });
+    } else {
+      await doc.update({'pendingExtension': FieldValue.delete()});
+    }
   }
 }

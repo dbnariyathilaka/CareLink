@@ -1,56 +1,84 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../services/booking_service.dart';
 import 'patient_notified_dialog.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  "Report unavailability" dialog
-//  Figma node: 498-7682 · shown when a caregiver taps "Can't
-//  attend" on an on-duty / confirmed shift in the Schedule screen.
+//  "Report unavailability" dialog  (Caregiver — "Can't attend")
+//  Figma node: 355-2780 · shown from the caregiver's Upcoming
+//  schedule when marking a confirmed/on-duty shift as one they
+//  can't attend.
+//
+//  Figma's copy claims "The patient and CareLink support will be
+//  notified immediately so a replacement caregiver can be
+//  arranged" — there's no notification pipeline or support-ticket
+//  system anywhere in this app, so that's rewritten below to
+//  describe what actually happens: the reason/note are saved to
+//  the booking (BookingService.reportCantAttend) and shown on the
+//  caregiver's own schedule. Nothing is sent to the patient.
 // ─────────────────────────────────────────────────────────────
-Future<void> showReportUnavailabilityDialog(
+const _reasons = [
+  'Personal emergency',
+  'Illness',
+  'Family emergency',
+  'Transportation issue',
+  'Scheduling conflict',
+  'Other',
+];
+
+Future<bool> showReportUnavailabilityDialog(
   BuildContext context, {
+  required String bookingId,
   required String patientName,
-  required String bookingDetail,
-}) {
-  return showDialog<void>(
+  required String careType,
+  required String schedule,
+}) async {
+  final result = await showDialog<bool>(
     context: context,
+    barrierDismissible: false,
     builder: (_) => ReportUnavailabilityDialog(
+      bookingId: bookingId,
       patientName: patientName,
-      bookingDetail: bookingDetail,
+      careType: careType,
+      schedule: schedule,
     ),
   );
+  return result ?? false;
 }
 
 class ReportUnavailabilityDialog extends StatefulWidget {
-  final String patientName;
-  final String bookingDetail;
-
   const ReportUnavailabilityDialog({
     super.key,
+    required this.bookingId,
     required this.patientName,
-    required this.bookingDetail,
+    required this.careType,
+    required this.schedule,
   });
+
+  final String bookingId;
+  final String patientName;
+  final String careType;
+  final String schedule;
 
   @override
   State<ReportUnavailabilityDialog> createState() => _ReportUnavailabilityDialogState();
 }
 
 class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog> {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _geyser = Color(0xFFCBD5E1);
+  static const Color _titleDark = Color(0xFF202833);
+  static const Color _fieldBg = Color(0xFF4E4533);
+  static const Color _fieldBorder = Color(0xFF334155);
+  static const Color _fieldText = Color(0xFFF8FAFC);
+  static const Color _fieldLabel = Color(0xFF94A3B8);
+  static const Color _placeholder = Color(0xFFB6A480);
+  static const Color _chevron = Color(0xFFC3BFB9);
+  static const Color _infoBg = Color(0xFFCFD0CB);
+  static const Color _infoIcon = Color(0xFF9C7400);
+  static const Color _infoText = Color(0xFF444935);
+  static const Color _accent = Color(0xFF904707);
 
-  static const List<String> _reasons = [
-    'Personal emergency',
-    'Illness',
-    'Transport issue',
-    'Family emergency',
-    'Double booked',
-    'Other',
-  ];
+  final TextEditingController _noteController = TextEditingController();
   String _reason = _reasons.first;
-
-  final _noteController = TextEditingController();
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -58,30 +86,31 @@ class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog>
     super.dispose();
   }
 
-  void _showReasonPicker() {
+  void _pickReason() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.cardColor,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
       ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: _reasons.map((r) {
-            final selected = r == _reason;
+          children: _reasons.map((reason) {
+            final selected = reason == _reason;
             return ListTile(
               title: Text(
-                r,
+                reason,
                 style: TextStyle(
-                  color: selected ? _indigo : AppTheme.textPrimary,
+                  fontFamily: 'Open Sans',
+                  color: selected ? _accent : _titleDark,
                   fontSize: 15,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
-              trailing: selected ? const Icon(Icons.check_rounded, color: _indigo) : null,
+              trailing: selected ? const Icon(Icons.check_rounded, color: _accent) : null,
               onTap: () {
-                setState(() => _reason = r);
+                setState(() => _reason = reason);
                 Navigator.pop(context);
               },
             );
@@ -91,13 +120,28 @@ class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog>
     );
   }
 
-  void _notifyPatient() {
-    Navigator.pop(context);
-    showPatientNotifiedDialog(
-      context,
-      patientName: widget.patientName,
-      bookingDetail: widget.bookingDetail,
-    );
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    try {
+      await BookingService.reportCantAttend(
+        widget.bookingId,
+        reason: _reason,
+        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      showPatientNotifiedDialog(
+        context,
+        patientName: widget.patientName,
+        schedule: widget.schedule,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not submit report: $e')),
+      );
+    }
   }
 
   @override
@@ -107,71 +151,51 @@ class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog>
       insetPadding: const EdgeInsets.symmetric(horizontal: 25),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          border: Border.all(color: AppTheme.borderColor),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 30, offset: const Offset(0, 20)),
+          ],
         ),
-        padding: const EdgeInsets.all(23),
+        padding: const EdgeInsets.all(22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.arrow_back, color: AppTheme.textPrimary, size: 24),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Report unavailability',
-                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.w800),
-                ),
-              ],
+            const Text(
+              'Report unavailability',
+              style: TextStyle(fontFamily: 'Open Sans', color: _titleDark, fontSize: 17, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
-                border: Border.all(color: AppTheme.borderColor),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: _fieldBg, border: Border.all(color: _fieldBorder), borderRadius: BorderRadius.circular(12)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.patientName,
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
+                  Text(widget.patientName, style: const TextStyle(fontFamily: 'Open Sans', color: _fieldText, fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 3),
                   Text(
-                    widget.bookingDetail,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                    '${widget.careType} · ${widget.schedule}',
+                    style: const TextStyle(fontFamily: 'Open Sans', color: _fieldLabel, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 14),
             GestureDetector(
-              onTap: _showReasonPicker,
+              onTap: _pickReason,
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceColor,
-                  border: Border.all(color: AppTheme.borderColor),
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                decoration: BoxDecoration(color: _fieldBg, border: Border.all(color: _fieldBorder), borderRadius: BorderRadius.circular(10)),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      _reason,
-                      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w400),
+                    Expanded(
+                      child: Text(_reason, style: const TextStyle(fontFamily: 'Open Sans', color: _fieldText, fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
-                    const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary, size: 20),
+                    const Icon(Icons.expand_more_rounded, color: _chevron, size: 20),
                   ],
                 ),
               ),
@@ -179,49 +203,44 @@ class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog>
             const SizedBox(height: 14),
             const Text(
               'Note to patient (optional)',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+              style: TextStyle(fontFamily: 'Open Sans', color: _fieldLabel, fontSize: 13, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceColor,
-                border: Border.all(color: AppTheme.borderColor),
-                borderRadius: BorderRadius.circular(10),
-              ),
+              height: 80,
+              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
+              decoration: BoxDecoration(color: _fieldBg, border: Border.all(color: _fieldBorder), borderRadius: BorderRadius.circular(10)),
               child: TextField(
                 controller: _noteController,
-                maxLines: 3,
-                minLines: 3,
-                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w400),
+                maxLines: null,
+                expands: true,
+                style: const TextStyle(fontFamily: 'Open Sans', color: _fieldText, fontSize: 13, fontWeight: FontWeight.w600),
                 decoration: const InputDecoration(
                   isDense: true,
+                  filled: false,
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                   hintText: "Let them know briefly what's happening...",
-                  hintStyle: TextStyle(color: Color(0xFF757575), fontSize: 14),
+                  hintStyle: TextStyle(fontFamily: 'Open Sans', color: _placeholder, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-              decoration: BoxDecoration(
-                color: _indigo.withValues(alpha: 0.1),
-                border: Border.all(color: _indigo.withValues(alpha: 0.35)),
-                borderRadius: BorderRadius.circular(10),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(color: _infoBg, borderRadius: BorderRadius.circular(10)),
               child: const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_rounded, color: _indigoLight, size: 16),
+                  Icon(Icons.info_rounded, color: _infoIcon, size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'The patient and CareLink support will be notified immediately '
-                      'so a replacement caregiver can be arranged.',
-                      style: TextStyle(color: _geyser, fontSize: 11, fontWeight: FontWeight.w500, height: 1.5),
+                      "This is saved to your schedule so there's a record of it. CareLink doesn't send the patient an automatic notification — message or call them directly if the shift is soon.",
+                      style: TextStyle(fontFamily: 'Inter', color: _infoText, fontSize: 11, fontWeight: FontWeight.w500, height: 1.5),
                     ),
                   ),
                 ],
@@ -232,33 +251,36 @@ class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog>
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _submitting ? null : () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.borderColor),
+                      side: const BorderSide(color: _accent),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(color: _geyser, fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
+                    child: const Text('Cancel', style: TextStyle(fontFamily: 'Open Sans', color: _accent, fontSize: 14, fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Material(
-                    color: _indigo,
+                    color: _accent,
                     borderRadius: BorderRadius.circular(10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: _notifyPatient,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 13),
-                        child: Text(
-                          'Notify patient',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                        ),
+                      onTap: _submitting ? null : _submit,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        child: _submitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                              )
+                            : const Text(
+                                'Submit report',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
                       ),
                     ),
                   ),

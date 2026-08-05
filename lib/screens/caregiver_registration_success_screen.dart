@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver Registration — "Profile live!" celebration screen
+//  Caregiver Registration — "Profile set up!" celebration screen
+//  Figma node: 496-769
 //  Shown after the caregiver accepts the terms & conditions on
 //  the final onboarding step (step 6 of 6).
 // ─────────────────────────────────────────────────────────────
@@ -22,8 +22,14 @@ class CaregiverRegistrationSuccessScreen extends StatefulWidget {
 class _CaregiverRegistrationSuccessScreenState
     extends State<CaregiverRegistrationSuccessScreen>
     with TickerProviderStateMixin {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _red = Color(0xFFEF4444);
+  static const Color _bg = Color(0xFF55463A);
+  static const Color _cardBg = Color(0xFFE1D5C6);
+  static const Color _cardBorder = Color(0xFF334155);
+  static const Color _cardLabel = Color(0xFF443219);
+  static const Color _verifiedIcon = Color(0xFF74590C);
+  static const Color _editIcon = Color(0xFF554F42);
+  static const Color _emergencyIcon = Color(0xFF952222);
+  static const Color _buttonText = Color(0xFFF6F0E2);
 
   // ── Animation controllers ──────────────────────────────
   late AnimationController _heroController;
@@ -151,7 +157,7 @@ class _CaregiverRegistrationSuccessScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: _bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -180,23 +186,26 @@ class _CaregiverRegistrationSuccessScreenState
                             child: Column(
                               children: [
                                 const Text(
-                                  'Profile live!',
+                                  'Profile set up!',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 27,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.5,
+                                    fontFamily: 'Quattrocento Sans',
+                                    color: Colors.white,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.5,
                                   ),
                                 ),
                                 const SizedBox(height: 10),
                                 const Text(
-                                  'Families can now find and request you',
+                                  'We\'re matching you with nearby care requests',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: AppTheme.textSecondary,
+                                    fontFamily: 'Open Sans',
+                                    color: Colors.white,
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w400,
+                                    height: 1.4,
                                   ),
                                 ),
                               ],
@@ -215,23 +224,23 @@ class _CaregiverRegistrationSuccessScreenState
                 builder: (_, _) => Column(
                   children: [
                     _buildInfoCard(
-                      icon: Icons.update_rounded,
-                      iconColor: _indigo,
-                      label: 'Keep your availability updated',
+                      icon: Icons.verified_outlined,
+                      iconColor: _verifiedIcon,
+                      label: 'Your profile and skills are saved',
                       fadeAnim: _card1Fade,
                     ),
                     const SizedBox(height: 12),
                     _buildInfoCard(
-                      icon: Icons.military_tech_outlined,
-                      iconColor: _indigo,
-                      label: 'More skills = more requests',
+                      icon: Icons.edit_outlined,
+                      iconColor: _editIcon,
+                      label: 'Edit them anytime in settings',
                       fadeAnim: _card2Fade,
                     ),
                     const SizedBox(height: 12),
                     _buildInfoCard(
-                      icon: Icons.warning_amber_rounded,
-                      iconColor: _red,
-                      label: 'Turn on emergency availability',
+                      icon: Icons.emergency_rounded,
+                      iconColor: _emergencyIcon,
+                      label: 'Keep your availability updated to rank higher',
                       fadeAnim: _card3Fade,
                     ),
                     const SizedBox(height: 24),
@@ -249,10 +258,10 @@ class _CaregiverRegistrationSuccessScreenState
                     child: SizedBox(
                       width: double.infinity,
                       child: Material(
-                        color: _indigo,
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(15),
                         child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(15),
                           onTap: () {
                             Navigator.pushNamedAndRemoveUntil(
                               context,
@@ -260,14 +269,26 @@ class _CaregiverRegistrationSuccessScreenState
                               (route) => false,
                             );
                           },
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Text(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: _buttonText),
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF06402B).withValues(alpha: 0.5),
+                                  blurRadius: 4,
+                                  offset: const Offset(4, 4),
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            child: const Text(
                               'Go to dashboard',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
+                                fontFamily: 'Quattrocento Sans',
+                                color: _buttonText,
+                                fontSize: 20,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -285,41 +306,16 @@ class _CaregiverRegistrationSuccessScreenState
     );
   }
 
-  /// Outer translucent glow ring → solid indigo disc → white checkmark
+  /// White verified-seal badge with a gentle pulse
   Widget _buildCheckIcon() {
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (_, _) => Transform.scale(
         scale: _pulse.value,
-        child: Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _indigo.withValues(alpha: 0.15),
-          ),
-          child: Center(
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _indigo,
-                boxShadow: [
-                  BoxShadow(
-                    color: _indigo.withValues(alpha: 0.4),
-                    blurRadius: 24,
-                    spreadRadius: 4,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: Colors.white,
-                size: 36,
-              ),
-            ),
-          ),
+        child: const Icon(
+          Icons.verified_rounded,
+          color: Colors.white,
+          size: 150,
         ),
       ),
     );
@@ -340,12 +336,9 @@ class _CaregiverRegistrationSuccessScreenState
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.inputBackground,
+            color: _cardBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFF334155),
-              width: 1,
-            ),
+            border: Border.all(color: _cardBorder),
           ),
           child: Row(
             children: [
@@ -355,9 +348,10 @@ class _CaregiverRegistrationSuccessScreenState
                 child: Text(
                   label,
                   style: const TextStyle(
-                    color: Color(0xFFCBD5E1),
+                    fontFamily: 'Open Sans',
+                    color: _cardLabel,
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

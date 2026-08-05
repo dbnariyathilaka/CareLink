@@ -73,6 +73,9 @@ class StorageService {
   static String reviewMediaPath(String uid, String filename) =>
       'reviews/$uid/${DateTime.now().millisecondsSinceEpoch}_$filename';
 
+  static String careJournalPhotoPath(String patientUid, String filename) =>
+      'patients/$patientUid/care_journal/${DateTime.now().millisecondsSinceEpoch}_$filename';
+
   static String _extOf(String filename) {
     final i = filename.lastIndexOf('.');
     return i == -1 ? '' : filename.substring(i).toLowerCase();

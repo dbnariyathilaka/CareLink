@@ -1,13 +1,25 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
+import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/patient_service.dart';
+import '../services/review_service.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
-enum _DutyStatus { available, busy, offDuty }
-
+// ─────────────────────────────────────────────────────────────────────────────
+//  Caregiver Dashboard  (Figma node 473-152)
+//  Every number here is computed from real data — real bookings
+//  (BookingService), real reviews (ReviewService) — rather than the fixed
+//  mock stats ("85%", "36k", "4.5 from 24 reviews") shown in the Figma file.
+//  "Currently on duty" reflects a real booking whose arrival was confirmed
+//  and whose shift window contains the current time (see
+//  caregiver_schedule_screen.dart's "I've arrived" action). There's no
+//  historical snapshot of past ratings, so unlike Figma's rating tile this
+//  one omits a week-over-week delta rather than inventing one.
+// ─────────────────────────────────────────────────────────────────────────────
 class CaregiverDashboardScreen extends StatefulWidget {
   const CaregiverDashboardScreen({super.key});
 
@@ -17,395 +29,353 @@ class CaregiverDashboardScreen extends StatefulWidget {
 }
 
 class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _indigoDark = Color(0xFF4F46E5);
-  static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _amber = Color(0xFFF59E0B);
+  static const Color bg = Color(0xFFF1F8E1);
+  static const Color headerBg = Color(0xFF1F3554);
+  static const Color statCardBg = Color.fromRGBO(85, 70, 58, 0.36);
+  static const Color statLabel = Color(0xFF06402B);
+  static const Color statCaption = Color(0xFF313131);
+  static const Color upGreenBg = Color.fromRGBO(6, 155, 158, 0.3);
+  static const Color upGreenText = Color(0xFF225753);
+  static const Color downRedBg = Color.fromRGBO(158, 6, 6, 0.3);
+  static const Color downRedText = Color(0xFF9E0606);
+  static const Color weekCardBorder = Color(0xFF967065);
+  static const Color weekBarActive = Color(0xFF967065);
+  static const Color weekBarInactive = Color(0xFFCFB9AC);
+  static const Color weekDayLabel = Color(0xFF64748B);
+  static const Color scheduleTitle = Color(0xFF113341);
+  static const Color scheduleCardBg = Color.fromRGBO(193, 163, 140, 0.43);
+  static const Color scheduleName = Color(0xFF313131);
+  static const Color scheduleSubtitle = Color.fromRGBO(79, 88, 101, 0.66);
+  static const Color scheduleBadgeBg = Color.fromRGBO(110, 99, 90, 0.45);
+  static const Color scheduleBadgeText = Color(0xFF44431E);
 
-  int _selectedNavIndex = 0;
-  int _selectedStateTab = 0;
-  _DutyStatus _dutyStatus = _DutyStatus.available;
-  String _userName = 'there';
+  static const _avatarColors = [
+    Color(0xFF0EA5E9),
+    Color(0xFF6D4275),
+    Color(0xFF44331C),
+    Color(0xFFF59E0B),
+    Color(0xFF22C55E),
+  ];
+
+  String _caregiverName = 'Caregiver';
+  Stream<List<Map<String, dynamic>>>? _bookingsStream;
+  Stream<List<Map<String, dynamic>>>? _reviewsStream;
+  final Map<String, String> _patientNames = {};
+  Timer? _tickTimer;
 
   @override
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.light);
-    _loadUserName();
-    _loadOwnPhoto();
+    final uid = AuthService.currentUser?.uid;
+    if (uid != null) {
+      _bookingsStream = BookingService.streamBookingsForCaregiver(uid);
+      _reviewsStream = ReviewService.streamReviewsForCaregiver(uid);
+      _loadProfile(uid);
+    }
+    // Re-evaluate "currently on duty" / "this week" purely because the
+    // clock moved, not just when Firestore data changes.
+    _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
-  Future<void> _loadUserName() async {
-    final user = AuthService.currentUser;
-    if (user == null) return;
-    final profile = await AuthService.getUserProfile(user.uid);
+  @override
+  void dispose() {
+    _tickTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile(String uid) async {
+    final profile = await CaregiverService.getCaregiverProfile(uid);
+    AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
     final name = profile?['name'] as String?;
     if (mounted && name != null && name.isNotEmpty) {
-      setState(() => _userName = name);
+      setState(() => _caregiverName = name);
     }
   }
 
-  Future<void> _loadOwnPhoto() async {
-    final user = AuthService.currentUser;
-    if (user == null) return;
-    final profile = await CaregiverService.getCaregiverProfile(user.uid);
-    AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
+  Future<String> _resolvePatientName(String? patientUid) async {
+    if (patientUid == null) return 'a patient';
+    final cached = _patientNames[patientUid];
+    if (cached != null) return cached;
+    final profile = await PatientService.getPatientProfile(patientUid);
+    final name = (profile?['name'] as String?)?.trim();
+    final resolved = name != null && name.isNotEmpty ? name : 'a patient';
+    _patientNames[patientUid] = resolved;
+    if (mounted) setState(() {});
+    return resolved;
   }
 
-  static const List<String> _stateTabs = [
-    'Idle',
-    'New request',
-    'Emergency',
-    'Confirmed',
-    'Missed',
-  ];
+  String _initialsOf(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  DateTime? _parseDate(String? dateStr) {
+    if (dateStr == null) return null;
+    const months = {
+      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+    };
+    final parts = dateStr.trim().split(RegExp(r'\s+'));
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = months[parts[1]];
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+    return DateTime(year, month, day);
+  }
+
+  TimeOfDay? _parseTime(String? timeStr) {
+    if (timeStr == null) return null;
+    final match = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false)
+        .firstMatch(timeStr.trim());
+    if (match == null) return null;
+    var hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2)!);
+    final period = match.group(3)!.toUpperCase();
+    if (period == 'PM' && hour != 12) hour += 12;
+    if (period == 'AM' && hour == 12) hour = 0;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  DateTime? _combine(DateTime? date, TimeOfDay? time) {
+    if (date == null) return null;
+    if (time == null) return date;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  DateTime? _shiftStart(Map<String, dynamic> b) =>
+      _combine(_parseDate(b['startDate'] as String?), _parseTime(b['startTime'] as String?));
+
+  DateTime _shiftEnd(Map<String, dynamic> b, DateTime start) {
+    final endDate = _parseDate(b['endDate'] as String?) ?? _parseDate(b['startDate'] as String?);
+    final endTime = _parseTime(b['endTime'] as String?);
+    final combined = _combine(endDate, endTime);
+    if (combined != null && combined.isAfter(start)) return combined;
+    return start.add(const Duration(hours: 8));
+  }
+
+  String _formatClock(DateTime t) {
+    final hour = t.hour % 12 == 0 ? 12 : t.hour % 12;
+    final minute = t.minute.toString().padLeft(2, '0');
+    final period = t.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
+
+  String _formatDate(DateTime t) {
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${t.day} ${months[t.month]}';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: bg,
       body: Column(
         children: [
-          _buildHeader(context),
           Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStateTabs(),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Tap a state to preview · prototype tabs',
-                      style: TextStyle(
-                        color: Color(0xFF475569),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (_selectedStateTab == 4) ...[
-                      _buildMissedStatusRow(),
-                      const SizedBox(height: 12),
-                      _buildMissedCard(),
-                      const SizedBox(height: 10),
-                      _buildMissedFootnote(),
-                    ] else if (_selectedStateTab == 3) ...[
-                      _buildConfirmedBanner(),
-                      const SizedBox(height: 12),
-                      _buildConfirmedCard(),
-                      const SizedBox(height: 12),
-                      _buildConfirmedInfoBox(),
-                    ] else if (_selectedStateTab == 2) ...[
-                      _buildEmergencyCard(),
-                      const SizedBox(height: 12),
-                      _buildEmergencyWarningBox(),
-                    ] else if (_selectedStateTab == 1) ...[
-                      _buildNewRequestCard(),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Upcoming schedule',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildScheduleCard(
-                        initials: 'KP',
-                        avatarGradient: const [
-                          Color(0xFF0EA5E9),
-                          Color(0xFF0284C7),
-                        ],
-                        title: 'Kamal Perera',
-                        subtitle: '21 Dec · Part-time',
-                        badgeText: 'Upcoming',
-                        badgeColor: _indigo,
-                      ),
-                    ] else ...[
-                      _buildAvailabilityCard(),
-                      const SizedBox(height: 12),
-                      _buildStatsGrid(),
-                      const SizedBox(height: 12),
-                      _buildThisWeekCard(),
-                      const SizedBox(height: 12),
-                      _buildOnDutyBanner(),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Upcoming schedule',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildScheduleCard(
-                        initials: 'KP',
-                        avatarGradient: const [
-                          AppTheme.primaryGreen,
-                          AppTheme.primaryGreenDark,
-                        ],
-                        title: 'Kamal Perera',
-                        subtitle: 'Today, 7:00 PM · Post-surgery care',
-                        badgeText: 'Confirmed',
-                        badgeColor: AppTheme.primaryGreen,
-                      ),
-                      const SizedBox(height: 10),
-                      _buildScheduleCard(
-                        initials: 'IP',
-                        avatarGradient: const [
-                          AppTheme.primaryGreen,
-                          AppTheme.primaryGreenDark,
-                        ],
-                        title: 'Ishara Perera',
-                        subtitle: 'Wed 17 Dec · Dementia care',
-                        badgeText: 'Confirmed',
-                        badgeColor: AppTheme.primaryGreen,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _bookingsStream,
+              builder: (context, bookingSnap) {
+                final bookings = (bookingSnap.data ?? const [])
+                    .where((b) => b['status'] != 'cancelled')
+                    .toList();
+                return StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _reviewsStream,
+                  builder: (context, reviewSnap) {
+                    final reviews = reviewSnap.data ?? const [];
+                    return _buildBody(context, bookings, reviews);
+                  },
+                );
+              },
             ),
+          ),
           _buildBottomNav(context),
         ],
       ),
     );
   }
 
-  // ── Header: greeting + avatar ─────────────────────────────
-  // Paints full-bleed behind the transparent status bar (edge-to-edge mode);
-  // the top padding below (not an outer SafeArea) keeps content clear of it.
-  Widget _buildHeader(BuildContext context) {
-    final topInset = MediaQuery.of(context).padding.top;
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(22, topInset + 14, 22, 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment(-0.3, -1),
-          end: Alignment(0.3, 1),
-          colors: [_indigo, _indigoDark],
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildBody(
+    BuildContext context,
+    List<Map<String, dynamic>> bookings,
+    List<Map<String, dynamic>> reviews,
+  ) {
+    final now = DateTime.now();
+
+    // ── Real month/week/total counts ──────────────────────────────────────
+    int thisMonth = 0, lastMonth = 0, thisWeek = 0, lastWeek = 0;
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final mondayDate = DateTime(monday.year, monday.month, monday.day);
+    final sundayDate = mondayDate.add(const Duration(days: 6));
+    final lastMonday = mondayDate.subtract(const Duration(days: 7));
+    final lastSunday = mondayDate.subtract(const Duration(days: 1));
+    final lastMonthRef = DateTime(now.year, now.month - 1);
+
+    final weekDutyDays = <int>{};
+    Map<String, dynamic>? onDutyBooking;
+    DateTime? onDutyStart;
+    DateTime? onDutyEnd;
+    final upcoming = <MapEntry<Map<String, dynamic>, DateTime>>[];
+
+    for (final b in bookings) {
+      final start = _shiftStart(b);
+      if (start != null) {
+        if (start.year == now.year && start.month == now.month) thisMonth++;
+        if (start.year == lastMonthRef.year && start.month == lastMonthRef.month) lastMonth++;
+        final startDateOnly = DateTime(start.year, start.month, start.day);
+        if (!startDateOnly.isBefore(mondayDate) && !startDateOnly.isAfter(sundayDate)) {
+          thisWeek++;
+          weekDutyDays.add(start.weekday);
+        }
+        if (!startDateOnly.isBefore(lastMonday) && !startDateOnly.isAfter(lastSunday)) {
+          lastWeek++;
+        }
+      }
+
+      if (b['arrivalConfirmed'] == true && start != null) {
+        final end = _shiftEnd(b, start);
+        if (now.isAfter(start) && now.isBefore(end)) {
+          onDutyBooking = b;
+          onDutyStart = start;
+          onDutyEnd = end;
+        }
+      } else if (start != null && start.isAfter(now)) {
+        upcoming.add(MapEntry(b, start));
+      }
+    }
+    upcoming.sort((a, b) => a.value.compareTo(b.value));
+    final upcomingTop = upcoming.take(3).toList();
+
+    final ratings = reviews
+        .map((r) => (r['rating'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList();
+    final avgRating = ratings.isEmpty ? null : ratings.reduce((a, b) => a + b) / ratings.length;
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Caregiver',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _userName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
-                ),
-              ),
-            ],
-          ),
-          ValueListenableBuilder<String?>(
-            valueListenable: AppState.caregiverProfileImagePath,
-            builder: (context, imagePath, _) {
-              return Container(
-                width: 46,
-                height: 46,
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.2),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    width: 2,
+          _buildHeader(context, onDutyBooking != null),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(17, 18, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _statCard(
+                          label: 'This month',
+                          value: '$thisMonth',
+                          valueColor: const Color(0xFF3D1678),
+                          caption: 'bookings',
+                          delta: _deltaFor(thisMonth, lastMonth),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _statCard(
+                          label: 'Your rating',
+                          value: avgRating == null ? '—' : avgRating.toStringAsFixed(1),
+                          valueColor: const Color(0xFF6B4814),
+                          caption: reviews.isEmpty ? 'No reviews yet' : 'From ${reviews.length} review${reviews.length == 1 ? '' : 's'}',
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: imagePath != null
-                    ? ClipOval(
-                        child: RemoteOrLocalImage(
-                          source: imagePath,
-                          width: 46,
-                          height: 46,
+                const SizedBox(height: 10),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _statCard(
+                          label: 'This week',
+                          value: '$thisWeek',
+                          valueColor: const Color(0xFF0F6466),
+                          caption: 'bookings',
+                          delta: _deltaFor(thisWeek, lastWeek),
                         ),
-                      )
-                    : const Center(
-                        child: Text(
-                          'BK',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _statCard(
+                          label: 'Total',
+                          value: '${bookings.length}',
+                          valueColor: const Color(0xFF313131),
+                          caption: 'bookings',
+                          trailing: GestureDetector(
+                            onTap: () => Navigator.pushNamed(context, '/caregiver-schedule'),
+                            child: const Text(
+                              'See all',
+                              style: TextStyle(fontFamily: 'Open Sans', color: Color(0xFF41311A), fontSize: 9, fontWeight: FontWeight.w700),
+                            ),
                           ),
                         ),
                       ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── State preview tabs (prototype only) ───────────────────
-  Widget _buildStateTabs() {
-    return SizedBox(
-      height: 32,
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        scrollDirection: Axis.horizontal,
-        itemCount: _stateTabs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final isSelected = i == _selectedStateTab;
-          return GestureDetector(
-            onTap: () => setState(() => _selectedStateTab = i),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected ? _indigo : AppTheme.cardColor,
-                border: isSelected ? null : Border.all(color: AppTheme.borderColor),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Center(
-                child: Text(
-                  _stateTabs[i],
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    ],
                   ),
                 ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ── Availability card ──────────────────────────────────────
-  Widget _buildAvailabilityCard() {
-    final (Color dotColor, String label, String subtitle) = switch (_dutyStatus) {
-      _DutyStatus.available => (AppTheme.primaryGreen, 'Available', 'You can receive new requests'),
-      _DutyStatus.busy => (_amber, 'Busy', "You won't receive new requests right now"),
-      _DutyStatus.offDuty => (const Color(0xFF64748B), 'Off duty', "You're not visible to families"),
-    };
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(15, 21, 15, 15),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(height: 16),
+                _buildWeekCard(mondayDate, sundayDate, weekDutyDays),
+                const SizedBox(height: 16),
+                if (onDutyBooking != null && onDutyStart != null && onDutyEnd != null)
+                  _buildOnDutyBanner(onDutyBooking, onDutyStart, onDutyEnd, now),
+                if (onDutyBooking != null) const SizedBox(height: 20),
+                const Text(
+                  'Upcoming schedule',
+                  style: TextStyle(fontFamily: 'Open Sans', color: scheduleTitle, fontSize: 15, fontWeight: FontWeight.w700),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+                const SizedBox(height: 12),
+                if (upcomingTop.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'No upcoming bookings scheduled.',
+                      style: TextStyle(fontFamily: 'Open Sans', color: weekDayLabel, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  )
+                else
+                  ...List.generate(upcomingTop.length, (i) {
+                    final entry = upcomingTop[i];
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: i == upcomingTop.length - 1 ? 0 : 10),
+                      child: _buildUpcomingCard(entry.key, entry.value, _avatarColors[i % _avatarColors.length]),
+                    );
+                  }),
+                const SizedBox(height: 24),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildDutyButton('Available', _DutyStatus.available),
-              const SizedBox(width: 8),
-              _buildDutyButton('Busy', _DutyStatus.busy),
-              const SizedBox(width: 8),
-              _buildDutyButton('Off duty', _DutyStatus.offDuty),
-            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDutyButton(String label, _DutyStatus status) {
-    final selected = _dutyStatus == status;
-    return Expanded(
-      child: Material(
-        color: selected ? AppTheme.primaryGreen : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => setState(() => _dutyStatus = status),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: selected ? null : Border.all(color: AppTheme.borderColor),
-            ),
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: selected ? AppTheme.bottleGreen : const Color(0xFFCBD5E1),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  ({bool up, String label})? _deltaFor(int current, int previous) {
+    if (previous == 0) return null;
+    final change = ((current - previous) / previous * 100);
+    return (up: change >= 0, label: '${change.abs().toStringAsFixed(1)}%');
   }
 
-  // ── New request card ──────────────────────────────────────
-  Widget _buildNewRequestCard() {
+  // ── Header ───────────────────────────────────────────────────────────────
+  Widget _buildHeader(BuildContext context, bool onDuty) {
+    final topInset = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(17, 23, 17, 17),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: _indigo),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: _indigo.withValues(alpha: 0.25),
-            blurRadius: 15,
-            offset: const Offset(0, 10),
-          ),
-        ],
+      padding: EdgeInsets.fromLTRB(27, topInset + 12, 22, 16),
+      decoration: const BoxDecoration(
+        color: headerBg,
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,181 +383,59 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppTheme.primaryGreen, AppTheme.primaryGreenDark],
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'NA',
-                    style: TextStyle(
-                      color: AppTheme.bottleGreen,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Nipuni Ariyathilaka',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      'Caregiver',
+                      style: TextStyle(fontFamily: 'Quattrocento Sans', color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
                     ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _indigo.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'New request',
-                        style: TextStyle(
-                          color: Color(0xFF818CF8),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                    Text(
+                      _caregiverName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontFamily: 'Quattrocento Sans', color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Requesting full-time care',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Elder care · Mobility · 20 Dec 2025 · 1 month',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              height: 1.6,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Row(
-            children: const [
-              Icon(Icons.location_on_outlined, color: Color(0xFFCBD5E1), size: 16),
-              SizedBox(width: 5),
-              Text(
-                '3.4 km away',
-                style: TextStyle(
-                  color: Color(0xFFCBD5E1),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+              const SizedBox(width: 12),
+              ValueListenableBuilder<String?>(
+                valueListenable: AppState.caregiverProfileImagePath,
+                builder: (context, imagePath, _) {
+                  return Container(
+                    width: 50,
+                    height: 50,
+                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                    child: imagePath != null
+                        ? ClipOval(child: RemoteOrLocalImage(source: imagePath, width: 50, height: 50))
+                        : Center(
+                            child: Text(
+                              _initialsOf(_caregiverName),
+                              style: const TextStyle(fontFamily: 'Quattrocento Sans', color: Color(0xFF06402B), fontSize: 20, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                  );
+                },
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-            decoration: BoxDecoration(
-              color: _amber.withValues(alpha: 0.12),
-              border: Border.all(color: _amber.withValues(alpha: 0.4)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: const [
-                Icon(Icons.access_time_rounded, color: _amber, size: 18),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Respond before time runs out · 5h 42m left',
-                    style: TextStyle(
-                      color: _amber,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: Material(
-                  color: _indigo,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Request accepted!')),
-                      );
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 13),
-                      child: Text(
-                        'Accept',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: onDuty ? const Color(0xFFFBBC05) : const Color(0xFF22C55E),
+                  shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Request declined')),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppTheme.borderColor),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Decline',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0xFFCBD5E1),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              const SizedBox(width: 8),
+              Text(
+                onDuty ? 'On duty' : 'Available',
+                style: const TextStyle(fontFamily: 'Inter', color: Color(0xFFF8FAFC), fontSize: 14, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -596,760 +444,93 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     );
   }
 
-  // ── Emergency request card ────────────────────────────────
-  Widget _buildEmergencyCard() {
+  // ── Stat card ────────────────────────────────────────────────────────────
+  Widget _statCard({
+    required String label,
+    required String value,
+    required Color valueColor,
+    String? caption,
+    ({bool up, String label})? delta,
+    Widget? trailing,
+  }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment(-0.7, -1),
-          end: Alignment(0.7, 1),
-          colors: [Color(0xFFDC2626), Color(0xFF991B1B)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFEF4444).withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        color: statCardBg,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 4, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: const Icon(Icons.warning_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Text(label, style: const TextStyle(fontFamily: 'Quattrocento Sans', color: statLabel, fontSize: 14, fontWeight: FontWeight.w700)),
+              if (trailing != null) trailing,
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(value, style: TextStyle(fontFamily: 'Quattrocento Sans', color: valueColor, fontSize: 32, fontWeight: FontWeight.w700)),
+              if (delta != null) ...[
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: delta.up ? upGreenBg : downRedBg,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Emergency request!',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        Icon(
+                          delta.up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                          color: delta.up ? upGreenText : downRedText,
+                          size: 11,
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Text(
-                            'Urgent',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        Text(
+                          delta.label,
+                          style: TextStyle(
+                            fontFamily: 'Quattrocento Sans',
+                            color: delta.up ? upGreenText : downRedText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Nipuni Ariyathilaka · 3.4 km',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          const Text(
-            'Immediate care needed',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '3.4 km away · You are #2 nearest',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: const [
-                Icon(Icons.access_time_rounded, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Auto-moves to next caregiver · 4:21',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              Expanded(
-                flex: 14,
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Emergency request accepted!')),
-                      );
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 13),
-                      child: Text(
-                        'Accept',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0xFFDC2626),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 10,
-                child: Material(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Emergency request declined')),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Decline',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Emergency auto-reassign warning box ───────────────────
-  Widget _buildEmergencyWarningBox() {
-    const amberYellow = Color(0xFFFBBF24);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 22, 14, 14),
-      decoration: BoxDecoration(
-        color: _amber.withValues(alpha: 0.1),
-        border: Border.all(color: _amber.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Icon(Icons.error_outline_rounded, color: amberYellow, size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'If you do not respond in time, this request automatically '
-              'moves to the next available caregiver.',
-              style: TextStyle(
-                color: amberYellow,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Confirmed: booking-confirmed banner ───────────────────
-  Widget _buildConfirmedBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: _amber.withValues(alpha: 0.12),
-        border: Border.all(color: _amber.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.event_available_rounded, color: _amber, size: 22),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'Booking confirmed',
-                style: TextStyle(
-                  color: _amber,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Auto-set to busy until start date',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Confirmed: booking detail card ────────────────────────
-  Widget _buildConfirmedCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 25),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppTheme.primaryGreen, AppTheme.primaryGreenDark],
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'NA',
-                    style: TextStyle(
-                      color: AppTheme.bottleGreen,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Full-time care',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Nipuni Ariyathilaka',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Confirmed',
-                  style: TextStyle(
-                    color: AppTheme.primaryGreen,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Starts 20 Dec 2025 · 1 month\n3.4 km away',
-            style: TextStyle(
-              color: Color(0xFFCBD5E1),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              height: 1.7,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Material(
-            color: _indigo,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Messaging coming soon!')),
-                );
-              },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Message patient',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Confirmed: contact-unlocked info box ──────────────────
-  Widget _buildConfirmedInfoBox() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryGreen.withValues(alpha: 0.1),
-        border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Icon(Icons.lock_open_rounded, color: AppTheme.primaryGreen, size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Patient contact details are now unlocked. You can message '
-              'them to confirm arrival details.',
-              style: TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Missed: status row ────────────────────────────────────
-  Widget _buildMissedStatusRow() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 9,
-            height: 9,
-            decoration: const BoxDecoration(color: AppTheme.primaryGreen, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'Available',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'You missed a request earlier',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Missed: expired request card ──────────────────────────
-  Widget _buildMissedCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: _amber),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: _amber.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Text(
-              'Missed',
-              style: TextStyle(
-                color: _amber,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Request expired while you were busy',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 5),
-          const Text(
-            'Elder care · Full-time · 3.4 km away · 20 Dec 2025',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              height: 1.6,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: _amber.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: const [
-                Icon(Icons.access_time_rounded, color: _amber, size: 18),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Reach-back window closes in · 1h 42m',
-                    style: TextStyle(
-                      color: _amber,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Material(
-            color: _indigo,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Message sent!')),
-                );
-              },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 13),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      "I'm free now — send message",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Missed: footnote ───────────────────────────────────────
-  Widget _buildMissedFootnote() {
-    return Row(
-      children: const [
-        Icon(Icons.info_outline_rounded, color: Color(0xFF64748B), size: 16),
-        SizedBox(width: 8),
-        Text(
-          'This option disappears after 2 hours.',
-          style: TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Stats grid (2x2) ──────────────────────────────────────
-  Widget _buildStatsGrid() {
-    return Column(
-      children: [
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _statCard('This month', '8', caption: 'bookings')),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _statCard('Your rating', '4.5', caption: 'from 24 reviews', valueColor: _amber),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _statCard(
-                  'Earned',
-                  '36k',
-                  caption: 'LKR this month',
-                  valueColor: AppTheme.primaryGreen,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: _buildTotalServicesCard()),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _statCard(
-    String label,
-    String value, {
-    String? caption,
-    Color? valueColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor ?? AppTheme.textPrimary,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
           ),
           if (caption != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              caption,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 9,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            const SizedBox(height: 4),
+            Text(caption, style: const TextStyle(fontFamily: 'Open Sans', color: statCaption, fontSize: 9, fontWeight: FontWeight.w500)),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildTotalServicesCard() {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total services',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: const Text(
-                  'See all',
-                  style: TextStyle(
-                    color: _indigo,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            '142',
-            style: TextStyle(
-              color: _indigoLight,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 2),
-          const Text(
-            'completed all-time',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── This week duty tracker ─────────────────────────────────
-  Widget _buildThisWeekCard() {
-    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    const onDuty = [true, true, false, true, true, false, false];
-    const offHeights = [0.0, 0.0, 18.0, 0.0, 0.0, 18.0, 12.0];
+  // ── This week duty tracker ───────────────────────────────────────────────
+  Widget _buildWeekCard(DateTime monday, DateTime sunday, Set<int> dutyDays) {
+    const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final rangeLabel = monday.month == sunday.month
+        ? '${monday.day} – ${sunday.day} ${months[sunday.month]} ${sunday.year}'
+        : '${monday.day} ${months[monday.month]} – ${sunday.day} ${months[sunday.month]} ${sunday.year}';
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
+        border: Border.all(color: weekCardBorder, width: 2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -1358,79 +539,53 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'This week',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                '${onDuty.where((d) => d).length} days on duty',
-                style: const TextStyle(
-                  color: _indigoLight,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              const Text('This week', style: TextStyle(fontFamily: 'Open Sans', color: statCaption, fontSize: 12, fontWeight: FontWeight.w700)),
+              Text('${dutyDays.length} days on duty', style: const TextStyle(fontFamily: 'Open Sans', color: headerBg, fontSize: 10, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 2),
-          const Text(
-            '15 – 21 Dec 2025',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text(rangeLabel, style: const TextStyle(fontFamily: 'Open Sans', color: weekDayLabel, fontSize: 10, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(7, (i) {
-              final active = onDuty[i];
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: i < 6 ? 6 : 0),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 34,
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Container(
-                            height: active ? 34 : offHeights[i],
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: active ? _indigo : AppTheme.borderColor,
-                              borderRadius: BorderRadius.circular(5),
-                            ),
+          SizedBox(
+            height: 57,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(7, (i) {
+                final weekday = i + 1;
+                final active = dutyDays.contains(weekday);
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: i < 6 ? 6 : 0),
+                    child: Column(
+                      children: [
+                        Container(
+                          height: active ? 34 : 14,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: active ? weekBarActive : weekBarInactive,
+                            borderRadius: BorderRadius.circular(5),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        days[i],
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(dayLetters[i], style: const TextStyle(fontFamily: 'Inter', color: weekDayLabel, fontSize: 9, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ── Currently on duty banner ───────────────────────────────
-  Widget _buildOnDutyBanner() {
+  // ── Currently on duty banner ─────────────────────────────────────────────
+  Widget _buildOnDutyBanner(Map<String, dynamic> booking, DateTime start, DateTime end, DateTime now) {
+    final fraction = end.isAfter(start)
+        ? (now.difference(start).inSeconds / end.difference(start).inSeconds).clamp(0.0, 1.0)
+        : 0.0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1438,7 +593,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.primaryGreen, Color(0xFF15803D)],
+          colors: [Color(0xFF2C3D56), Color(0xFF07172E)],
         ),
         borderRadius: BorderRadius.circular(14),
       ),
@@ -1448,28 +603,22 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.favorite_rounded, color: Colors.white, size: 22),
+              const Icon(Icons.favorite_rounded, color: Color(0xFFFBBC05), size: 22),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Currently on duty',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Caring for Nipuni Ariyathilaka',
-                      style: TextStyle(
-                        color: Color(0xD9FFFFFF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    const Text('Currently on duty', style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 2),
+                    FutureBuilder<String>(
+                      future: _resolvePatientName(booking['patientUid'] as String?),
+                      builder: (context, snap) {
+                        return Text(
+                          'Caring for ${snap.data ?? 'a patient'}',
+                          style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(255, 255, 255, 0.85), fontSize: 10, fontWeight: FontWeight.w600),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -1479,203 +628,122 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
-                'Started 20 Dec, 8:00 AM',
-                style: TextStyle(color: Color(0xE6FFFFFF), fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              Text(
-                'Ends 20 Dec, 6:00 PM',
-                style: TextStyle(color: Color(0xE6FFFFFF), fontSize: 12, fontWeight: FontWeight.w600),
-              ),
+            children: [
+              Text('Started ${_formatDate(start)}, ${_formatClock(start)}', style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(255, 255, 255, 0.9), fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('Ends ${_formatDate(end)}, ${_formatClock(end)}', style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(255, 255, 255, 0.9), fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: Stack(
-              children: [
-                Container(
-                  height: 5,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: 0.62,
-                  child: Container(
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          Stack(
+            children: [
+              Container(height: 5, width: double.infinity, decoration: BoxDecoration(color: const Color(0xFF485465), borderRadius: BorderRadius.circular(3))),
+              FractionallySizedBox(
+                widthFactor: fraction,
+                child: Container(height: 5, decoration: BoxDecoration(color: const Color(0xFFE3C95D), borderRadius: BorderRadius.circular(3))),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // ── Upcoming schedule card ────────────────────────────────
-  Widget _buildScheduleCard({
-    String? initials,
-    List<Color>? avatarGradient,
-    IconData? icon,
-    required String title,
-    required String subtitle,
-    required String badgeText,
-    required Color badgeColor,
-  }) {
+  // ── Upcoming schedule card ───────────────────────────────────────────────
+  Widget _buildUpcomingCard(Map<String, dynamic> booking, DateTime start, Color avatarColor) {
+    final careType = booking['careType'] as String? ?? 'Care visit';
+    final status = (booking['status'] as String? ?? 'requested');
+    final statusLabel = status.isEmpty ? 'Requested' : '${status[0].toUpperCase()}${status.substring(1)}';
+    final now = DateTime.now();
+    final isToday = start.year == now.year && start.month == now.month && start.day == now.day;
+    final dateLabel = isToday ? 'Today' : _formatDate(start);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 18, 14, 14),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(color: scheduleCardBg, borderRadius: BorderRadius.circular(12)),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (initials != null)
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: avatarGradient!,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    color: AppTheme.bottleGreen,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            )
-          else
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.borderColor,
-              ),
-              child: Icon(icon, color: AppTheme.textSecondary, size: 18),
-            ),
+          FutureBuilder<String>(
+            future: _resolvePatientName(booking['patientUid'] as String?),
+            builder: (context, snap) {
+              final name = snap.data ?? 'Patient';
+              return Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: avatarColor, shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: Text(_initialsOf(name), style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+              );
+            },
+          ),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                FutureBuilder<String>(
+                  future: _resolvePatientName(booking['patientUid'] as String?),
+                  builder: (context, snap) => Text(
+                    snap.data ?? 'Patient',
+                    style: const TextStyle(fontFamily: 'Open Sans', color: scheduleName, fontSize: 13, fontWeight: FontWeight.w700),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  '$dateLabel, ${_formatClock(start)} · $careType',
+                  style: const TextStyle(fontFamily: 'Open Sans', color: scheduleSubtitle, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: badgeColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              badgeText,
-              style: TextStyle(
-                color: badgeColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            decoration: BoxDecoration(color: scheduleBadgeBg, borderRadius: BorderRadius.circular(999)),
+            child: Text(statusLabel, style: const TextStyle(fontFamily: 'Open Sans', color: scheduleBadgeText, fontSize: 11, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  // ── Bottom nav ─────────────────────────────────────────────
+  // ── Bottom nav ─────────────────────────────────────────────────────────
   Widget _buildBottomNav(BuildContext context) {
     final items = [
-      (icon: Icons.home_rounded, label: 'Home'),
-      (icon: Icons.calendar_month_rounded, label: 'Schedule'),
-      (icon: Icons.notifications_none_rounded, label: 'Alerts'),
-      (icon: Icons.person_outline_rounded, label: 'Profile'),
+      (icon: Icons.home_rounded, label: 'Home', route: null),
+      (icon: Icons.calendar_month_rounded, label: 'Booking', route: '/caregiver-schedule'),
+      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/caregiver-notifications'),
+      (icon: Icons.person_outline_rounded, label: 'Profile', route: '/caregiver-own-profile'),
     ];
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppTheme.surfaceColor,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
+        color: headerBg,
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: 67,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(items.length, (index) {
               final item = items[index];
-              final isSelected = index == _selectedNavIndex;
-              final color = isSelected ? _indigo : const Color(0xFF64748B);
               return GestureDetector(
-                onTap: () {
-                  if (index == 0) {
-                    setState(() => _selectedNavIndex = index);
-                  } else if (index == 1) {
-                    Navigator.pushNamed(context, '/caregiver-schedule');
-                  } else if (index == 2) {
-                    Navigator.pushNamed(context, '/caregiver-notifications');
-                  } else if (index == 3) {
-                    Navigator.pushNamed(context, '/caregiver-own-profile');
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${item.label} coming soon!')),
-                    );
-                  }
-                },
+                onTap: item.route == null ? null : () => Navigator.pushNamed(context, item.route!),
                 behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(item.icon, color: color, size: 22),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                child: SizedBox(
+                  width: 80,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, color: Colors.white, size: 25),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: const TextStyle(fontFamily: 'Quattrocento Sans', color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }),
