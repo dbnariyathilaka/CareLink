@@ -1,12 +1,114 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
+import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
+
+// ─────────────────────────────────────────────────────────────
+//  Caregiver search filters — real fields only. "Care type" (Elder/Child/
+//  Disability/Post-surgery) and "Minimum rating" stay in the sheet's UI to
+//  match Figma, but aren't applied here: caregiver profiles never store a
+//  care-category field (that's only ever collected on the patient side),
+//  and there's no cached average-rating field on the profile doc — same
+//  "don't fake it" call already made for star ratings/availability badges
+//  in advanced_match_results_screen.dart.
+class CaregiverFilters {
+  const CaregiverFilters({
+    this.schedule,
+    this.maxDistanceKm = 30,
+    this.languages = const {},
+    this.skills = const {},
+    this.experience = 'Any',
+    this.education = 'Any',
+    this.trainedOnly = false,
+    this.gender = 'Any',
+  });
+
+  final String? schedule; // 'Full-time' | 'Part-time' | 'Live-in'
+  final double maxDistanceKm;
+  final Set<String> languages;
+  final Set<String> skills;
+  final String experience; // 'Any' | '1+ yrs' | '3+ yrs' | '5+ yrs'
+  final String education; // 'Any' | 'Certificate / diploma' | 'Degree or higher'
+  final bool trainedOnly;
+  final String gender; // 'Any' | 'Female' | 'Male'
+
+  // The filter sheet's skill pills don't all correspond 1:1 to the option
+  // strings caregivers actually pick from during onboarding — this maps
+  // the ones that do have a real equivalent. 'Cooking' and 'First aid'
+  // have none, so selecting them honestly matches no one.
+  static const Map<String, String> _skillSynonyms = {
+    'Dementia care': 'Dementia care',
+    'Medication': 'Medication management',
+    'Mobility support': 'Mobility assistance',
+  };
+
+  static const Map<String, int> _experienceYears = {
+    '1+ yrs': 1,
+    '3+ yrs': 3,
+    '5+ yrs': 5,
+  };
+
+  bool matches(Map<String, dynamic> caregiver) {
+    if (schedule != null) {
+      final types = (caregiver['careTypes'] as List?)?.cast<String>() ?? const [];
+      if (!types.contains(schedule)) return false;
+    }
+
+    if (maxDistanceKm < 30) {
+      final patientCityName = AppState.careLocation.value.split(',').first.trim();
+      final patientCity = cityCoords(patientCityName);
+      final caregiverCity = cityCoords((caregiver['city'] as String?) ?? '');
+      if (patientCity != null && caregiverCity != null) {
+        final distanceKm = haversineKm(
+          double.parse(patientCity['lat']!),
+          double.parse(patientCity['lng']!),
+          double.parse(caregiverCity['lat']!),
+          double.parse(caregiverCity['lng']!),
+        );
+        if (distanceKm > maxDistanceKm) return false;
+      }
+    }
+
+    if (languages.isNotEmpty) {
+      final spoken = (caregiver['languagesSpoken'] as List?)?.cast<String>() ?? const [];
+      if (!languages.any(spoken.contains)) return false;
+    }
+
+    if (skills.isNotEmpty) {
+      final has = (caregiver['skills'] as List?)?.cast<String>() ?? const [];
+      final wanted = skills.map((s) => _skillSynonyms[s]).whereType<String>();
+      if (!wanted.any(has.contains)) return false;
+    }
+
+    final minYears = _experienceYears[experience];
+    if (minYears != null) {
+      final years = caregiver['yearsExperience'] as int? ?? 0;
+      if (years < minYears) return false;
+    }
+
+    if (education == 'Certificate / diploma' &&
+        caregiver['educationalQualification'] != 'Diploma') {
+      return false;
+    }
+    if (education == 'Degree or higher' &&
+        caregiver['educationalQualification'] != 'Degree or higher') {
+      return false;
+    }
+
+    if (trainedOnly && caregiver['formalTraining'] != true) return false;
+
+    if (gender != 'Any' && caregiver['gender'] != gender) return false;
+
+    return true;
+  }
+}
 
 class PatientSearchScreen extends StatefulWidget {
   const PatientSearchScreen({super.key});
@@ -16,7 +118,7 @@ class PatientSearchScreen extends StatefulWidget {
 }
 
 class _PatientSearchScreenState extends State<PatientSearchScreen> {
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = NoUnderlineTextEditingController();
 
   static const Color bgCream = Color(0xFFF5EEDE);
   static const Color darkGreen = Color(0xFF06402B);
@@ -27,6 +129,10 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   String _userName = 'there';
   bool _loading = true;
   List<Map<String, dynamic>> _caregivers = [];
+  // Null until the patient actually applies a filter — the sheet's own
+  // pre-filled pills (matching Figma) are just a starting suggestion, not
+  // silently active before "Apply filters" is tapped.
+  CaregiverFilters? _activeFilters;
 
   @override
   void initState() {
@@ -87,13 +193,30 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredCaregivers {
+    final filters = _activeFilters;
+    var matches = filters == null
+        ? _caregivers
+        : _caregivers.where(filters.matches).toList();
+
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _caregivers;
-    return _caregivers.where((c) {
+    if (query.isEmpty) return matches;
+    matches = matches.where((c) {
       final name = (c['name'] as String? ?? '').toLowerCase();
       final city = (c['city'] as String? ?? '').toLowerCase();
       return name.contains(query) || city.contains(query);
     }).toList();
+    // Names that start with the typed letters rank above names that only
+    // match mid-string (e.g. "se" → "senesh" before "Sandali Sewwandi"),
+    // alphabetical within each group.
+    matches.sort((a, b) {
+      final nameA = (a['name'] as String? ?? '').trim().toLowerCase();
+      final nameB = (b['name'] as String? ?? '').trim().toLowerCase();
+      final startsA = nameA.startsWith(query);
+      final startsB = nameB.startsWith(query);
+      if (startsA != startsB) return startsA ? -1 : 1;
+      return nameA.compareTo(nameB);
+    });
+    return matches;
   }
 
   @override
@@ -142,13 +265,16 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     );
   }
 
-  void _showFiltersSheet(BuildContext context) {
-    showModalBottomSheet(
+  void _showFiltersSheet(BuildContext context) async {
+    final result = await showModalBottomSheet<CaregiverFilters>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const FiltersSheet(),
+      builder: (_) => FiltersSheet(initialFilters: _activeFilters),
     );
+    if (result != null && mounted) {
+      setState(() => _activeFilters = result);
+    }
   }
 
   // ── Header (matches dashboard style, plus search bar) ─────
@@ -284,7 +410,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                       hintText: 'Search caregivers....',
                       hintStyle: TextStyle(
                         fontFamily: 'Quattrocento Sans',
-                        color: Color.fromRGBO(6, 64, 43, 0.6),
+                        color: Color.fromRGBO(6, 64, 43, 0.85),
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -700,7 +826,11 @@ class _MatchFabState extends State<_MatchFab> with SingleTickerProviderStateMixi
 enum _Schedule { fullTime, partTime, liveIn }
 
 class FiltersSheet extends StatefulWidget {
-  const FiltersSheet({super.key});
+  const FiltersSheet({super.key, this.initialFilters});
+
+  // Null on first open (falls back to the Figma mock's pre-filled pills);
+  // once the patient has applied filters, reopening seeds from those.
+  final CaregiverFilters? initialFilters;
 
   @override
   State<FiltersSheet> createState() => _FiltersSheetState();
@@ -742,6 +872,48 @@ class _FiltersSheetState extends State<FiltersSheet> {
   String _education = 'Certificate / diploma';
   String _training = 'No preference';
   String _gender = 'Any';
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialFilters;
+    if (initial == null) return;
+    _schedule = switch (initial.schedule) {
+      'Full-time' => _Schedule.fullTime,
+      'Part-time' => _Schedule.partTime,
+      'Live-in' => _Schedule.liveIn,
+      _ => null,
+    };
+    _maxDistance = initial.maxDistanceKm;
+    _languages
+      ..clear()
+      ..addAll(initial.languages);
+    _skills
+      ..clear()
+      ..addAll(initial.skills);
+    _experience = initial.experience;
+    _education = initial.education;
+    _training = initial.trainedOnly ? 'Trained only' : 'No preference';
+    _gender = initial.gender;
+  }
+
+  CaregiverFilters _buildFilters() {
+    return CaregiverFilters(
+      schedule: switch (_schedule) {
+        _Schedule.fullTime => 'Full-time',
+        _Schedule.partTime => 'Part-time',
+        _Schedule.liveIn => 'Live-in',
+        null => null,
+      },
+      maxDistanceKm: _maxDistance,
+      languages: Set.of(_languages),
+      skills: Set.of(_skills),
+      experience: _experience,
+      education: _education,
+      trainedOnly: _training == 'Trained only',
+      gender: _gender,
+    );
+  }
 
   void _clearAll() {
     setState(() {
@@ -961,7 +1133,14 @@ class _FiltersSheetState extends State<FiltersSheet> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 20),
+              padding: EdgeInsets.fromLTRB(
+                22,
+                16,
+                22,
+                // The nav bar's safe-area inset was missing entirely here —
+                // "Clear all"/"Apply filters" were getting clipped by it.
+                20 + MediaQuery.of(context).padding.bottom,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -999,7 +1178,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
                       borderRadius: BorderRadius.circular(10),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => Navigator.pop(context, _buildFilters()),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(vertical: 14),
                           child: Text(

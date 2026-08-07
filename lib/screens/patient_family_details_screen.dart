@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -34,11 +35,11 @@ class _PatientFamilyDetailsScreenState
   static const Color bannerText = Color(0xFF47312B);
   static const Color continueBg = Color(0xFF746553);
 
-  final _nameController = TextEditingController();
-  final _nicController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _addressController = TextEditingController();
+  final _nameController = NoUnderlineTextEditingController();
+  final _nicController = NoUnderlineTextEditingController();
+  final _phoneController = NoUnderlineTextEditingController();
+  final _emailController = NoUnderlineTextEditingController();
+  final _addressController = NoUnderlineTextEditingController();
 
   final List<String> _relationships = [
     'Mother',
@@ -213,7 +214,7 @@ class _PatientFamilyDetailsScreenState
                                               style: const TextStyle(
                                                 fontFamily: 'Open Sans',
                                                 color: fieldValue,
-                                                fontSize: 12,
+                                                fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -310,7 +311,7 @@ class _PatientFamilyDetailsScreenState
                         style: TextStyle(
                           fontFamily: 'Open Sans',
                           color: Colors.white,
-                          fontSize: 21,
+                          fontSize: 20,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.3,
                         ),
@@ -354,7 +355,7 @@ class _PatientFamilyDetailsScreenState
         style: const TextStyle(
           fontFamily: 'Open Sans',
           color: fieldValue,
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
         decoration: InputDecoration(
@@ -369,7 +370,7 @@ class _PatientFamilyDetailsScreenState
           hintStyle: const TextStyle(
             fontFamily: 'Open Sans',
             color: fieldValue,
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),

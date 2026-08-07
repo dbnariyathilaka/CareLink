@@ -232,19 +232,19 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
                                 _buildFavouriteCard(context),
                                 const SizedBox(height: 12),
                                 _menuRow(
-                                  icon: Icons.chat_bubble_rounded,
+                                  icon: Icons.chat_bubble_outline_rounded,
                                   label: 'Messages',
                                   onTap: () => Navigator.pushNamed(context, '/messages'),
                                 ),
                                 const SizedBox(height: 12),
                                 _menuRow(
-                                  icon: Icons.shield_rounded,
+                                  icon: Icons.shield_outlined,
                                   label: 'Privacy policy',
                                   onTap: () => _showComingSoon('Privacy policy'),
                                 ),
                                 const SizedBox(height: 12),
                                 _menuRow(
-                                  icon: Icons.help_rounded,
+                                  icon: Icons.help_outline_rounded,
                                   label: 'Help & FAQ',
                                   onTap: () => _showComingSoon('Help & FAQ'),
                                 ),

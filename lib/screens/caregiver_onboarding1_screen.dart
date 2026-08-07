@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ class _CaregiverOnboarding1ScreenState
   static const Color titleDark = Color(0xFF112541);
   static const Color fieldLabel = Color(0xFF94A3B8);
   static const Color fieldBorder = Color(0xFF334155);
-  static const Color fieldHint = Color.fromRGBO(51, 76, 85, 0.42);
+  static const Color fieldHint = Color.fromRGBO(51, 76, 85, 0.75);
   static const Color progressActive = Color(0xFF345058);
   static const Color progressInactive = Color.fromRGBO(137, 171, 199, 0.37);
   static const Color stepperAdd = Color(0xFF293855);
@@ -38,8 +39,8 @@ class _CaregiverOnboarding1ScreenState
 
   final Set<String> _selectedCareTypes = {'Part-time', 'Full-time'};
 
-  final _nicController = TextEditingController();
-  final _refPhoneController = TextEditingController();
+  final _nicController = NoUnderlineTextEditingController();
+  final _refPhoneController = NoUnderlineTextEditingController();
 
   @override
   void initState() {

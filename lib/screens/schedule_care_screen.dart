@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../widgets/status_bar.dart';
 
 class ScheduleCareScreen extends StatefulWidget {
@@ -61,9 +62,21 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       _isAdvanced ? const Color.fromRGBO(109, 66, 117, 0.41) : calendarRangeBg;
   Color get _calendarRangeTextColor => _isAdvanced ? const Color(0xFF4F1E58) : calendarRangeText;
   Color get _stepLineInactiveColor => _isAdvanced ? const Color(0xFFD1BAC6) : stepLineInactive;
+  Color get _stepInactiveBgColor => _isAdvanced ? const Color(0xFFD1BAC6) : stepInactiveBg;
   // Part-time's time-picker card keeps the old dark panel treatment with a
   // spring-green highlight, matching the Figma reference exactly.
   Color get _timePickerAccent => _isAdvanced ? _accent : const Color(0xFF22C55E);
+
+  // The advanced flow's calendar (Figma node 218-274 family) uses a warm
+  // neutral-gray palette, not the blue-tinted one built for the regular
+  // flow — mixing them made the card read as having a hard border/edge
+  // against the cream page where Figma has none.
+  Color get _calendarCardBgColor =>
+      _isAdvanced ? const Color.fromRGBO(171, 163, 157, 0.53) : calendarCardBg;
+  Color get _calendarHeaderTextColor => _isAdvanced ? const Color(0xFF313131) : calendarHeaderText;
+  Color get _calendarDayTextColor => _isAdvanced ? const Color(0xFF313131) : calendarDayText;
+  Color get _calendarCompletedBgColor => _isAdvanced ? const Color(0xFFB1A9A6) : calendarCompletedBg;
+  Color get _legendBookedDotColor => _isAdvanced ? const Color(0xFFA78F9F) : _calendarRangeBg;
 
   // ── State variables ──
   late DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
@@ -175,10 +188,41 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     return '$hour:$minute $period';
   }
 
+  // The time picker otherwise falls back to Flutter's stock default theme
+  // (a generic deep purple) since this app never sets a global ThemeData —
+  // re-skin it per flow so it matches the surrounding dark cards and the
+  // flow's own accent (dark green for the regular flow, plum for advanced).
   Future<void> _selectTime(bool isStart) async {
+    final accent = _accent;
     final selected = await showTimePicker(
       context: context,
       initialTime: isStart ? _startTime : _endTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: accent,
+                  onPrimary: Colors.white,
+                  secondary: accent,
+                ),
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: darkCardBg,
+              dialBackgroundColor: const Color(0xFF0F172A),
+              dialHandColor: accent,
+              dialTextColor: darkTextPrimary,
+              entryModeIconColor: accent,
+              helpTextStyle: TextStyle(color: darkTextSecondary),
+              hourMinuteColor: const Color(0xFF0F172A),
+              hourMinuteTextColor: darkTextPrimary,
+              dayPeriodColor: const Color(0xFF0F172A),
+              dayPeriodTextColor: darkTextPrimary,
+              confirmButtonStyle: TextButton.styleFrom(foregroundColor: accent),
+              cancelButtonStyle: TextButton.styleFrom(foregroundColor: darkTextSecondary),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (selected != null) {
       setState(() {
@@ -232,10 +276,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             child: Column(
               children: [
                 _buildTitleRow(context),
-                _buildStepIndicator(isAdvanced),
-                const SizedBox(height: 6),
                 Padding(
-                  padding: const EdgeInsets.only(left: 58),
+                  padding: const EdgeInsets.only(left: 58, top: 2),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -249,7 +291,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
+                _buildStepIndicator(isAdvanced),
+                const SizedBox(height: 18),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(14, 14, 14, 110),
@@ -328,7 +372,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
-            final leftDone = steps[i ~/ 2].state != _StepState.inactive;
+            // A segment is only accent-colored once both the step it leaves
+            // and the step it reaches are done/active — a line leaving the
+            // current step toward one not yet started stays neutral.
+            final bothReached = steps[i ~/ 2].state != _StepState.inactive &&
+                steps[i ~/ 2 + 1].state != _StepState.inactive;
             return Expanded(
               child: Padding(
                 // Centers the line on the 35px step circle above the label.
@@ -337,7 +385,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   height: 3,
                   decoration: BoxDecoration(
-                    color: leftDone ? _accent : _stepLineInactiveColor,
+                    color: bothReached ? _accent : _stepLineInactiveColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -360,7 +408,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           height: 35,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isFilled ? _accent : stepInactiveBg,
+            color: isFilled ? _accent : _stepInactiveBgColor,
           ),
           child: Center(
             child: Text(
@@ -467,7 +515,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         child: Row(
           children: [
             Icon(
-              Icons.home_rounded,
+              Icons.home_outlined,
               color: _isAdvanced ? Colors.white : const Color(0xFFFFA722),
               size: 22,
             ),
@@ -500,7 +548,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   Widget _buildCalendar({required bool multiSelect}) {
     return Container(
       decoration: BoxDecoration(
-        color: calendarCardBg,
+        color: _calendarCardBgColor,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 6, offset: const Offset(2, 3)),
@@ -511,13 +559,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         children: [
           _buildCalendarHeader(),
           const SizedBox(height: 10),
-          Divider(color: calendarHeaderText.withValues(alpha: 0.2), height: 1),
+          Divider(color: _calendarHeaderTextColor.withValues(alpha: 0.2), height: 1),
           const SizedBox(height: 8),
           _buildDayLabels(),
           const SizedBox(height: 4),
           _buildCalendarGrid(multiSelect: multiSelect),
           const SizedBox(height: 10),
-          Divider(color: calendarHeaderText.withValues(alpha: 0.2), height: 1),
+          Divider(color: _calendarHeaderTextColor.withValues(alpha: 0.2), height: 1),
           const SizedBox(height: 12),
           _buildLegend(),
         ],
@@ -547,15 +595,15 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               : null,
           child: Icon(
             Icons.chevron_left,
-            color: canGoBack ? calendarHeaderText : calendarHeaderText.withValues(alpha: 0.3),
+            color: canGoBack ? _calendarHeaderTextColor : _calendarHeaderTextColor.withValues(alpha: 0.3),
             size: 22,
           ),
         ),
         Text(
           '$monthName ${_focusedMonth.year}',
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Open Sans',
-            color: calendarHeaderText,
+            color: _calendarHeaderTextColor,
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
@@ -565,7 +613,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             _focusedMonth =
                 DateTime(_focusedMonth.year, _focusedMonth.month + 1);
           }),
-          child: const Icon(Icons.chevron_right, color: calendarHeaderText, size: 22),
+          child: Icon(Icons.chevron_right, color: _calendarHeaderTextColor, size: 22),
         ),
       ],
     );
@@ -580,9 +628,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               child: Center(
                 child: Text(
                   l,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Open Sans',
-                    color: calendarDayText,
+                    color: _calendarDayTextColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -663,7 +711,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               : inRange
                   ? _calendarRangeBg
                   : unavailable
-                      ? calendarCompletedBg
+                      ? _calendarCompletedBgColor
                       : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
@@ -676,9 +724,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 ? _accentOnColor
                 : inRange
                     ? _calendarRangeTextColor
-                    : unavailable
-                        ? calendarDayText
-                        : calendarDayText,
+                    : _calendarDayTextColor,
             fontSize: 13,
             fontWeight: FontWeight.w600,
             decoration: TextDecoration.none,
@@ -694,8 +740,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       runSpacing: 4,
       children: [
         _legendDot(_calendarSelectedBg, 'Selected'),
-        _legendDot(_calendarRangeBg, 'Booked period'),
-        _legendDot(calendarCompletedBg, 'Completed'),
+        _legendDot(_legendBookedDotColor, 'Booked period'),
+        _legendDot(_calendarCompletedBgColor, 'Completed'),
       ],
     );
   }
@@ -882,11 +928,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
                         color: isPresetSelected
-                            ? (_isAdvanced ? _timePickerAccent : _timePickerAccent.withValues(alpha: 0.15))
-                            : const Color(0xFF0F172A),
+                            ? (_isAdvanced ? const Color(0xFF513A55) : _timePickerAccent.withValues(alpha: 0.15))
+                            : (_isAdvanced ? const Color(0xFFABA39D) : const Color(0xFF0F172A)),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isPresetSelected ? _timePickerAccent : darkBorder,
+                          color: isPresetSelected
+                              ? (_isAdvanced ? const Color(0xFF3B4844) : _timePickerAccent)
+                              : darkBorder,
                           width: 1,
                         ),
                       ),
@@ -896,7 +944,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                         style: TextStyle(
                           color: isPresetSelected
                               ? (_isAdvanced ? Colors.white : _timePickerAccent)
-                              : darkTextSecondary,
+                              : (_isAdvanced ? const Color(0xFF313131) : darkTextSecondary),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -922,11 +970,16 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             child: Container(
               height: 38,
               width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
+              margin: EdgeInsets.symmetric(horizontal: _isAdvanced ? 0 : 8),
               decoration: BoxDecoration(
-                color: _timePickerAccent.withValues(alpha: 0.15),
+                color: _isAdvanced
+                    ? const Color.fromRGBO(109, 66, 117, 0.54)
+                    : _timePickerAccent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _timePickerAccent.withValues(alpha: 0.4), width: 1),
+                border: Border.all(
+                  color: _isAdvanced ? const Color(0xFF6D4275) : _timePickerAccent.withValues(alpha: 0.4),
+                  width: 1,
+                ),
               ),
             ),
           ),
@@ -1056,7 +1109,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.access_time_filled_rounded, color: goldAccent, size: 18),
+          const Icon(Icons.schedule_outlined, color: goldAccent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1194,7 +1247,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                       const Positioned(
                         top: 8,
                         right: 8,
-                        child: Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                        child: Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 16),
                       ),
                   ],
                 ),
@@ -1264,22 +1317,35 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            Icon(Icons.tune_rounded, color: darkTextSecondary, size: 20),
+            Icon(Icons.tune_outlined, color: darkTextSecondary, size: 20),
           ],
         ),
       ),
     );
   }
 
+  // Custom duration max — a single cap that applies no matter which unit
+  // (days/weeks/months) is selected.
+  static const int _customDurationMax = 30;
+
   void _showCustomDurationDialog() {
+    String tempUnit = 'Days';
+    int tempAmount = 1;
+    final amountController = TextEditingController(text: '$tempAmount');
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        String tempUnit = 'Days';
-        int tempAmount = 1;
-
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            void applyAmount(int value) {
+              final clamped = value.clamp(1, _customDurationMax);
+              setDialogState(() => tempAmount = clamped);
+              amountController.text = '$clamped';
+              amountController.selection =
+                  TextSelection.collapsed(offset: amountController.text.length);
+            }
+
             return Dialog(
               backgroundColor: darkCardBg,
               shape: RoundedRectangleBorder(
@@ -1315,7 +1381,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     // Unit selector row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: ['Days', 'Weeks', 'Months', 'Years'].map((unit) {
+                      children: ['Days', 'Weeks', 'Months'].map((unit) {
                         final isSelected = tempUnit == unit;
                         return Expanded(
                           child: Padding(
@@ -1351,9 +1417,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     ),
                     const SizedBox(height: 22),
 
-                    const Text(
-                      'Amount',
-                      style: TextStyle(
+                    Text(
+                      'Amount (max $_customDurationMax)',
+                      style: const TextStyle(
                         color: darkTextMuted,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -1361,10 +1427,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Amount counter card
+                    // Amount card — directly typable, with +/- as a shortcut.
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(10),
@@ -1372,30 +1438,52 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            '$tempAmount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
+                          Expanded(
+                            child: TextField(
+                              controller: amountController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(2),
+                              ],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              onChanged: (value) {
+                                final parsed = int.tryParse(value);
+                                if (parsed == null) return;
+                                if (parsed > _customDurationMax) {
+                                  applyAmount(parsed);
+                                } else {
+                                  setDialogState(() => tempAmount = parsed);
+                                }
+                              },
+                              onEditingComplete: () {
+                                applyAmount(int.tryParse(amountController.text) ?? 1);
+                                FocusScope.of(context).unfocus();
+                              },
                             ),
                           ),
                           Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               GestureDetector(
-                                onTap: () {
-                                  setDialogState(() => tempAmount++);
-                                },
+                                onTap: () => applyAmount(tempAmount + 1),
                                 child: const Icon(Icons.keyboard_arrow_up_rounded, color: darkTextMuted, size: 20),
                               ),
                               const SizedBox(height: 4),
                               GestureDetector(
-                                onTap: () {
-                                  if (tempAmount > 1) {
-                                    setDialogState(() => tempAmount--);
-                                  }
-                                },
+                                onTap: () => applyAmount(tempAmount - 1),
                                 child: const Icon(Icons.keyboard_arrow_down_rounded, color: darkTextMuted, size: 20),
                               ),
                             ],
@@ -1416,11 +1504,13 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         onPressed: () {
+                          final amount = (int.tryParse(amountController.text) ?? tempAmount)
+                              .clamp(1, _customDurationMax);
                           setState(() {
                             final singularUnit = tempUnit.toLowerCase().substring(0, tempUnit.length - 1);
-                            _selectedDuration = tempAmount == 1
+                            _selectedDuration = amount == 1
                                 ? '1 $singularUnit'
-                                : '$tempAmount ${tempUnit.toLowerCase()}';
+                                : '$amount ${tempUnit.toLowerCase()}';
                             _isCustomDurationActive = true;
                           });
                           Navigator.pop(context);
@@ -1444,6 +1534,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           setDialogState(() {
                             tempAmount = 1;
                             tempUnit = 'Days';
+                            amountController.text = '1';
                           });
                         },
                         child: const Text(
@@ -1463,7 +1554,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           },
         );
       },
-    );
+    ).then((_) => amountController.dispose());
   }
 
   Widget _buildDateRangeSummaryCard() {
@@ -1477,7 +1568,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_month_rounded, color: goldAccent, size: 18),
+          const Icon(Icons.calendar_month_outlined, color: goldAccent, size: 18),
           const SizedBox(width: 10),
           Text(
             _formatDate(_selectedDate),
@@ -1488,7 +1579,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_rounded, color: darkTextMuted, size: 15),
+          const Icon(Icons.arrow_forward_outlined, color: darkTextMuted, size: 15),
           const SizedBox(width: 8),
           Text(
             _formatDate(_endDate),

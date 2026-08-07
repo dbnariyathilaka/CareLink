@@ -80,11 +80,7 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen> {
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: FractionallySizedBox(
-              widthFactor: 1,
-              heightFactor: 0.56,
-              child: _buildCard(context),
-            ),
+            child: _buildCard(context),
           ),
         ],
       ),
@@ -159,6 +155,9 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen> {
   }
 
   // ── Cream rounded-top card overlapping the bottom of the hero image ──
+  // Sized by its own content (not a fixed fraction of screen height) so the
+  // Continue button can never get clipped on shorter screens or when the
+  // system nav bar eats into the safe area.
   Widget _buildCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -169,77 +168,80 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen> {
           topRight: Radius.circular(20),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 26, 24, 20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            children: const [
-              Text(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
                 "Now, let's set caregiver\nqualifications",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   color: titleText,
-                  fontSize: 26,
+                  fontSize: 27,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.4,
                   height: 1.15,
                 ),
               ),
-              SizedBox(height: 14),
-              Text(
+              const SizedBox(height: 14),
+              const Text(
                 'Tell us the education, experience and skills your ideal caregiver should have.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   color: bodyText,
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.w600,
                   height: 1.4,
                 ),
               ),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildCategoryItem('assets/images/qualifications_education_icon.png', 'Education'),
-              _buildCategoryItem('assets/images/qualifications_experience_icon.png', 'Experience'),
-              _buildCategoryItem('assets/images/qualifications_language_icon.png', 'Language'),
-            ],
-          ),
-          SizedBox(
-            width: double.infinity,
-            child: Material(
-              color: accent,
-              borderRadius: BorderRadius.circular(15),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(15),
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/qualifications-selection',
-                    arguments: _bookingArgs,
-                  );
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 18),
-                  child: Text(
-                    'Continue',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Open Sans',
-                      color: creamButtonText,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildCategoryItem('assets/images/qualifications_education_icon.png', 'Education'),
+                  _buildCategoryItem('assets/images/qualifications_experience_icon.png', 'Experience'),
+                  _buildCategoryItem('assets/images/qualifications_language_icon.png', 'Language'),
+                ],
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(15),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(15),
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/qualifications-selection',
+                        arguments: _bookingArgs,
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 18),
+                      child: Text(
+                        'Continue',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: creamButtonText,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

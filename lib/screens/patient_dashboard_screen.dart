@@ -7,6 +7,7 @@ import '../services/patient_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
+import 'emergency_screen.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -228,9 +229,22 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     );
   }
 
+  void _showEmergencySheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (_) => const FractionallySizedBox(
+        heightFactor: 0.92,
+        child: EmergencyScreen(),
+      ),
+    );
+  }
+
   Widget _buildEmergencyBanner() {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/emergency'),
+      onTap: _showEmergencySheet,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 14),

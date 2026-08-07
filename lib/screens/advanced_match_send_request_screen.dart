@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
   static const Color bgCream = Color(0xFFF5EEDE);
   static const Color titleText = Color(0xFF313131);
   static const Color accent = Color(0xFF6D4275);
-  static const Color stepInactiveBg = Color(0xFFDCD9CF);
+  static const Color stepInactiveBg = Color(0xFFD1BAC6);
   static const Color stepLineInactive = Color(0xFFD1BAC6);
   static const Color titleGreen = Color(0xFF033724);
 
@@ -30,7 +31,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
   static const Color fieldLabel = Color.fromRGBO(0, 0, 0, 0.63);
 
   static const Color notesFieldBg = Color.fromRGBO(49, 49, 49, 0.41);
-  static const Color notesText = Color.fromRGBO(49, 49, 49, 0.64);
+  static const Color notesText = Color.fromRGBO(49, 49, 49, 0.85);
 
   static const Color creamButtonText = Color(0xFFF6F0E2);
 
@@ -44,7 +45,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
   String _selectedWorkSchedule = 'Flexible';
   bool _dropdownOpen = false;
 
-  final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _notesController = NoUnderlineTextEditingController();
 
   @override
   void dispose() {
@@ -147,7 +148,8 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(steps.length * 2 - 1, (i) {
           if (i.isOdd) {
-            final leftDone = steps[i ~/ 2].active;
+            // Every connector stays the same neutral tone — only the step
+            // circles themselves indicate progress, matching Figma exactly.
             return Expanded(
               child: Padding(
                 // Centers the line on the 35px step circle above the label.
@@ -156,7 +158,7 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   height: 3,
                   decoration: BoxDecoration(
-                    color: leftDone ? accent : stepLineInactive,
+                    color: stepLineInactive,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -210,19 +212,19 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
     return Column(
       children: [
         _buildInfoCard(
-          icon: Icons.verified_user_rounded,
+          icon: Icons.verified_user_outlined,
           iconColor: const Color(0xFFFFA722),
           text: 'Your request goes only to caregivers who meet the qualifications you selected.',
         ),
         const SizedBox(height: 14),
         _buildInfoCard(
-          icon: Icons.bolt_rounded,
+          icon: Icons.bolt_outlined,
           iconColor: amberIcon,
           text: 'Most matching caregivers respond within 6 hours of a request.',
         ),
         const SizedBox(height: 14),
         _buildInfoCard(
-          icon: Icons.lock_rounded,
+          icon: Icons.lock_outline_rounded,
           iconColor: amberIcon,
           text: 'Your contact details stay private until you confirm a booking.',
         ),

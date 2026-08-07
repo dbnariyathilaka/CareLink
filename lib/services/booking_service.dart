@@ -11,6 +11,13 @@ class BookingService {
   static CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection('bookingRequests');
 
+  // A cancelled booking is archived here (reduced fields) and then deleted
+  // from bookingRequests, rather than lingering there forever as
+  // status: 'cancelled' — keeps the live collection to only requests that
+  // are still actually pending/active.
+  static CollectionReference<Map<String, dynamic>> get _cancelledCollection =>
+      _firestore.collection('cancelledBookings');
+
   static Future<void> createBookingRequest({
     required String patientUid,
     String? caregiverId,
@@ -52,32 +59,84 @@ class BookingService {
     ));
   }
 
-  /// Sorted client-side (newest first) to avoid requiring a composite
-  /// Firestore index for `where(patientUid) + orderBy(createdAt)`.
+  /// Merges the live `bookingRequests` for this patient with their archived
+  /// `cancelledBookings` — cancelling deletes a doc from the former and
+  /// writes a reduced copy to the latter (see [cancelBooking]), so callers
+  /// that want the full history (e.g. the "Cancelled" tab in My Bookings)
+  /// need both sources combined into one stream. Sorted client-side
+  /// (newest first) to avoid requiring composite Firestore indexes.
   static Stream<List<Map<String, dynamic>>> streamBookingsForPatient(
     String patientUid,
   ) {
-    return _collection
-        .where('patientUid', isEqualTo: patientUid)
-        .snapshots()
-        .map((snap) {
-      final docs =
-          snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      docs.sort((a, b) {
-        final at = a['createdAt'];
-        final bt = b['createdAt'];
+    final controller = StreamController<List<Map<String, dynamic>>>.broadcast();
+    List<Map<String, dynamic>>? active;
+    List<Map<String, dynamic>>? cancelled;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? activeSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? cancelledSub;
+
+    void emit() {
+      if (active == null || cancelled == null) return;
+      final combined = [...active!, ...cancelled!];
+      combined.sort((a, b) {
+        final at = (a['createdAt'] ?? a['cancelledAt']);
+        final bt = (b['createdAt'] ?? b['cancelledAt']);
         if (at is! Timestamp || bt is! Timestamp) return 0;
         return bt.compareTo(at);
       });
-      return docs;
-    });
+      controller.add(combined);
+    }
+
+    controller.onListen = () {
+      activeSub = _collection
+          .where('patientUid', isEqualTo: patientUid)
+          .snapshots()
+          .listen((snap) {
+        active = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+        emit();
+      });
+      cancelledSub = _cancelledCollection
+          .where('patientUid', isEqualTo: patientUid)
+          .snapshots()
+          .listen((snap) {
+        cancelled = snap.docs
+            .map((d) => {'id': d.id, 'status': 'cancelled', ...d.data()})
+            .toList();
+        emit();
+      });
+    };
+    controller.onCancel = () {
+      activeSub?.cancel();
+      cancelledSub?.cancel();
+    };
+    return controller.stream;
   }
 
-  static Future<void> cancelBooking(String bookingId) {
-    return _collection.doc(bookingId).update({
-      'status': 'cancelled',
-      'cancelledAt': FieldValue.serverTimestamp(),
-    });
+  /// Archives a reduced copy of the booking (enough to still render a
+  /// "Cancelled" card) to cancelledBookings, then deletes the live doc —
+  /// cancelling removes the request from the active collection entirely
+  /// rather than leaving it there forever with status: 'cancelled'.
+  static Future<void> cancelBooking(String bookingId) async {
+    final doc = _collection.doc(bookingId);
+    final snap = await doc.get();
+    final data = snap.data();
+    if (data != null) {
+      await _cancelledCollection.add({
+        'patientUid': data['patientUid'],
+        'caregiverId': data['caregiverId'],
+        'caregiverName': data['caregiverName'],
+        'careType': data['careType'],
+        'startDate': data['startDate'],
+        'startTime': data['startTime'],
+        'endTime': data['endTime'],
+        'duration': data['duration'],
+        'endDate': data['endDate'],
+        'location': data['location'],
+        'originalBookingId': bookingId,
+        'createdAt': data['createdAt'],
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await doc.delete();
   }
 
   /// Caregiver's response to a direct booking request — the real

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../data/sri_lankan_cities.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ class _CaregiverOnboarding3ScreenState
   static const Color continueBg = Color(0xFF223A5C);
 
   final _cityController = TextEditingController(text: 'Negombo, Western Province');
-  final _bioController = TextEditingController();
+  final _bioController = NoUnderlineTextEditingController();
 
   static const List<String> _radiusOptions = [
     '5 km',

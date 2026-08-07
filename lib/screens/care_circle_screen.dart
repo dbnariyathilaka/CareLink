@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/patient_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ class _CareCircleScreenState extends State<CareCircleScreen> {
   Future<void> _showInviteSheet() async {
     final uid = _uid;
     if (uid == null) return;
-    final contactController = TextEditingController();
+    final contactController = NoUnderlineTextEditingController();
     String relation = 'Son';
     String role = 'Editor';
 
@@ -202,7 +203,7 @@ class _CareCircleScreenState extends State<CareCircleScreen> {
                           disabledBorder: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
                           hintText: 'tharaka@email.com',
-                          hintStyle: TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(43, 50, 29, 0.5), fontSize: 12, fontWeight: FontWeight.w500),
+                          hintStyle: TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(43, 50, 29, 0.8), fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                       ),
                     ),

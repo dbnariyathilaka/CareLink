@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/upload_picker_sheet.dart';
 import '../widgets/status_bar.dart';
@@ -45,13 +46,13 @@ class _CaregiverEditProfileScreenState
   static const Color _addCertIcon = Color(0xFFFBBC05);
   static const Color _saveBg = Color(0xFF1F3554);
 
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _nameController = NoUnderlineTextEditingController();
+  final _emailController = NoUnderlineTextEditingController();
   final List<TextEditingController> _phoneControllers = [
-    TextEditingController(),
+    NoUnderlineTextEditingController(),
   ];
-  final _cityController = TextEditingController();
-  final _bioController = TextEditingController();
+  final _cityController = NoUnderlineTextEditingController();
+  final _bioController = NoUnderlineTextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -301,7 +302,7 @@ class _CaregiverEditProfileScreenState
                     ),
                     const SizedBox(height: 10),
                     GestureDetector(
-                      onTap: () => setState(() => _phoneControllers.add(TextEditingController())),
+                      onTap: () => setState(() => _phoneControllers.add(NoUnderlineTextEditingController())),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -418,7 +419,7 @@ class _CaregiverEditProfileScreenState
                           focusedBorder: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                           hintText: 'Tell patients a little about yourself...',
-                          hintStyle: TextStyle(fontFamily: 'Inter', color: Color.fromRGBO(46, 39, 26, 0.55), fontSize: 13, fontWeight: FontWeight.w400),
+                          hintStyle: TextStyle(fontFamily: 'Inter', color: Color.fromRGBO(46, 39, 26, 0.8), fontSize: 13, fontWeight: FontWeight.w400),
                         ),
                       ),
                     ),

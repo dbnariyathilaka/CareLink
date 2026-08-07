@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 import '../widgets/status_bar.dart';
 
 class ForgotPasswordEmailSentScreen extends StatefulWidget {
@@ -67,12 +68,26 @@ class _ForgotPasswordEmailSentScreenState
     });
   }
 
-  void _resendLink(String email) {
-    if (_resendCooldown > 0) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Reset link sent again to $email')),
-    );
-    _startCooldown();
+  bool _resending = false;
+
+  Future<void> _resendLink(String email) async {
+    if (_resendCooldown > 0 || _resending) return;
+    setState(() => _resending = true);
+    try {
+      await AuthService.sendPasswordResetEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reset link sent again to $email')),
+      );
+      _startCooldown();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not resend the link. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _resending = false);
+    }
   }
 
   @override
@@ -210,14 +225,23 @@ class _ForgotPasswordEmailSentScreenState
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(15),
-                            onTap: () => _resendLink(email),
+                            onTap: _resending ? null : () => _resendLink(email),
                             child: Center(
-                              child: Text(
+                              child: _resending
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                  : Text(
                                 _resendCooldown > 0
                                     ? 'Resend link in ${_resendCooldown}s'
                                     : 'Resend link',
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: _resendCooldown > 0 ? darkGreen : Colors.white,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   fontFamily: 'Inter',

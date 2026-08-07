@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/care_journal_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ class _AddJournalEntrySheetState extends State<AddJournalEntrySheet> {
 
   String _category = _categories.first;
   TimeOfDay _time = TimeOfDay.now();
-  final TextEditingController _textController = TextEditingController();
+  final TextEditingController _textController = NoUnderlineTextEditingController();
   String? _photoUrl;
   String? _photoName;
   bool _uploadingPhoto = false;

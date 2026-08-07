@@ -41,7 +41,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     'Physiotherapy',
   ];
 
-  String _selectedCareType = 'Elder care';
+  String? _selectedCareType;
 
   final List<String> _careLevels = [
     'Full-time',
@@ -49,7 +49,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
     'Live-in',
     'Flexible',
   ];
-  String _selectedCareLevel = 'Full-time';
+  String? _selectedCareLevel;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -240,8 +240,20 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                     child: InkWell(
                       borderRadius: BorderRadius.circular(15),
                       onTap: () {
-                        AppState.careType.value = _selectedCareType;
-                        AppState.careSchedule.value = _selectedCareLevel;
+                        if (_selectedCareType == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select the kind of care needed.')),
+                          );
+                          return;
+                        }
+                        if (_selectedCareLevel == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select how much care is needed.')),
+                          );
+                          return;
+                        }
+                        AppState.careType.value = _selectedCareType!;
+                        AppState.careSchedule.value = _selectedCareLevel!;
                         Navigator.pushNamed(context, '/patient-onboarding-3');
                       },
                       child: const Center(

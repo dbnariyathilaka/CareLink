@@ -1,4 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 class ForgotPasswordStep1Screen extends StatefulWidget {
@@ -12,7 +15,8 @@ class ForgotPasswordStep1Screen extends StatefulWidget {
 class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _emailController = NoUnderlineTextEditingController();
+  bool _sending = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -21,6 +25,7 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
   static const Color darkGreen = Color(0xFF06402B);
   static const Color creamBg = Color(0xFFF6F0E2);
   static const Color borderColor = Color.fromRGBO(0, 0, 0, 0.3);
+  static const Color hintColor = Color.fromRGBO(0, 0, 0, 0.6);
   static const Color labelColor = Color.fromRGBO(0, 0, 0, 0.85);
   static const Color mutedColor = Color.fromRGBO(0, 0, 0, 0.5);
 
@@ -53,6 +58,33 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
     _fadeController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendResetEmail() async {
+    if (!_formKey.currentState!.validate() || _sending) return;
+    final email = _emailController.text.trim();
+    setState(() => _sending = true);
+    try {
+      await AuthService.sendPasswordResetEmail(email);
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        '/forgot-password-email-sent',
+        arguments: email,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AuthService.messageForPasswordResetError(e))),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not send the reset email. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -129,7 +161,7 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4),
                           child: Text(
-                            "Enter the email linked to your account and we'll send you a code to reset your password.",
+                            "Enter the email linked to your account and we'll send you a link to reset your password.",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: 'Inter',
@@ -179,25 +211,26 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(15),
-                              onTap: () {
-                                if (_formKey.currentState!.validate()) {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/forgot-password-email-sent',
-                                    arguments: _emailController.text.trim(),
-                                  );
-                                }
-                              },
-                              child: const Center(
-                                child: Text(
-                                  'Send reset code',
-                                  style: TextStyle(
-                                    color: creamBg,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Inter',
-                                  ),
-                                ),
+                              onTap: _sending ? null : _sendResetEmail,
+                              child: Center(
+                                child: _sending
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          color: creamBg,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Send reset link',
+                                        style: TextStyle(
+                                          color: creamBg,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          fontFamily: 'Inter',
+                                        ),
+                                      ),
                               ),
                             ),
                           ),
@@ -279,7 +312,7 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: const TextStyle(
-              color: borderColor,
+              color: hintColor,
               fontSize: 15,
               fontWeight: FontWeight.w400,
               fontFamily: 'Inter',

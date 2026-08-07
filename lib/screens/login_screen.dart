@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,8 +14,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailController = NoUnderlineTextEditingController();
+  final _passwordController = NoUnderlineTextEditingController();
   bool _obscurePassword = true;
   bool _isSubmitting = false;
 
@@ -28,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen>
   static const Color buttonTextColor = Color(0xFFF6F0E2);
   static const Color labelColor = Color.fromRGBO(0, 0, 0, 0.85);
   static const Color borderColor = Color.fromRGBO(0, 0, 0, 0.3);
+  static const Color hintColor = Color.fromRGBO(0, 0, 0, 0.6);
 
   @override
   void initState() {
@@ -385,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen>
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: const TextStyle(
-              color: borderColor,
+              color: hintColor,
               fontSize: 15,
               fontWeight: FontWeight.w400,
               fontFamily: 'Inter',

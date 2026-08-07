@@ -40,6 +40,35 @@ class AuthService {
 
   static Future<void> signOut() => _auth.signOut();
 
+  /// Sends a real Firebase-hosted password-reset email. Firebase only
+  /// delivers it to addresses with an existing account; depending on the
+  /// project's email-enumeration-protection setting it either throws
+  /// `user-not-found` for unknown addresses or (the more secure default)
+  /// silently no-ops so callers can't probe which emails are registered —
+  /// either way, this is the real check, not a client-side guess. Tapping
+  /// the link in that email takes the user to Firebase's own hosted page
+  /// to set a new password; no in-app screen is involved.
+  static Future<void> sendPasswordResetEmail(String email) {
+    return _auth.sendPasswordResetEmail(email: email.trim());
+  }
+
+  /// Maps a [FirebaseAuthException] thrown while requesting a password
+  /// reset to a user-facing message.
+  static String messageForPasswordResetError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection and try again.';
+      default:
+        return e.message ?? 'Could not send the reset email. Please try again.';
+    }
+  }
+
   /// Creates/overwrites the `users/{uid}` profile document. `role` is only
   /// written when provided — omitting it (e.g. when just editing name/email)
   /// must not clobber the role set at registration time.

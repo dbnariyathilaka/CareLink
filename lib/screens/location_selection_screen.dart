@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../data/sri_lankan_cities.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 class LocationSelectionScreen extends StatefulWidget {
@@ -37,7 +38,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   double? _selectedLat;
   double? _selectedLng;
   bool _showSearch = false;
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = NoUnderlineTextEditingController();
 
   bool _isAdvanced = false;
   Map<String, dynamic> _bookingArgs = {};
@@ -148,7 +149,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             style: TextStyle(
               fontFamily: 'Open Sans',
               color: titleGreen,
-              fontSize: 24,
+              fontSize: 25,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -220,7 +221,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
               style: TextStyle(
                 fontFamily: 'Open Sans',
                 color: isFilled ? _accentOnColor : Colors.black,
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -232,7 +233,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
           style: const TextStyle(
             fontFamily: 'Open Sans',
             color: titleGreen,
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -301,7 +302,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
           style: TextStyle(
             fontFamily: 'Open Sans',
             color: darkGreen,
-            fontSize: 24,
+            fontSize: 25,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -314,7 +315,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             style: TextStyle(
               fontFamily: 'Open Sans',
               color: darkGreen,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w400,
               height: 1.7,
             ),
@@ -356,7 +357,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 b.text,
                 style: const TextStyle(
                   color: darkTextSecondary,
-                  fontSize: 12.5,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -387,17 +388,17 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
               children: [
                 Text(
                   'Active Care Location',
-                  style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${_selectedCity!}, Sri Lanka',
-                  style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w700),
+                  style: const TextStyle(color: Colors.black, fontSize: 17, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'GPS Coordinates: ${_selectedLat!.toStringAsFixed(4)}° N, ${_selectedLng!.toStringAsFixed(4)}° E',
-                  style: const TextStyle(color: Colors.black54, fontSize: 11, fontWeight: FontWeight.w500),
+                  style: const TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -423,7 +424,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       children: [
         const Text(
           'Location settings applied',
-          style: TextStyle(color: darkGreen, fontSize: 13, fontWeight: FontWeight.w600),
+          style: TextStyle(color: darkGreen, fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
         Container(
@@ -440,7 +441,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
               const Expanded(
                 child: Text(
                   'Nearby caregivers matches generated successfully.',
-                  style: TextStyle(color: darkTextSecondary, fontSize: 12),
+                  style: TextStyle(color: darkTextSecondary, fontSize: 13),
                 ),
               ),
             ],
@@ -471,7 +472,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         hintText: 'Search city/town in Sri Lanka...',
-                        hintStyle: const TextStyle(color: Colors.black54),
+                        hintStyle: const TextStyle(color: Colors.black87),
                         prefixIcon: const Icon(Icons.search_rounded, color: Colors.black54),
                         filled: true,
                         fillColor: Colors.white,
@@ -502,7 +503,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     },
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: _accent, fontSize: 15, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: _accent, fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -516,7 +517,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     ? const Center(
                         child: Text(
                           'No matching cities found',
-                          style: TextStyle(color: Colors.black54, fontSize: 14),
+                          style: TextStyle(color: Colors.black54, fontSize: 15),
                         ),
                       )
                     : ListView.builder(
@@ -529,7 +530,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                           return ListTile(
                             leading: const Icon(Icons.location_on_rounded, color: Colors.black54),
                             title: Text(name, style: const TextStyle(color: Colors.black)),
-                            subtitle: Text('Lat: $lat, Lng: $lng', style: const TextStyle(color: Colors.black54, fontSize: 11)),
+                            subtitle: Text('Lat: $lat, Lng: $lng', style: const TextStyle(color: Colors.black54, fontSize: 12)),
                             onTap: () {
                               setState(() {
                                 _selectedCity = name;
@@ -603,7 +604,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                   style: TextStyle(
                     fontFamily: 'Open Sans',
                     color: creamButtonText,
-                    fontSize: 17,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

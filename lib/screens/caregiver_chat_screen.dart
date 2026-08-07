@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'call_screen.dart';
 import '../services/patient_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ class _CaregiverChatScreenState extends State<CaregiverChatScreen> {
   static const Color roundBtnBorder = Color(0xFF92A2C9);
   static const Color roundBtnIcon = Color(0xFF0F172A);
 
-  final TextEditingController _textController = TextEditingController();
+  final TextEditingController _textController = NoUnderlineTextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<_ChatEntry> _entries = [];
 

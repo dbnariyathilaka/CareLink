@@ -184,23 +184,74 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return DateTime(year, month, day, hour, minute);
   }
 
-  // Two live states, both derived from real booking data + the real clock:
+  // Two live states, both derived from real booking data + the real clock,
+  // and both scoped to bookings a caregiver has actually accepted — a bare
+  // 'requested' booking has no caregiver assigned yet, so there's no one to
+  // "track" and showing this for one would be nonsensical:
   //  - within 10 min *before* shift start → "Shift starting soon"
   //  - at/after shift start, caregiver hasn't confirmed arrival yet →
-  //    "Caregiver is on the way", with a Track action.
+  //    "Caregiver is on the way"
+  // Both get the same Track caregiver / Message actions (Figma node 249-1064
+  // shows this pair on the "starting soon" card too, not just once running
+  // late), since tracking is meaningful throughout the whole window.
+  //
+  // BookingService.respondToRequest is the only place a caregiver's real
+  // acceptance is recorded, and it writes status: 'confirmed' — not
+  // 'upcoming'/'ongoing' (nothing in this codebase ever writes those to
+  // Firestore). Gating on the wrong strings here would silently never match
+  // any booking, accepted or not.
   List<_AppNotification> _deriveNotifications(List<Map<String, dynamic>> bookings) {
     final now = DateTime.now();
     final result = <_AppNotification>[];
     for (final b in bookings) {
-      if (b['status'] == 'cancelled') continue;
+      final status = b['status'] as String?;
+      if (status != 'confirmed') continue;
       if (b['arrivalConfirmed'] == true) continue;
       final shiftStart = _parseShiftStart(b['startDate'] as String?, b['startTime'] as String?);
       if (shiftStart == null) continue;
+      if (now.isBefore(shiftStart.subtract(const Duration(minutes: 10)))) continue;
 
       final caregiverName = (b['caregiverName'] as String?) ?? 'Your caregiver';
       final careType = b['careType'] as String?;
       final bookingId = b['id'] as String?;
+      final caregiverId = b['caregiverId'] as String?;
       final startTime = b['startTime'] as String?;
+
+      final actions = [
+        _NotificationAction(
+          'Track caregiver',
+          isPrimary: true,
+          onTap: bookingId == null
+              ? null
+              : () => Navigator.pushNamed(
+                    context,
+                    '/track-caregiver',
+                    arguments: {
+                      'bookingId': bookingId,
+                      'caregiverId': caregiverId,
+                      'caregiverName': caregiverName,
+                      'careType': careType,
+                      'startTime': startTime,
+                      'location': b['location'],
+                      'locationLat': b['locationLat'],
+                      'locationLng': b['locationLng'],
+                    },
+                  ),
+        ),
+        _NotificationAction(
+          'Message',
+          onTap: () => Navigator.pushNamed(
+            context,
+            '/chat',
+            arguments: {
+              'caregiverId': caregiverId,
+              'caregiverName': caregiverName,
+              'bookingId': bookingId,
+              'careType': careType,
+            },
+          ),
+        ),
+      ];
 
       if (!now.isBefore(shiftStart)) {
         final lateMinutes = now.difference(shiftStart).inMinutes;
@@ -214,30 +265,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           caregiverName: caregiverName,
           visitLabel: careType,
           bookingId: bookingId,
-          actions: [
-            _NotificationAction(
-              'Track',
-              isPrimary: true,
-              onTap: bookingId == null
-                  ? null
-                  : () => Navigator.pushNamed(
-                        context,
-                        '/track-caregiver',
-                        arguments: {
-                          'bookingId': bookingId,
-                          'caregiverId': b['caregiverId'],
-                          'caregiverName': caregiverName,
-                          'careType': careType,
-                          'startTime': startTime,
-                          'location': b['location'],
-                          'locationLat': b['locationLat'],
-                          'locationLng': b['locationLng'],
-                        },
-                      ),
-            ),
-          ],
+          actions: actions,
         ));
-      } else if (!now.isBefore(shiftStart.subtract(const Duration(minutes: 10)))) {
+      } else {
         final minutesUntil = shiftStart.difference(now).inMinutes;
         result.add(_AppNotification(
           type: _NotificationType.shiftStartingSoon,
@@ -249,6 +279,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           caregiverName: caregiverName,
           visitLabel: careType,
           bookingId: bookingId,
+          actions: actions,
         ));
       }
     }

@@ -42,6 +42,30 @@ service cloud.firestore {
       allow update: if request.auth != null &&
         (request.auth.uid == resource.data.patientUid ||
          request.auth.uid == resource.data.caregiverId);
+      // Cancelling deletes the live doc after archiving a copy to
+      // cancelledBookings — only the owning patient can do this.
+      allow delete: if request.auth != null &&
+        request.auth.uid == resource.data.patientUid;
+    }
+
+    // cancelledBookings/{docId} — a reduced, immutable copy written right
+    // before a bookingRequests doc is deleted on cancellation, so the
+    // patient's "Cancelled" history survives the original being removed.
+    match /cancelledBookings/{docId} {
+      allow read: if request.auth != null &&
+        request.auth.uid == resource.data.patientUid;
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.patientUid;
+    }
+
+    // reviews/{reviewId} — one document per patient review of a caregiver.
+    // Any signed-in user can read (shown on the caregiver's public profile);
+    // only the reviewing patient can create their own review, and reviews
+    // are immutable afterwards (no update/delete).
+    match /reviews/{reviewId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.patientUid;
     }
 
     // Everything else is denied by default until explicitly added here.

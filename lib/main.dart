@@ -15,7 +15,6 @@ import 'screens/patient_onboarding3_screen.dart';
 import 'screens/patient_onboarding4_screen.dart';
 import 'screens/patient_family_details_screen.dart';
 import 'screens/patient_dashboard_screen.dart';
-import 'screens/emergency_screen.dart';
 import 'screens/caregiver_profile_screen.dart';
 import 'screens/add_review_screen.dart';
 import 'screens/my_bookings_screen.dart';
@@ -95,7 +94,6 @@ class CareMatchApp extends StatelessWidget {
         '/patient-family-details': (context) =>
             const PatientFamilyDetailsScreen(),
         '/patient-dashboard': (context) => const PatientDashboardScreen(),
-        '/emergency': (context) => const EmergencyScreen(),
         '/caregiver-profile': (context) => const CaregiverProfileScreen(),
         '/add-review': (context) => const AddReviewScreen(),
         '/my-bookings': (context) => const MyBookingsScreen(),

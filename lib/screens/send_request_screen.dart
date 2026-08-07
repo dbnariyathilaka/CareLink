@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 class SendRequestScreen extends StatefulWidget {
@@ -17,7 +18,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   static const Color stepLineInactive = Color(0xFFD9D9D9);
   static const Color fieldBorder = Color.fromRGBO(0, 0, 0, 0.3);
   static const Color fieldLabel = Color.fromRGBO(0, 0, 0, 0.85);
-  static const Color fieldValue = Color.fromRGBO(0, 0, 0, 0.5);
+  static const Color fieldValue = Color.fromRGBO(0, 0, 0, 0.8);
 
   // Dropdown options
   static const List<String> _workSchedules = [
@@ -29,7 +30,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   String _selectedWorkSchedule = 'Flexible';
   bool _dropdownOpen = false;
 
-  final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _notesController = NoUnderlineTextEditingController();
 
   String? _caregiverId;
   Map<String, dynamic>? _caregiver;

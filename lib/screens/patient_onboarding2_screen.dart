@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../data/sri_lankan_cities.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -25,27 +26,36 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   static const Color progressInactive = Color(0xFFD9D9D9);
   static const Color cardBg = Color.fromRGBO(166, 159, 128, 0.1);
   static const Color fieldBorder = Color.fromRGBO(0, 0, 0, 0.3);
-  static const Color fieldLabel = Color.fromRGBO(0, 0, 0, 0.5);
+  static const Color fieldLabel = Color.fromRGBO(0, 0, 0, 0.8);
   static const Color fieldValue = Color.fromRGBO(0, 0, 0, 0.85);
   static const Color creamButtonText = Color(0xFFF6F0E2);
 
   final _formKey = GlobalKey<FormState>();
 
+  // Only show "required" error styling after the user has tried to
+  // continue at least once, so the form doesn't look broken on first view.
+  bool _submitted = false;
+
   // Field Controllers
-  final _nameController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _notesController = TextEditingController();
+  final _nameController = NoUnderlineTextEditingController();
+  final _cityController = NoUnderlineTextEditingController();
+  final _notesController = NoUnderlineTextEditingController();
 
   // Focus Nodes
   final FocusNode _nameFocus = FocusNode();
   final FocusNode _cityFocus = FocusNode();
   final FocusNode _notesFocus = FocusNode();
 
-  // Dropdown / Selection Values
-  String _selectedGender = 'Female';
+  // Lets the special-notes field scroll itself clear of the keyboard when
+  // focused, since it sits at the bottom of the form.
+  final GlobalKey _notesFieldKey = GlobalKey();
+
+  // Dropdown / Selection Values — start unselected so the user must
+  // actively choose; a silent default would let them skip past unnoticed.
+  String? _selectedGender;
   final List<String> _genderOptions = ['Female', 'Male', 'Other'];
 
-  String _preferredCaregiverGender = 'No preference';
+  String? _preferredCaregiverGender;
   final List<String> _preferredGenderOptions = ['No preference', 'Female', 'Male'];
 
   List<Map<String, String>> _filteredCities = [];
@@ -79,7 +89,22 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
         setState(() => _filteredCities = []);
       }
     });
-    _notesFocus.addListener(() => setState(() {}));
+    _notesFocus.addListener(() {
+      setState(() {});
+      if (_notesFocus.hasFocus) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final notesContext = _notesFieldKey.currentContext;
+          if (notesContext != null) {
+            Scrollable.ensureVisible(
+              notesContext,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              alignment: 0.2,
+            );
+          }
+        });
+      }
+    });
 
     _cityController.addListener(_onCityTextChanged);
   }
@@ -242,7 +267,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   void _showPicker({
     required String title,
     required List<String> options,
-    required String selected,
+    required String? selected,
     required ValueChanged<String> onSelect,
   }) {
     showModalBottomSheet(
@@ -283,9 +308,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgCream,
-      // Keep the Continue button anchored in place rather than sliding up
-      // above the keyboard — otherwise it overlaps the city suggestions list.
-      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _fadeController,
@@ -343,6 +365,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                       decoration: BoxDecoration(
                         color: cardBg,
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: fieldBorder),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.2),
@@ -372,6 +395,8 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                           const SizedBox(height: 7),
                           _buildDropdownField(
                             value: _selectedGender,
+                            hintText: 'Select gender',
+                            hasError: _submitted && _selectedGender == null,
                             onTap: () => _showPicker(
                               title: 'Gender',
                               options: _genderOptions,
@@ -391,6 +416,8 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                           const SizedBox(height: 7),
                           _buildDropdownField(
                             value: _preferredCaregiverGender,
+                            hintText: 'Select preferred caregiver gender',
+                            hasError: _submitted && _preferredCaregiverGender == null,
                             onTap: () => _showPicker(
                               title: 'Preferred caregiver gender',
                               options: _preferredGenderOptions,
@@ -400,7 +427,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                           ),
                           const SizedBox(height: 18),
 
-                          _buildLabel('Special notes'),
+                          _buildLabel('Special notes', required: false),
                           const SizedBox(height: 7),
                           _buildTextAreaField(
                             controller: _notesController,
@@ -436,14 +463,30 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                     child: InkWell(
                       borderRadius: BorderRadius.circular(15),
                       onTap: () {
-                        if (_formKey.currentState!.validate()) {
-                          AppState.patientName.value = _nameController.text.trim();
-                          AppState.patientGenderSelf.value = _selectedGender;
-                          AppState.careLocation.value = _cityController.text.trim();
-                          AppState.preferredGender.value = _preferredCaregiverGender;
-                          AppState.additionalCareNotes.value = _notesController.text.trim();
-                          Navigator.pushNamed(context, '/patient-onboarding-2');
+                        setState(() => _submitted = true);
+                        final formValid = _formKey.currentState!.validate();
+                        final missingCity = _cityController.text.trim().isEmpty;
+                        final missingGender = _selectedGender == null;
+                        final missingPreferredGender = _preferredCaregiverGender == null;
+                        if (!formValid || missingCity || missingGender || missingPreferredGender) {
+                          final message = !formValid
+                              ? 'Please enter your full name.'
+                              : missingCity
+                                  ? 'Please enter your city / area.'
+                                  : missingGender
+                                      ? 'Please select a gender.'
+                                      : 'Please select a preferred caregiver gender.';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(message)),
+                          );
+                          return;
                         }
+                        AppState.patientName.value = _nameController.text.trim();
+                        AppState.patientGenderSelf.value = _selectedGender!;
+                        AppState.careLocation.value = _cityController.text.trim();
+                        AppState.preferredGender.value = _preferredCaregiverGender!;
+                        AppState.additionalCareNotes.value = _notesController.text.trim();
+                        Navigator.pushNamed(context, '/patient-onboarding-2');
                       },
                       child: const Center(
                         child: Text(
@@ -470,13 +513,21 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
 
   // ── Widgets Helpers ─────────────────────────────────────────
 
-  Widget _buildLabel(String text) => Text(
-        text,
-        style: const TextStyle(
-          fontFamily: 'Open Sans',
-          color: fieldLabel,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
+  Widget _buildLabel(String text, {bool required = true}) => RichText(
+        text: TextSpan(
+          text: text,
+          style: const TextStyle(
+            fontFamily: 'Open Sans',
+            color: fieldLabel,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+          children: [
+            if (required)
+              const TextSpan(text: ' *', style: TextStyle(color: Colors.red))
+            else
+              const TextSpan(text: '  (optional)', style: TextStyle(fontWeight: FontWeight.w400, fontStyle: FontStyle.italic)),
+          ],
         ),
       );
 
@@ -545,7 +596,9 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   }
 
   Widget _buildDropdownField({
-    required String value,
+    required String? value,
+    required String hintText,
+    required bool hasError,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -554,17 +607,20 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
         decoration: BoxDecoration(
-          border: Border.all(color: fieldBorder),
+          border: Border.all(
+            color: hasError ? Colors.red : fieldBorder,
+            width: hasError ? 1.5 : 1,
+          ),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              value,
-              style: const TextStyle(
+              value ?? hintText,
+              style: TextStyle(
                 fontFamily: 'Open Sans',
-                color: fieldValue,
+                color: value == null ? fieldLabel : fieldValue,
                 fontSize: 15,
                 fontWeight: FontWeight.w400,
               ),
@@ -578,12 +634,13 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
 
   Widget _buildCityField() {
     final focused = _cityFocus.hasFocus;
+    final hasError = _submitted && _cityController.text.trim().isEmpty;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
         border: Border.all(
-          color: focused ? darkGreen : fieldBorder,
-          width: focused ? 1.5 : 1,
+          color: hasError ? Colors.red : (focused ? darkGreen : fieldBorder),
+          width: (focused || hasError) ? 1.5 : 1,
         ),
       ),
       child: Row(
@@ -702,15 +759,12 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
     required FocusNode focusNode,
     required String hintText,
   }) {
-    final hasFocus = focusNode.hasFocus;
     return Container(
+      key: _notesFieldKey,
       height: 97,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: hasFocus ? darkGreen : fieldBorder,
-          width: hasFocus ? 1.5 : 1,
-        ),
+        border: Border.all(color: fieldBorder),
       ),
       child: TextFormField(
         controller: controller,

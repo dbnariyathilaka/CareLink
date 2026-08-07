@@ -7,6 +7,7 @@ import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/request_sent_dialog.dart';
+import '../widgets/restart_match_dialog.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -752,9 +753,14 @@ class _AdvancedMatchResultsScreenState
 
   Widget _buildMatchFab(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (AppState.hasActiveMatch.value) {
-          Navigator.pushNamed(context, '/advanced-match-results');
+          // Already viewing the current top 5 — tapping Match again here can
+          // only mean "redo it", so confirm before discarding them.
+          final confirmed = await showRestartMatchDialog(context);
+          if (confirmed && context.mounted) {
+            Navigator.pushNamed(context, '/advanced-match-send-request');
+          }
         } else {
           Navigator.pushNamed(context, '/advanced-match-send-request');
         }

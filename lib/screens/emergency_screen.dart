@@ -26,7 +26,6 @@ class _RankedCaregiver {
 }
 
 class _EmergencyScreenState extends State<EmergencyScreen> {
-  static const Color pageBg = Color(0xFFF5EEDE);
   static const Color sheetBg = Color(0xFFF5EEE8);
   static const Color headerRed = Color(0xFF9E0606);
   static const Color dragHandle = Color(0xFFF69F9F);
@@ -90,37 +89,39 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     });
   }
 
+  // Presented via showModalBottomSheet from the patient home screen (see
+  // patient_dashboard_screen.dart's _buildEmergencyBanner) rather than as a
+  // pushed route — the SizedBox(height: 24) gap above the rounded card is
+  // deliberate, leaving the dimmed home screen visible behind it like any
+  // other bottom sheet.
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: pageBg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 24),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-                child: Container(
-                  color: sheetBg,
-                  child: Column(
-                    children: [
-                      _buildHeader(context),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(22, 16, 17, 0),
-                        child: _buildStatusBanner(),
-                      ),
-                      Expanded(child: _buildList(context)),
-                    ],
-                  ),
+    return SafeArea(
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              child: Container(
+                color: sheetBg,
+                child: Column(
+                  children: [
+                    _buildHeader(context),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 16, 17, 0),
+                      child: _buildStatusBanner(),
+                    ),
+                    Expanded(child: _buildList(context)),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

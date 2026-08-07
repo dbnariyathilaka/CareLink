@@ -7,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../data/sri_lankan_cities.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 class MapSelectionScreen extends StatefulWidget {
@@ -70,7 +71,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   bool _usingGPS = false;
 
   // Search bar state
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = NoUnderlineTextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<Map<String, String>> _searchResults = [];
   bool _showSearchClear = false;
@@ -898,9 +899,11 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
         ],
       ),
       padding: const EdgeInsets.fromLTRB(18, 15, 18, 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           // Drag handle bar
           Center(
             child: Container(
@@ -1029,6 +1032,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
             ],
           ),
         ],
+        ),
       ),
     );
   }

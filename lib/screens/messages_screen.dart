@@ -27,6 +27,16 @@ class _MessagesScreenState extends State<MessagesScreen> {
   static const Color footerBorder = Color.fromRGBO(138, 117, 84, 0.52);
   static const Color footerText = Color.fromRGBO(203, 186, 136, 0.55);
 
+  // Empty state — Figma node 294-169. A different visual language (light,
+  // illustrated) than the populated chat list, so it gets its own palette.
+  static const Color emptyBg = Color(0xFFFFF8F1);
+  static const Color emptyHeaderGreen = Color(0xFF0F3D2E);
+  static const Color emptyTitleBrown = Color(0xFF462911);
+  static const Color emptyBodyBrown = Color.fromRGBO(70, 41, 17, 0.67);
+  static const Color emptyButtonBg = Color(0xFFAAA897);
+  static const Color emptyCaptionColor = Color.fromRGBO(0, 0, 0, 0.67);
+  static const String _emptyMessagesAsset = 'assets/images/empty_messages.webp';
+
   static const _avatarGradients = [
     [Color(0xFF22C55E), Color(0xFF16A34A)],
     [Color(0xFF0EA5E9), Color(0xFF0284C7)],
@@ -38,7 +48,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void initState() {
     super.initState();
-    setStatusBarStyle(Brightness.light);
     final uid = AuthService.currentUser?.uid;
     if (uid != null) {
       _bookingsStream = BookingService.streamBookingsForPatient(uid);
@@ -72,42 +81,39 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: _bookingsStream == null
-                  ? _buildEmptyState(context)
-                  : StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _bookingsStream,
-                      builder: (context, snapshot) {
-                        final docs = snapshot.data ?? const [];
-                        final unlocked =
-                            docs.where((d) => _isUnlocked(d['status'] as String? ?? '')).toList();
-                        if (unlocked.isEmpty) {
-                          return _buildEmptyState(context);
-                        }
-                        return Column(
-                          children: [
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: unlocked.length,
-                                itemBuilder: (context, i) =>
-                                    _buildRow(context, unlocked[i], i),
-                              ),
-                            ),
-                            _buildFooterNote(),
-                          ],
-                        );
-                      },
-                    ),
+    if (_bookingsStream == null) {
+      setStatusBarStyle(Brightness.dark);
+      return _buildEmptyScaffold(context);
+    }
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _bookingsStream,
+      builder: (context, snapshot) {
+        final docs = snapshot.data ?? const [];
+        final unlocked =
+            docs.where((d) => _isUnlocked(d['status'] as String? ?? '')).toList();
+        if (unlocked.isEmpty) {
+          setStatusBarStyle(Brightness.dark);
+          return _buildEmptyScaffold(context);
+        }
+        setStatusBarStyle(Brightness.light);
+        return Scaffold(
+          backgroundColor: bg,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: unlocked.length,
+                    itemBuilder: (context, i) => _buildRow(context, unlocked[i], i),
+                  ),
+                ),
+                _buildFooterNote(),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -279,24 +285,74 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
-  // ── Honest empty state (no unlocked bookings yet) ──────────
+  // ── Honest empty state (no unlocked bookings yet) — Figma node 294-169 ──
+  Widget _buildEmptyScaffold(BuildContext context) {
+    return Scaffold(
+      backgroundColor: emptyBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildEmptyHeader(context),
+            Expanded(child: _buildEmptyState(context)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: emptyHeaderGreen, size: 20),
+          ),
+          const SizedBox(width: 16),
+          const Text(
+            'Messages',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: emptyHeaderGreen,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Column(
         children: [
-          const Icon(Icons.chat_bubble_outline_rounded, color: footerText, size: 100),
-          const SizedBox(height: 20),
+          SizedBox(
+            width: 220,
+            height: 220,
+            child: Image.asset(
+              _emptyMessagesAsset,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: emptyButtonBg,
+                size: 120,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           const Text(
             'No messages yet',
             style: TextStyle(
               fontFamily: 'Open Sans',
-              color: Colors.white,
+              color: emptyTitleBrown,
               fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           const Text(
             'Messages are unlocked when a booking is confirmed. '
             'Once a caregiver accepts your request, you can chat '
@@ -304,7 +360,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'Open Sans',
-              color: previewText,
+              color: emptyBodyBrown,
               fontSize: 15,
               fontWeight: FontWeight.w600,
               height: 1.5,
@@ -316,18 +372,30 @@ class _MessagesScreenState extends State<MessagesScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: emptyButtonBg,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
                 'View my bookings',
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  color: Colors.white,
+                  color: emptyTitleBrown,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'You can only message caregivers linked to an active booking.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: emptyCaptionColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
             ),
           ),
         ],

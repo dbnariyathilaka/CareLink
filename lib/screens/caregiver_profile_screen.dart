@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
+import '../services/review_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/status_bar.dart';
 
@@ -31,6 +32,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   Map<String, dynamic>? _matchBreakdown;
   bool _loading = true;
   bool _loadedArgs = false;
+  Stream<List<Map<String, dynamic>>>? _reviewsStream;
 
   @override
   void didChangeDependencies() {
@@ -43,6 +45,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
       if (args['matchBreakdown'] is Map) {
         _matchBreakdown = Map<String, dynamic>.from(args['matchBreakdown'] as Map);
       }
+      _reviewsStream = ReviewService.streamReviewsForCaregiver(_caregiverId!);
       CaregiverService.getCaregiverProfile(_caregiverId!).then((profile) {
         if (mounted) {
           setState(() {
@@ -98,7 +101,13 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                                   const SizedBox(height: 20),
                                   _buildAboutSection(),
                                   const SizedBox(height: 20),
-                                  _buildReviewsSection(context),
+                                  StreamBuilder<List<Map<String, dynamic>>>(
+                                    stream: _reviewsStream,
+                                    builder: (context, snapshot) {
+                                      final reviews = snapshot.data ?? const [];
+                                      return _buildReviewsSection(context, reviews);
+                                    },
+                                  ),
                                   const SizedBox(height: 8),
                                 ],
                               ),
@@ -495,7 +504,14 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   }
 
   // ── Reviews section ───────────────────────────────────────
-  Widget _buildReviewsSection(BuildContext context) {
+  Widget _buildReviewsSection(BuildContext context, List<Map<String, dynamic>> reviews) {
+    final hasReviews = reviews.isNotEmpty;
+    final ratings = reviews
+        .map((r) => (r['rating'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList();
+    final avgRating = ratings.isEmpty ? null : ratings.reduce((a, b) => a + b) / ratings.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -511,26 +527,55 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/caregiver-reviews');
-              },
-              child: const Text(
-                'See all',
-                style: TextStyle(
-                  color: darkGreen,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+            // Nothing to see in full if there are no reviews yet.
+            if (hasReviews)
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, '/caregiver-reviews');
+                },
+                child: const Text(
+                  'See all',
+                  style: TextStyle(
+                    color: darkGreen,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 10),
-        const EmptyState(
-          icon: Icons.rate_review_outlined,
-          message: 'No reviews yet.',
-        ),
+        if (!hasReviews)
+          const EmptyState(
+            icon: Icons.rate_review_outlined,
+            message: 'No reviews yet.',
+          )
+        else
+          Row(
+            children: [
+              const Icon(Icons.star_rounded, color: Color(0xFFFBBC05), size: 18),
+              const SizedBox(width: 4),
+              Text(
+                avgRating == null ? '—' : avgRating.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'from ${reviews.length} review${reviews.length == 1 ? '' : 's'}',
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: bodyText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }

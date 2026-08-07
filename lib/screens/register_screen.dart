@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/auth_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -14,11 +15,11 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  final _fullNameController = NoUnderlineTextEditingController();
+  final _emailController = NoUnderlineTextEditingController();
+  final _phoneController = NoUnderlineTextEditingController();
+  final _passwordController = NoUnderlineTextEditingController();
+  final _confirmPasswordController = NoUnderlineTextEditingController();
 
   bool _googleSignedIn = false;
   bool _obscurePassword = true;
@@ -526,7 +527,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.6),
               fontSize: 15,
               fontWeight: FontWeight.w400,
             ),

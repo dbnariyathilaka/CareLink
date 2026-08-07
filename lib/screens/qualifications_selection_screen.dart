@@ -237,55 +237,62 @@ class _QualificationsSelectionScreenState
                   ],
                 ),
                 padding: const EdgeInsets.fromLTRB(24, 19, 24, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'Open Sans',
-                        color: _headingPurple,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.3,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ...options.map((opt) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 15),
-                        child: GestureDetector(
-                          onTap: () => onToggle(opt),
-                          child: _buildOptionRow(opt, isSelected(opt)),
+                // SafeArea keeps the "Next" button clear of the on-screen
+                // nav bar — Figma's mock frame has no OS chrome overlaid to
+                // account for, so without this the button sits flush
+                // against the physical bottom edge and gets clipped.
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: _headingPurple,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.3,
+                          height: 1.35,
                         ),
-                      );
-                    }),
-                    const Spacer(),
-                    Material(
-                      color: _accent,
-                      borderRadius: BorderRadius.circular(15),
-                      child: InkWell(
+                      ),
+                      const SizedBox(height: 24),
+                      ...options.map((opt) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 15),
+                          child: GestureDetector(
+                            onTap: () => onToggle(opt),
+                            child: _buildOptionRow(opt, isSelected(opt)),
+                          ),
+                        );
+                      }),
+                      const Spacer(),
+                      Material(
+                        color: _accent,
                         borderRadius: BorderRadius.circular(15),
-                        onTap: canProceed ? _onNext : null,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          child: Text(
-                            'Next',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'Open Sans',
-                              color: _creamButtonText.withValues(
-                                  alpha: canProceed ? 1 : 0.5),
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(15),
+                          onTap: canProceed ? _onNext : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            child: Text(
+                              'Next',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: 'Open Sans',
+                                color: _creamButtonText.withValues(
+                                    alpha: canProceed ? 1 : 0.5),
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -297,7 +304,7 @@ class _QualificationsSelectionScreenState
 
   Widget _buildOptionRow(String label, bool isSelected) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 18),
+      padding: const EdgeInsets.fromLTRB(19, 18, 2, 18),
       decoration: BoxDecoration(
         color: isSelected ? const Color.fromRGBO(102, 52, 112, 0.4) : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
@@ -311,7 +318,7 @@ class _QualificationsSelectionScreenState
             style: const TextStyle(
               fontFamily: 'Open Sans',
               color: _optionText,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: -0.3,
             ),

@@ -109,16 +109,22 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     }
   }
 
+  // 'confirmed' is the real status BookingService.respondToRequest writes
+  // when a caregiver accepts — it belongs in the "Upcoming" bucket here.
+  // 'upcoming'/'ongoing' are kept too since they're the display names used
+  // elsewhere on this screen, in case that ever changes to write them
+  // directly, but nothing currently persists those strings to Firestore.
   _BookingStatus _statusFromString(String s) {
     switch (s) {
+      case 'confirmed':
+      case 'upcoming':
+        return _BookingStatus.upcoming;
       case 'ongoing':
         return _BookingStatus.ongoing;
       case 'completed':
         return _BookingStatus.completed;
       case 'cancelled':
         return _BookingStatus.cancelled;
-      case 'upcoming':
-        return _BookingStatus.upcoming;
       case 'requested':
       default:
         return _BookingStatus.requested;
@@ -142,7 +148,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   }
 
   _Booking _bookingFromDoc(Map<String, dynamic> doc) {
-    final id = doc['id'] as String;
     final name = doc['caregiverName'] as String? ?? 'Caregiver';
     final status = _statusFromString(doc['status'] as String? ?? 'requested');
     final createdAt = doc['createdAt'];
@@ -155,14 +160,174 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       subtitle: doc['careType'] as String? ?? '',
       status: status,
       requestSentAgo: sentAgo,
-      onCancel: cancellable
-          ? () => _confirmCancel(
-                bookingId: id,
-                caregiverName: name,
-                careType: doc['careType'] as String? ?? '',
-                startDate: doc['startDate'] as String? ?? '',
-              )
-          : null,
+      onCancel: cancellable ? () => _showRequestDetailsDialog(doc) : null,
+    );
+  }
+
+  // ── "Request details" popup (Figma node 218-185) — shown first when the
+  // patient taps "Cancel request", before the actual cancel-confirmation
+  // sheet, so they can double check what they're about to cancel. ─
+  void _showRequestDetailsDialog(Map<String, dynamic> doc) {
+    final id = doc['id'] as String;
+    final name = (doc['caregiverName'] as String?) ?? 'Caregiver';
+    final careType = doc['careType'] as String? ?? '';
+    final startDate = doc['startDate'] as String? ?? '';
+    final startTime = doc['startTime'] as String? ?? '';
+    final duration = doc['duration'] as String?;
+    final endDate = doc['endDate'] as String?;
+    final endTime = doc['endTime'] as String?;
+    final location = doc['location'] as String? ?? '';
+    final hasDuration = duration != null && duration.isNotEmpty;
+
+    final rows = <MapEntry<String, String>>[
+      if (startDate.isNotEmpty) MapEntry('Start date', startDate),
+      if (startTime.isNotEmpty) MapEntry('Start time', startTime),
+      if (hasDuration) MapEntry('Duration', duration),
+      if (endDate != null && endDate.isNotEmpty) MapEntry('End date', endDate),
+      if (!hasDuration && endTime != null && endTime.isNotEmpty)
+        MapEntry('End time', endTime),
+      if (location.isNotEmpty) MapEntry('Location', location),
+      if (careType.isNotEmpty) MapEntry('Work schedule', careType),
+    ];
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (dialogCtx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color.fromRGBO(6, 64, 43, 0.92),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(dialogCtx),
+                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(58, 73, 69, 0.66),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: List.generate(rows.length, (i) {
+                    final isLast = i == rows.length - 1;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: isLast
+                          ? null
+                          : const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: Color.fromRGBO(70, 86, 81, 0.61)),
+                              ),
+                            ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            rows[i].key,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Color(0xFF8ABE65),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            rows[i].value,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFFA1A0A7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: Material(
+                      color: const Color(0xFF82B19A),
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          Navigator.pop(dialogCtx);
+                          _confirmCancel(
+                            bookingId: id,
+                            caregiverName: name,
+                            careType: careType,
+                            startDate: startDate,
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 11),
+                          child: Text(
+                            'Cancel request',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF073F2B),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => Navigator.pop(dialogCtx),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFF4C7E65), width: 2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'Back',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF4C7E65),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -191,7 +356,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           left: 22,
           right: 22,
           top: 14,
-          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 24,
+          // viewInsets covers the keyboard; padding.bottom covers the
+          // on-screen nav bar. Missing the latter is why the button and
+          // "Keep request" text were getting clipped by it.
+          bottom: MediaQuery.of(sheetCtx).viewInsets.bottom +
+              MediaQuery.of(sheetCtx).padding.bottom +
+              24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -343,6 +513,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       body: SafeArea(
         bottom: false,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
             Expanded(
@@ -365,12 +536,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   }
 
                   final bookings = _applyFilter(allBookings);
+                  final isFilteredEmpty = bookings.isEmpty;
                   return Column(
                     children: [
                       _buildFilterTabs(),
                       const SizedBox(height: 10),
                       Expanded(
-                        child: bookings.isEmpty
+                        child: isFilteredEmpty
                             ? _buildEmptyBookingsState(
                                 title: _emptyTitleFor(_selectedFilter),
                                 body: _emptyBodyFor(_selectedFilter),
@@ -383,6 +555,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                 itemBuilder: (_, i) => _buildBookingCard(bookings[i]),
                               ),
                       ),
+                      // This tab has no results — repeat the filter row at the
+                      // bottom too, so switching tabs doesn't require
+                      // scrolling back up past the empty-state illustration.
+                      if (isFilteredEmpty) ...[
+                        const SizedBox(height: 10),
+                        _buildFilterTabs(),
+                      ],
                     ],
                   );
                 },

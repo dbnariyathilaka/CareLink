@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/booking_service.dart';
+import '../widgets/no_underline_text_editing_controller.dart';
 import 'patient_notified_dialog.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog>
   static const Color _infoText = Color(0xFF444935);
   static const Color _accent = Color(0xFF904707);
 
-  final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _noteController = NoUnderlineTextEditingController();
   String _reason = _reasons.first;
   bool _submitting = false;
 
