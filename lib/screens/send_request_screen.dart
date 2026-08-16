@@ -455,9 +455,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
           decoration: InputDecoration(
             hintText:
                 'Add any special requirements or notes for the caregiver...',
-            hintStyle: const TextStyle(
+            hintStyle: TextStyle(
               fontFamily: 'Open Sans',
-              color: fieldValue,
+              color: fieldValue.withValues(alpha: 0.42),
               fontSize: 12,
             ),
             filled: false,

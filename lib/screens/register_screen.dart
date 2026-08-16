@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
@@ -136,6 +137,11 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
+    // Tracks whether *this* call minted a brand-new email/password Auth
+    // account, so a later failure can roll just that back — a
+    // pre-existing Google account should never be deleted just because
+    // the Firestore profile write that follows it failed.
+    String? newAccountUid;
     try {
       final String uid;
       if (_googleSignedIn && _googleUserCredential != null) {
@@ -146,6 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           password: _passwordController.text,
         );
         uid = credential.user!.uid;
+        newAccountUid = uid;
       }
 
       await AuthService.saveUserProfile(
@@ -154,6 +161,13 @@ class _RegisterScreenState extends State<RegisterScreen>
         email: _emailController.text.trim(),
         role: _role,
       );
+
+      // Patient onboarding no longer asks for the name again (Figma node
+      // 123-418 dropped that field since it's already collected here) — so
+      // seed it into AppState now, the only place it was ever written from.
+      if (_role == 'patient') {
+        AppState.patientName.value = _fullNameController.text.trim();
+      }
 
       if (mounted) {
         Navigator.pushNamed(
@@ -176,6 +190,20 @@ class _RegisterScreenState extends State<RegisterScreen>
         );
       }
     } catch (e) {
+      // Something after the Auth account was created failed (e.g. the
+      // Firestore profile write) — roll the new account back rather than
+      // leaving it half-created, which would otherwise permanently block
+      // retrying with the same email ("already exists") with no real
+      // profile behind it.
+      if (newAccountUid != null) {
+        final email = _emailController.text.trim();
+        try {
+          await FirebaseAuth.instance.currentUser?.delete();
+        } catch (_) {
+          // best effort — don't let a failed rollback mask the real error
+        }
+        await AuthService.deleteUserProfile(newAccountUid, email);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -527,7 +555,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
-              color: Colors.black.withValues(alpha: 0.6),
+              color: Colors.black.withValues(alpha: 0.38),
               fontSize: 15,
               fontWeight: FontWeight.w400,
             ),

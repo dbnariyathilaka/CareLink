@@ -531,7 +531,11 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
             if (hasReviews)
               GestureDetector(
                 onTap: () {
-                  Navigator.pushNamed(context, '/caregiver-reviews');
+                  Navigator.pushNamed(
+                    context,
+                    '/caregiver-reviews',
+                    arguments: {'caregiverId': _caregiverId},
+                  );
                 },
                 child: const Text(
                   'See all',

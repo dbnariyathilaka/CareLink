@@ -391,7 +391,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                           hintText: 'Tell other families about your experience…',
                           hintStyle: TextStyle(
                             fontFamily: 'Inter',
-                            color: textAreaHint,
+                            color: Color.fromRGBO(68, 51, 28, 0.45),
                             fontSize: 13,
                             fontWeight: FontWeight.w400,
                           ),
@@ -445,26 +445,9 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                                 ),
                               )
                             else
-                              // Figma's "cloud-upload" icon is a composite —
-                              // a cloud outline with a separate circular
-                              // up-arrow badge overlapping its base — not a
-                              // single stock glyph.
                               const Padding(
                                 padding: EdgeInsets.only(bottom: 8),
-                                child: SizedBox(
-                                  width: 56,
-                                  height: 52,
-                                  child: Stack(
-                                    alignment: Alignment.topCenter,
-                                    children: [
-                                      Icon(Icons.cloud_outlined, color: Colors.black54, size: 48),
-                                      Positioned(
-                                        bottom: 0,
-                                        child: _UploadArrowBadge(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                child: Icon(Icons.cloud_outlined, color: Colors.black54, size: 48),
                               ),
                             RichText(
                               textAlign: TextAlign.center,
@@ -679,26 +662,6 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-// The circular up-arrow badge that overlaps the cloud outline's base —
-// bg matches the dropzone so it reads as sitting in front of the stroke.
-class _UploadArrowBadge extends StatelessWidget {
-  const _UploadArrowBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _AddReviewScreenState.dropzoneBg,
-        border: Border.all(color: Colors.black54, width: 1.8),
-      ),
-      child: const Icon(Icons.arrow_upward_rounded, color: Colors.black54, size: 13),
     );
   }
 }

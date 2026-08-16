@@ -14,5 +14,12 @@
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- See values/styles.xml — same fix for the OEM accent-color
+             leaking into native focus/highlight decoration around text
+             inputs in dark mode. -->
+        <item name="android:colorAccent">#06402B</item>
+        <item name="android:colorControlActivated">#06402B</item>
+        <item name="android:colorControlNormal">#7A8A80</item>
+        <item name="android:colorControlHighlight">#3306402B</item>
     </style>
 </resources>

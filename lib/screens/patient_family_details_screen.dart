@@ -5,7 +5,7 @@ import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Family member details
-//  Figma node: 372-180 · "Who are you caring for?"
+//  Figma node: 372-180 · "Tell us about yourself"
 //
 //  Shown when the person registering picked "I'm a family member" on the
 //  "Who needs care?" sheet. Collects the REGISTRANT's own contact details
@@ -138,7 +138,7 @@ class _PatientFamilyDetailsScreenState
               ),
               const SizedBox(height: 18),
               const Text(
-                'Who are you caring for?',
+                'Tell us about yourself',
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   color: titleBrown,
@@ -149,7 +149,7 @@ class _PatientFamilyDetailsScreenState
               ),
               const SizedBox(height: 6),
               const Text(
-                'Tell us a little about the patient',
+                "We'll use this to verify you as the family contact",
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   color: subtitleBrown,
@@ -367,11 +367,11 @@ class _PatientFamilyDetailsScreenState
           disabledBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
           hintText: hintText,
-          hintStyle: const TextStyle(
+          hintStyle: TextStyle(
             fontFamily: 'Open Sans',
-            color: fieldValue,
+            color: fieldValue.withValues(alpha: 0.42),
             fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),

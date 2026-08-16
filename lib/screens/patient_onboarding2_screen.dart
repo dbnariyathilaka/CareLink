@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../data/sri_lankan_cities.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
@@ -37,12 +38,12 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   bool _submitted = false;
 
   // Field Controllers
-  final _nameController = NoUnderlineTextEditingController();
+  final _ageController = NoUnderlineTextEditingController();
   final _cityController = NoUnderlineTextEditingController();
   final _notesController = NoUnderlineTextEditingController();
 
   // Focus Nodes
-  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _ageFocus = FocusNode();
   final FocusNode _cityFocus = FocusNode();
   final FocusNode _notesFocus = FocusNode();
 
@@ -82,7 +83,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
     );
     _fadeController.forward();
 
-    _nameFocus.addListener(() => setState(() {}));
+    _ageFocus.addListener(() => setState(() {}));
     _cityFocus.addListener(() {
       setState(() {});
       if (!_cityFocus.hasFocus) {
@@ -112,11 +113,11 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   @override
   void dispose() {
     _fadeController.dispose();
-    _nameController.dispose();
+    _ageController.dispose();
     _cityController.dispose();
     _notesController.dispose();
 
-    _nameFocus.dispose();
+    _ageFocus.dispose();
     _cityFocus.dispose();
     _notesFocus.dispose();
 
@@ -204,7 +205,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                             contentPadding: EdgeInsets.symmetric(horizontal: 17, vertical: 14),
                             prefixIcon: Icon(Icons.search_rounded, color: darkGreen, size: 20),
                             hintText: 'Search city or district…',
-                            hintStyle: TextStyle(color: fieldLabel, fontSize: 15),
+                            hintStyle: TextStyle(color: Color.fromRGBO(0, 0, 0, 0.4), fontSize: 15),
                           ),
                         ),
                       ),
@@ -382,12 +383,17 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('Full Name'),
+                          _buildLabel('Age'),
                           const SizedBox(height: 7),
                           _buildTextField(
-                            controller: _nameController,
-                            focusNode: _nameFocus,
-                            hintText: 'Nipuni Ariyathilaka',
+                            controller: _ageController,
+                            focusNode: _ageFocus,
+                            hintText: '72',
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(3),
+                            ],
                           ),
                           const SizedBox(height: 18),
 
@@ -470,7 +476,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                         final missingPreferredGender = _preferredCaregiverGender == null;
                         if (!formValid || missingCity || missingGender || missingPreferredGender) {
                           final message = !formValid
-                              ? 'Please enter your full name.'
+                              ? 'Please enter your age.'
                               : missingCity
                                   ? 'Please enter your city / area.'
                                   : missingGender
@@ -481,7 +487,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                           );
                           return;
                         }
-                        AppState.patientName.value = _nameController.text.trim();
+                        AppState.patientAge.value = _ageController.text.trim();
                         AppState.patientGenderSelf.value = _selectedGender!;
                         AppState.careLocation.value = _cityController.text.trim();
                         AppState.preferredGender.value = _preferredCaregiverGender!;
@@ -554,6 +560,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
     required FocusNode focusNode,
     required String hintText,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     final hasFocus = focusNode.hasFocus;
     return Container(
@@ -568,6 +575,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
         controller: controller,
         focusNode: focusNode,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         style: const TextStyle(
           fontFamily: 'Open Sans',
           color: fieldValue,
@@ -577,11 +585,20 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
         decoration: InputDecoration(
           filled: false,
           border: InputBorder.none,
+          // The app's ambient ThemeData (AppTheme.darkTheme, set on
+          // MaterialApp) defines a bright green focusedBorder for its
+          // InputDecorationTheme. Without repeating InputBorder.none for
+          // these two states specifically, Flutter falls back to that
+          // theme default the moment the field is focused — this
+          // Container already draws its own border, so none of the
+          // decoration's borders should ever be visible.
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 17),
           isDense: true,
           hintText: hintText,
           hintStyle: const TextStyle(
-            color: fieldLabel,
+            color: Color.fromRGBO(0, 0, 0, 0.4),
             fontSize: 15,
           ),
         ),
@@ -666,7 +683,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 17),
                 hintText: 'Negombo, Gampaha District',
-                hintStyle: TextStyle(color: fieldLabel, fontSize: 15),
+                hintStyle: TextStyle(color: Color.fromRGBO(0, 0, 0, 0.4), fontSize: 15),
               ),
             ),
           ),
@@ -771,6 +788,7 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
         focusNode: focusNode,
         maxLines: null,
         expands: true,
+        autofillHints: const [],
         style: const TextStyle(
           fontFamily: 'Open Sans',
           color: fieldValue,
@@ -780,10 +798,19 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
         decoration: InputDecoration(
           filled: false,
           border: InputBorder.none,
+          // The app's ambient ThemeData (AppTheme.darkTheme, set on
+          // MaterialApp) defines a bright green focusedBorder for its
+          // InputDecorationTheme. Without repeating InputBorder.none for
+          // these two states specifically, Flutter falls back to that
+          // theme default the moment the field is focused — this
+          // Container already draws its own border, so none of the
+          // decoration's borders should ever be visible.
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           hintText: hintText,
           hintStyle: const TextStyle(
-            color: fieldLabel,
+            color: Color.fromRGBO(0, 0, 0, 0.4),
             fontSize: 12,
           ),
         ),

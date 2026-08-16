@@ -207,20 +207,20 @@ class _CaregiverOnboarding3ScreenState
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                 ),
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   isDense: true,
                                   filled: false,
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
                                   disabledBorder: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 15.5),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 15.5),
                                   hintText: 'Negombo, Western Province',
                                   hintStyle: TextStyle(
                                     fontFamily: 'Open Sans',
-                                    color: fieldLabel,
+                                    color: fieldLabel.withValues(alpha: 0.55),
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                 ),
                               ),
@@ -347,20 +347,20 @@ class _CaregiverOnboarding3ScreenState
                             fontWeight: FontWeight.w400,
                             height: 1.5,
                           ),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             isDense: true,
                             filled: false,
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
                             disabledBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 13.25),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13.25),
                             hintText: 'Compassionate elder-care nurse with 5 years supporting '
                                 'families across the Western Province. I specialise in '
                                 'dementia and post-surgery recovery.',
                             hintStyle: TextStyle(
                               fontFamily: 'Open Sans',
-                              color: locationIcon,
+                              color: locationIcon.withValues(alpha: 0.5),
                               fontSize: 13,
                               height: 1.5,
                             ),

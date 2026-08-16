@@ -410,9 +410,9 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                       hintText: 'Search caregivers....',
                       hintStyle: TextStyle(
                         fontFamily: 'Quattrocento Sans',
-                        color: Color.fromRGBO(6, 64, 43, 0.85),
+                        color: Color.fromRGBO(6, 64, 43, 0.4),
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,

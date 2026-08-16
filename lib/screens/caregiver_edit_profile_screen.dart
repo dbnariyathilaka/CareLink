@@ -419,7 +419,7 @@ class _CaregiverEditProfileScreenState
                           focusedBorder: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                           hintText: 'Tell patients a little about yourself...',
-                          hintStyle: TextStyle(fontFamily: 'Inter', color: Color.fromRGBO(46, 39, 26, 0.8), fontSize: 13, fontWeight: FontWeight.w400),
+                          hintStyle: TextStyle(fontFamily: 'Inter', color: Color.fromRGBO(46, 39, 26, 0.42), fontSize: 13, fontWeight: FontWeight.w400),
                         ),
                       ),
                     ),

@@ -245,7 +245,7 @@ class _AddJournalEntrySheetState extends State<AddJournalEntrySheet> {
                           focusedBorder: InputBorder.none,
                           contentPadding: EdgeInsets.only(right: 36, bottom: 24),
                           hintText: 'What happened during this part of the visit?',
-                          hintStyle: TextStyle(fontFamily: 'Open Sans', color: _fieldText, fontSize: 11, fontWeight: FontWeight.w400),
+                          hintStyle: TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(74, 65, 41, 0.5), fontSize: 11, fontWeight: FontWeight.w400),
                         ),
                       ),
                       Positioned(

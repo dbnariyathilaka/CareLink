@@ -134,7 +134,13 @@ class _CareCircleScreenState extends State<CareCircleScreen> {
       isScrollControlled: true,
       builder: (sheetCtx) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+          // viewInsets covers the keyboard; padding.bottom covers the
+          // on-screen nav bar — missing the latter is why "Send invite"
+          // was getting clipped by it.
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom +
+                MediaQuery.of(sheetCtx).padding.bottom,
+          ),
           child: StatefulBuilder(
             builder: (builderCtx, setSheetState) {
               return Container(
@@ -203,7 +209,7 @@ class _CareCircleScreenState extends State<CareCircleScreen> {
                           disabledBorder: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
                           hintText: 'tharaka@email.com',
-                          hintStyle: TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(43, 50, 29, 0.8), fontSize: 12, fontWeight: FontWeight.w500),
+                          hintStyle: TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(43, 50, 29, 0.42), fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                       ),
                     ),

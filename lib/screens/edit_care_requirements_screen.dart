@@ -140,7 +140,7 @@ class _EditCareRequirementsScreenState
                             hintText: 'Search city or area',
                             hintStyle: TextStyle(
                               fontFamily: 'Open Sans',
-                              color: darkGreen.withValues(alpha: 0.8),
+                              color: darkGreen.withValues(alpha: 0.4),
                               fontSize: 15,
                             ),
                             prefixIcon: Icon(Icons.search_rounded, color: darkGreen.withValues(alpha: 0.6)),

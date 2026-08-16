@@ -104,7 +104,7 @@ class _QualificationsSelectionScreenState
     if (_currentQ == 0) {
       return _buildQuestionCard(
         context,
-        heroAsset: 'assets/images/qualifications_education_hero.png',
+        heroAsset: 'assets/images/qualification1.png',
         title: 'Highest educational qualification',
         options: _eduOptions,
         isSelected: (v) => v == _education,
@@ -115,7 +115,7 @@ class _QualificationsSelectionScreenState
     if (_currentQ == 1) {
       return _buildQuestionCard(
         context,
-        heroAsset: 'assets/images/qualifications_experience_hero.png',
+        heroAsset: 'assets/images/qualification2.png',
         title: 'Years of caregiving experience',
         options: _expOptions,
         isSelected: (v) => v == _experience,
@@ -126,7 +126,7 @@ class _QualificationsSelectionScreenState
     if (_currentQ == 2) {
       return _buildQuestionCard(
         context,
-        heroAsset: 'assets/images/qualifications_training_hero.png',
+        heroAsset: 'assets/images/qualification3.png',
         title: 'Have you received formal caregiving training?',
         options: _trainOptions,
         isSelected: (v) => v == _training,
@@ -137,7 +137,7 @@ class _QualificationsSelectionScreenState
     // Q4 · Languages (multi-select)
     return _buildQuestionCard(
       context,
-      heroAsset: 'assets/images/qualifications_language_hero.jpg',
+      heroAsset: 'assets/images/qualification4.png',
       title: 'Languages the caregiver must speak',
       options: _langOptions,
       isSelected: (v) => _languages.contains(v),
@@ -152,7 +152,7 @@ class _QualificationsSelectionScreenState
     );
   }
 
-  // ── Shared question card: hero photo + purple pill header + cream card ──
+  // ── Shared question layout: purple header bar, hero photo, cream card ──
   Widget _buildQuestionCard(
     BuildContext context, {
     required String heroAsset,
@@ -164,26 +164,148 @@ class _QualificationsSelectionScreenState
   }) {
     return Scaffold(
       backgroundColor: _bgCream,
+      // Per Figma node 567-198: the photo runs from the very top of the
+      // screen and the header is painted OVER it (not stacked above it as
+      // a separate opaque block) — that's what closes the small gap that
+      // used to show at the header's rounded bottom corners, since those
+      // corners now reveal the photo underneath instead of the scaffold's
+      // cream background.
       body: Stack(
         children: [
+          // The image still only gets "screen height minus the card's own
+          // height" via Expanded in this Column, instead of the full
+          // device height a Positioned.fill directly on Image would give
+          // it — BoxFit.cover zooms to fully cover whatever box it's laid
+          // out in, and sizing that box off the real device's full height
+          // (usually taller than the Figma mock) was forcing far more zoom
+          // than intended, eating the margin around the subject. Sizing
+          // off the actual visible region keeps the crop consistent with
+          // each question's card height, while the header now simply
+          // paints on top of this same layer rather than budgeting its
+          // own separate row above it.
           Positioned.fill(
-            child: Image.asset(heroAsset, fit: BoxFit.cover),
-          ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(17, 15, 17, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  height: 43,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: _accent,
-                    borderRadius: BorderRadius.circular(20),
+            child: Column(
+              // Column defaults to CrossAxisAlignment.center, which gives
+              // children loose (not full-width) constraints — the image
+              // was sizing to its own intrinsic asset width instead of
+              // filling the screen, leaving cream background visible on
+              // both sides. stretch forces both the image and the card to
+              // span the full width.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  // topCenter, not the default center — BoxFit.cover crops
+                  // symmetrically around the alignment point, and centered
+                  // cropping was cutting the headroom above each subject's
+                  // face along with the excess at the bottom, leaving the
+                  // face right at the top edge where the header covers it.
+                  // Anchoring to the top keeps that headroom and crops the
+                  // extra from the bottom instead, so faces sit lower,
+                  // clear of the header, across all four hero photos.
+                  child: Image.asset(
+                    heroAsset,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
                   ),
+                ),
+                Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: _cardCream,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color.fromRGBO(0, 0, 0, 0.25),
+                        blurRadius: 4,
+                        offset: Offset(0, -8),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 19, 24, 20),
+                  // SafeArea keeps the "Next" button clear of the on-screen
+                  // nav bar — Figma's mock frame has no OS chrome overlaid
+                  // to account for, so without this the button sits flush
+                  // against the physical bottom edge and gets clipped.
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: _headingPurple,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ...options.map((opt) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 15),
+                            child: GestureDetector(
+                              onTap: () => onToggle(opt),
+                              child: _buildOptionRow(opt, isSelected(opt)),
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 9),
+                        Material(
+                          color: _accent,
+                          borderRadius: BorderRadius.circular(15),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(15),
+                            onTap: canProceed ? _onNext : null,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              child: Text(
+                                'Next',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: 'Open Sans',
+                                  color: _creamButtonText.withValues(
+                                      alpha: canProceed ? 1 : 0.5),
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Header — painted last, so it's always on top of the image
+          // layer above. Pinned to the top edge regardless of how the
+          // image/card split their space below it.
+          Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: _accent,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(17, 15, 17, 15),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
                         onTap: () {
@@ -207,88 +329,6 @@ class _QualificationsSelectionScreenState
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: FractionallySizedBox(
-              widthFactor: 1,
-              heightFactor: 0.55,
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: _cardCream,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color.fromRGBO(0, 0, 0, 0.25),
-                      blurRadius: 4,
-                      offset: Offset(0, -8),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.fromLTRB(24, 19, 24, 20),
-                // SafeArea keeps the "Next" button clear of the on-screen
-                // nav bar — Figma's mock frame has no OS chrome overlaid to
-                // account for, so without this the button sits flush
-                // against the physical bottom edge and gets clipped.
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'Open Sans',
-                          color: _headingPurple,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.3,
-                          height: 1.35,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ...options.map((opt) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 15),
-                          child: GestureDetector(
-                            onTap: () => onToggle(opt),
-                            child: _buildOptionRow(opt, isSelected(opt)),
-                          ),
-                        );
-                      }),
-                      const Spacer(),
-                      Material(
-                        color: _accent,
-                        borderRadius: BorderRadius.circular(15),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(15),
-                          onTap: canProceed ? _onNext : null,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            child: Text(
-                              'Next',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontFamily: 'Open Sans',
-                                color: _creamButtonText.withValues(
-                                    alpha: canProceed ? 1 : 0.5),
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
                         ),
                       ),
                     ],

@@ -78,12 +78,54 @@ class AuthService {
     required String email,
     String? role,
   }) {
-    return _firestore.collection('users').doc(uid).set({
-      'name': name,
-      'email': email,
-      if (role != null) 'role': role,
+    return Future.wait([
+      _firestore.collection('users').doc(uid).set({
+        'name': name,
+        'email': email,
+        if (role != null) 'role': role,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)),
+      _indexEmailForLookup(email),
+    ]);
+  }
+
+  static String _emailKey(String email) => email.trim().toLowerCase();
+
+  /// Registers this email into a minimal, PII-free existence index so
+  /// isEmailRegistered (below) can answer "does an account exist for this
+  /// email" from an unauthenticated screen — Firebase's own
+  /// sendPasswordResetEmail can't reliably answer that itself; see its doc
+  /// comment. No Cloud Functions exist in this project to do this lookup
+  /// server-side, so this is the lowest-exposure client-only alternative:
+  /// the Firestore rule for this collection allows a single-document `get`
+  /// (check one already-known email) but not `list` (bulk-enumerate every
+  /// registered email).
+  static Future<void> _indexEmailForLookup(String email) {
+    return _firestore.collection('registeredEmails').doc(_emailKey(email)).set({
       'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    });
+  }
+
+  /// Whether [email] belongs to a registered account. Used by the
+  /// forgot-password screen before attempting a reset email.
+  static Future<bool> isEmailRegistered(String email) async {
+    final snap =
+        await _firestore.collection('registeredEmails').doc(_emailKey(email)).get();
+    return snap.exists;
+  }
+
+  /// Best-effort cleanup of whatever saveUserProfile managed to write
+  /// before failing partway through — used to roll back a half-created
+  /// registration so the email isn't left stuck as "already registered"
+  /// with no real profile behind it. Each delete is independent so one
+  /// failing doesn't stop the other from being attempted.
+  static Future<void> deleteUserProfile(String uid, String email) async {
+    try {
+      await _firestore.collection('users').doc(uid).delete();
+    } catch (_) {}
+    try {
+      await _firestore.collection('registeredEmails').doc(_emailKey(email)).delete();
+    } catch (_) {}
   }
 
   static Future<void> setUserRole(String uid, String role) {

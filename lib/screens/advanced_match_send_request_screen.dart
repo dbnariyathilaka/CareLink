@@ -416,9 +416,9 @@ class _AdvancedMatchSendRequestScreenState extends State<AdvancedMatchSendReques
             ),
             decoration: InputDecoration(
               hintText: 'Add any special requirements or notes for the caregiver...',
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                 fontFamily: 'Open Sans',
-                color: notesText,
+                color: notesText.withValues(alpha: 0.45),
                 fontSize: 14,
               ),
               filled: false,

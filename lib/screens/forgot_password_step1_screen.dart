@@ -18,6 +18,8 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
   final _emailController = NoUnderlineTextEditingController();
   bool _sending = false;
 
+  static final RegExp _emailFormat = RegExp(r'^[\w\.\-\+]+@[\w\-]+\.[\w\-\.]+$');
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _slideAnimation;
@@ -25,7 +27,7 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
   static const Color darkGreen = Color(0xFF06402B);
   static const Color creamBg = Color(0xFFF6F0E2);
   static const Color borderColor = Color.fromRGBO(0, 0, 0, 0.3);
-  static const Color hintColor = Color.fromRGBO(0, 0, 0, 0.6);
+  static const Color hintColor = Color.fromRGBO(0, 0, 0, 0.38);
   static const Color labelColor = Color.fromRGBO(0, 0, 0, 0.85);
   static const Color mutedColor = Color.fromRGBO(0, 0, 0, 0.5);
 
@@ -60,11 +62,25 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
     super.dispose();
   }
 
+  // Order matches what's asked for: Form.validate() already runs the
+  // TextFormField's validator top-to-bottom (empty check, then format
+  // check) and refuses to proceed past either. The registered-or-not check
+  // then goes through AuthService.isEmailRegistered (a Firestore existence
+  // index — see its doc comment) rather than relying on
+  // sendPasswordResetEmail's own error, which this Firebase project's
+  // email-enumeration-protection setting makes unreliable: it succeeds
+  // silently for unregistered addresses too.
   Future<void> _sendResetEmail() async {
     if (!_formKey.currentState!.validate() || _sending) return;
     final email = _emailController.text.trim();
     setState(() => _sending = true);
     try {
+      final registered = await AuthService.isEmailRegistered(email);
+      if (!mounted) return;
+      if (!registered) {
+        await _showNotRegisteredDialog(email);
+        return;
+      }
       await AuthService.sendPasswordResetEmail(email);
       if (!mounted) return;
       Navigator.pushNamed(
@@ -74,9 +90,13 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AuthService.messageForPasswordResetError(e))),
-      );
+      if (e.code == 'user-not-found') {
+        await _showNotRegisteredDialog(email);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AuthService.messageForPasswordResetError(e))),
+        );
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,6 +105,89 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  // "Not registered" is surfaced as a popup (not a snackbar) per what was
+  // asked — Firebase only reports this when the project's email-enumeration
+  // protection is off; if it's on, Firebase always reports success instead
+  // (a deliberate security tradeoff made at the Firebase-project level, not
+  // something this client code can see or override).
+  Future<void> _showNotRegisteredDialog(String email) {
+    return showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (dialogCtx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.mail_outline_rounded, color: darkGreen, size: 52),
+              const SizedBox(height: 16),
+              const Text(
+                'Email not registered',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: darkGreen,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "We couldn't find an account for $email. Double-check the address, or create a new account.",
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  color: mutedColor,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: darkGreen,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.pop(dialogCtx),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      child: Text(
+                        'OK',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: creamBg,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -181,11 +284,12 @@ class _ForgotPasswordStep1ScreenState extends State<ForgotPasswordStep1Screen>
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
+                            final trimmed = value?.trim() ?? '';
+                            if (trimmed.isEmpty) {
                               return 'Please enter your email';
                             }
-                            if (!value.contains('@')) {
-                              return 'Please enter a valid email';
+                            if (!_emailFormat.hasMatch(trimmed)) {
+                              return 'Please enter a valid email address';
                             }
                             return null;
                           },

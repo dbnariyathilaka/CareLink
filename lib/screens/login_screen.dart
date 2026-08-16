@@ -29,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen>
   static const Color buttonTextColor = Color(0xFFF6F0E2);
   static const Color labelColor = Color.fromRGBO(0, 0, 0, 0.85);
   static const Color borderColor = Color.fromRGBO(0, 0, 0, 0.3);
-  static const Color hintColor = Color.fromRGBO(0, 0, 0, 0.6);
+  static const Color hintColor = Color.fromRGBO(0, 0, 0, 0.38);
 
   @override
   void initState() {

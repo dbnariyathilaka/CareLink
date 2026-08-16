@@ -1331,6 +1331,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   void _showCustomDurationDialog() {
     String tempUnit = 'Days';
     int tempAmount = 1;
+    String? amountError;
     final amountController = TextEditingController(text: '$tempAmount');
 
     showDialog(
@@ -1340,10 +1341,42 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
           builder: (context, setDialogState) {
             void applyAmount(int value) {
               final clamped = value.clamp(1, _customDurationMax);
-              setDialogState(() => tempAmount = clamped);
+              setDialogState(() {
+                tempAmount = clamped;
+                amountError = null;
+              });
               amountController.text = '$clamped';
               amountController.selection =
                   TextSelection.collapsed(offset: amountController.text.length);
+            }
+
+            // Reads and range-checks the typed amount WITHOUT touching
+            // dialog state on success — only the failure path (which keeps
+            // the dialog open to show amountError) needs a rebuild. Typing
+            // e.g. 50 and tapping Apply used to silently snap the value
+            // down to 30 with no feedback, which looked like the button
+            // did nothing; a first attempt at fixing that added a
+            // setDialogState call on the success path too, but doing that
+            // immediately before Navigator.pop() made Apply hang instead of
+            // closing the dialog — so the success path here stays a pure
+            // read with no state mutation, matching the call that already
+            // worked before this validation was added.
+            int? readValidAmount() {
+              final parsed = int.tryParse(amountController.text);
+              if (parsed == null || parsed < 1) {
+                setDialogState(
+                  () => amountError = 'Enter a number between 1 and $_customDurationMax.',
+                );
+                return null;
+              }
+              if (parsed > _customDurationMax) {
+                setDialogState(
+                  () => amountError =
+                      'Maximum is $_customDurationMax ${tempUnit.toLowerCase()}.',
+                );
+                return null;
+              }
+              return parsed;
             }
 
             return Dialog(
@@ -1370,7 +1403,10 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded, color: darkTextSecondary),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            FocusScope.of(context).unfocus();
+                            Navigator.pop(context);
+                          },
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -1459,18 +1495,35 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                                 focusedBorder: InputBorder.none,
                                 contentPadding: EdgeInsets.symmetric(vertical: 12),
                               ),
+                              // Only track the typed value here — never
+                              // rewrite amountController.text from inside
+                              // its own onChanged. Doing that re-enters
+                              // the controller mid-change and corrupts the
+                              // element tree (surfaces later as a
+                              // '_dependents.isEmpty' crash when the
+                              // dialog is popped). The visible field gets
+                              // clamped instead on blur/+-/Apply, all of
+                              // which fire outside this callback.
                               onChanged: (value) {
+                                if (amountError != null) {
+                                  setDialogState(() => amountError = null);
+                                }
                                 final parsed = int.tryParse(value);
-                                if (parsed == null) return;
-                                if (parsed > _customDurationMax) {
-                                  applyAmount(parsed);
-                                } else {
+                                if (parsed != null &&
+                                    parsed >= 1 &&
+                                    parsed <= _customDurationMax) {
                                   setDialogState(() => tempAmount = parsed);
                                 }
                               },
                               onEditingComplete: () {
-                                applyAmount(int.tryParse(amountController.text) ?? 1);
                                 FocusScope.of(context).unfocus();
+                                final parsed = readValidAmount();
+                                if (parsed != null) {
+                                  setDialogState(() {
+                                    tempAmount = parsed;
+                                    amountError = null;
+                                  });
+                                }
                               },
                             ),
                           ),
@@ -1491,6 +1544,17 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                         ],
                       ),
                     ),
+                    if (amountError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        amountError!,
+                        style: const TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
 
                     SizedBox(
@@ -1504,8 +1568,17 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                         onPressed: () {
-                          final amount = (int.tryParse(amountController.text) ?? tempAmount)
-                              .clamp(1, _customDurationMax);
+                          final amount = readValidAmount();
+                          if (amount == null) return;
+                          // Release the amount field's focus/IME connection
+                          // before popping. Popping the dialog while that
+                          // TextField still holds focus races the focus
+                          // node's teardown against the dialog route's
+                          // element-tree teardown, which is what was
+                          // surfacing as the '_dependents.isEmpty' crash —
+                          // typing a value (leaving the field focused) then
+                          // immediately tapping Apply was the exact trigger.
+                          FocusScope.of(context).unfocus();
                           setState(() {
                             final singularUnit = tempUnit.toLowerCase().substring(0, tempUnit.length - 1);
                             _selectedDuration = amount == 1
@@ -1535,6 +1608,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                             tempAmount = 1;
                             tempUnit = 'Days';
                             amountController.text = '1';
+                            amountError = null;
                           });
                         },
                         child: const Text(

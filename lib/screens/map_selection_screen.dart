@@ -81,10 +81,17 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   double? _gpsLat;
   double? _gpsLng;
   StreamSubscription<Position>? _positionStreamSubscription;
-  late final AnimationController _pulseController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1500),
-  )..repeat();
+  // Constructed eagerly in initState (not as a lazy `late final` initializer)
+  // — it's only ever read from _buildGPSLocationMarker(), which is skipped
+  // whenever GPS is never acquired on this screen. A lazy initializer would
+  // then have its first read happen inside dispose()'s own
+  // `_pulseController.dispose()` call, constructing a brand-new
+  // AnimationController(vsync: this) — which needs a live ancestor lookup
+  // for its ticker — while the widget is already being torn down. That's
+  // what was throwing "Looking up a deactivated widget's ancestor is
+  // unsafe" whenever this screen got disposed without GPS ever having been
+  // used (e.g. via the mass route-removal from "Edit schedule").
+  late final AnimationController _pulseController;
 
   bool _showLocationChangedPopup = false;
 
@@ -130,6 +137,15 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   Future<void> _initiateRealTimeLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
+
+    // Captured now, while context is definitely still valid — this async
+    // flow spans awaits (and a delayed fallback) that can take seconds, by
+    // which point a fresh `ScaffoldMessenger.of(context)` ancestor lookup
+    // can throw "Looking up a deactivated widget's ancestor is unsafe" even
+    // though `mounted` still reads true (the element can be transiently
+    // deactivated without being fully disposed yet). Using the captured
+    // state object sidesteps the ancestor lookup entirely.
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     setState(() {
       _isLocating = true;
@@ -180,7 +196,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: const Text('Real-time GPS tracking active!'),
             backgroundColor: _accentColor,
@@ -204,7 +220,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
             _address = _getFormattedAddress(_currentLat, _currentLng);
           });
           _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
-          ScaffoldMessenger.of(context).showSnackBar(
+          scaffoldMessenger.showSnackBar(
             SnackBar(
               content: Text('GPS unavailable ($e). Using simulated location.'),
               backgroundColor: _accentColor,
@@ -680,6 +696,10 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
   }
 
   @override
@@ -987,6 +1007,13 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                   child: InkWell(
                     borderRadius: BorderRadius.circular(9),
                     onTap: () {
+                      // Captured now (context is guaranteed valid inside a
+                      // synchronous tap handler) rather than re-querying
+                      // `context` inside the Timer below — see the matching
+                      // comment on _initiateRealTimeLocation for why a
+                      // fresh `Navigator.of(context)` after a delay can
+                      // throw even when `mounted` is still true.
+                      final navigator = Navigator.of(context);
                       setState(() {
                         _showLocationChangedPopup = true;
                         _bookingArgs['city'] = _address;
@@ -998,14 +1025,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                       Timer(const Duration(milliseconds: 3500), () {
                         if (mounted) {
                           if (_isAdvanced) {
-                            Navigator.pushNamed(
-                              context,
+                            navigator.pushNamed(
                               '/qualifications-intro',
                               arguments: _bookingArgs,
                             );
                           } else {
-                            Navigator.pushNamed(
-                              context,
+                            navigator.pushNamed(
                               '/confirm-booking',
                               arguments: _bookingArgs,
                             );

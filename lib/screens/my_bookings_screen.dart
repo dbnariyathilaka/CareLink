@@ -234,6 +234,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                               ),
                             ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
@@ -245,13 +246,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          Text(
-                            rows[i].value,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFFA1A0A7),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(width: 12),
+                          // Expanded so a long value (e.g. a full address)
+                          // wraps onto multiple lines instead of
+                          // overflowing past the dialog's right edge.
+                          Expanded(
+                            child: Text(
+                              rows[i].value,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                color: Color(0xFFA1A0A7),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -555,13 +563,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                                 itemBuilder: (_, i) => _buildBookingCard(bookings[i]),
                               ),
                       ),
-                      // This tab has no results — repeat the filter row at the
-                      // bottom too, so switching tabs doesn't require
-                      // scrolling back up past the empty-state illustration.
-                      if (isFilteredEmpty) ...[
-                        const SizedBox(height: 10),
-                        _buildFilterTabs(),
-                      ],
                     ],
                   );
                 },

@@ -472,7 +472,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         hintText: 'Search city/town in Sri Lanka...',
-                        hintStyle: const TextStyle(color: Colors.black87),
+                        hintStyle: const TextStyle(color: Colors.black38),
                         prefixIcon: const Icon(Icons.search_rounded, color: Colors.black54),
                         filled: true,
                         fillColor: Colors.white,

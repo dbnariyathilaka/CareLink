@@ -27,6 +27,14 @@ service cloud.firestore {
       match /familyMembers/{memberId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
+
+      // activity/{activityId} — patient-facing activity feed entries
+      // (PatientService.logActivity), e.g. "sent a care request",
+      // "member joined the care circle". Owner-only, same as favorites
+      // and familyMembers above.
+      match /activity/{activityId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
     }
 
     // bookingRequests/{bookingId} — created by a patient when they send a
@@ -66,6 +74,19 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.patientUid;
+    }
+
+    // registeredEmails/{email} — minimal, PII-free existence index (doc ID
+    // is the lowercased email; the doc body carries nothing but a
+    // timestamp) written alongside every users/{uid} write. Lets the
+    // unauthenticated forgot-password screen check "is this email
+    // registered" without a backend — `allow get` permits checking one
+    // already-known email at a time; `list` is not allowed, so the
+    // collection can't be bulk-enumerated to harvest every registered
+    // address.
+    match /registeredEmails/{email} {
+      allow get: if true;
+      allow create: if request.auth != null;
     }
 
     // Everything else is denied by default until explicitly added here.
