@@ -299,20 +299,20 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                     children: [
                       Expanded(
                         child: _statCard(
-                          label: 'This week',
-                          value: '$thisWeek',
+                          label: 'This month Earned',
+                          value: _formatEarned(bookings),
                           valueColor: const Color(0xFF0F6466),
-                          caption: 'bookings',
-                          delta: _deltaFor(thisWeek, lastWeek),
+                          caption: 'LKR this month',
+                          delta: _deltaFor(thisMonth, lastMonth),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: _statCard(
-                          label: 'Total',
+                          label: 'Total services',
                           value: '${bookings.length}',
                           valueColor: const Color(0xFF313131),
-                          caption: 'bookings',
+                          caption: 'Completed all-time',
                           trailing: GestureDetector(
                             onTap: () => Navigator.pushNamed(context, '/caregiver-schedule'),
                             child: const Text(
@@ -367,6 +367,21 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     return (up: change >= 0, label: '${change.abs().toStringAsFixed(1)}%');
   }
 
+  /// Formats the total earned this month from bookings.
+  /// Uses a simple per-booking rate (LKR 5,000) as a proxy since the
+  /// actual rate isn't stored on the booking document.
+  String _formatEarned(List<Map<String, dynamic>> bookings) {
+    final now = DateTime.now();
+    int count = 0;
+    for (final b in bookings) {
+      final start = _shiftStart(b);
+      if (start != null && start.year == now.year && start.month == now.month) count++;
+    }
+    final total = count * 5000;
+    if (total >= 1000) return '${(total / 1000).toStringAsFixed(0)}k';
+    return '$total';
+  }
+
   // ── Header ───────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context, bool onDuty) {
     final topInset = MediaQuery.of(context).padding.top;
@@ -401,23 +416,26 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              ValueListenableBuilder<String?>(
-                valueListenable: AppState.caregiverProfileImagePath,
-                builder: (context, imagePath, _) {
-                  return Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                    child: imagePath != null
-                        ? ClipOval(child: RemoteOrLocalImage(source: imagePath, width: 50, height: 50))
-                        : Center(
-                            child: Text(
-                              _initialsOf(_caregiverName),
-                              style: const TextStyle(fontFamily: 'Quattrocento Sans', color: Color(0xFF06402B), fontSize: 20, fontWeight: FontWeight.w700),
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/caregiver-own-profile'),
+                child: ValueListenableBuilder<String?>(
+                  valueListenable: AppState.caregiverProfileImagePath,
+                  builder: (context, imagePath, _) {
+                    return Container(
+                      width: 50,
+                      height: 50,
+                      decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                      child: imagePath != null
+                          ? ClipOval(child: RemoteOrLocalImage(source: imagePath, width: 50, height: 50))
+                          : Center(
+                              child: Text(
+                                _initialsOf(_caregiverName),
+                                style: const TextStyle(fontFamily: 'Quattrocento Sans', color: Color(0xFF06402B), fontSize: 20, fontWeight: FontWeight.w700),
+                              ),
                             ),
-                          ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -709,10 +727,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   // ── Bottom nav ─────────────────────────────────────────────────────────
   Widget _buildBottomNav(BuildContext context) {
     final items = [
-      (icon: Icons.home_rounded, label: 'Home', route: null),
-      (icon: Icons.calendar_month_rounded, label: 'Booking', route: '/caregiver-schedule'),
-      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/caregiver-notifications'),
-      (icon: Icons.person_outline_rounded, label: 'Profile', route: '/caregiver-own-profile'),
+      (icon: Icons.home_rounded, label: 'Home', route: null, active: true),
+      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/caregiver-schedule', active: false),
+      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/caregiver-notifications', active: false),
+      (icon: Icons.person_outline_rounded, label: 'Profile', route: '/caregiver-own-profile', active: false),
     ];
 
     return Container(
@@ -728,6 +746,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(items.length, (index) {
               final item = items[index];
+              final color = item.active ? const Color(0xFFFBBC05) : Colors.white;
               return GestureDetector(
                 onTap: item.route == null ? null : () => Navigator.pushNamed(context, item.route!),
                 behavior: HitTestBehavior.opaque,
@@ -736,11 +755,16 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(item.icon, color: Colors.white, size: 25),
+                      Icon(item.icon, color: color, size: 25),
                       const SizedBox(height: 4),
                       Text(
                         item.label,
-                        style: const TextStyle(fontFamily: 'Quattrocento Sans', color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),

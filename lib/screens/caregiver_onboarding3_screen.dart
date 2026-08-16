@@ -49,12 +49,17 @@ class _CaregiverOnboarding3ScreenState
     '30 km',
   ];
   String _radius = '10 km';
+  String? _cityError;
 
   @override
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
-    _cityController.addListener(() => setState(() {}));
+    _cityController.addListener(() => setState(() {
+      if (_cityError != null && _cityController.text.trim().isNotEmpty) {
+        _cityError = null;
+      }
+    }));
   }
 
   @override
@@ -190,7 +195,10 @@ class _CaregiverOnboarding3ScreenState
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          border: Border.all(color: fieldBorder, width: 1.5),
+                          border: Border.all(
+                            color: _cityError != null ? Colors.redAccent : fieldBorder,
+                            width: 1.5,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
@@ -229,6 +237,19 @@ class _CaregiverOnboarding3ScreenState
                           ],
                         ),
                       ),
+                      if (_cityError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, left: 4),
+                          child: Text(
+                            _cityError!,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.redAccent,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
 
                       const SizedBox(height: 18),
 
@@ -384,6 +405,10 @@ class _CaregiverOnboarding3ScreenState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
+                        if (_cityController.text.trim().isEmpty) {
+                          setState(() => _cityError = 'City / area is required');
+                          return;
+                        }
                         final draft = AppState.caregiverOnboardingDraft;
                         draft.city = _cityController.text.trim();
                         draft.serviceRadius = _radius;

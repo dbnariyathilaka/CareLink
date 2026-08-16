@@ -564,7 +564,7 @@ class _CaregiverScheduleScreenState extends State<CaregiverScheduleScreen> {
     final start = DateTime(today.year, today.month, today.day);
     const weekdayAbbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return SizedBox(
-      height: 60,
+      height: 68,
       child: Row(
         children: [
           for (var i = 0; i < 7; i++) ...[
@@ -599,7 +599,7 @@ class _CaregiverScheduleScreenState extends State<CaregiverScheduleScreen> {
     return GestureDetector(
       onTap: () => setState(() => _selectedDay = selected ? null : day),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
           color: highlighted ? const Color(0xFF285B51) : const Color.fromRGBO(40, 91, 81, 0.24),
           borderRadius: BorderRadius.circular(12),

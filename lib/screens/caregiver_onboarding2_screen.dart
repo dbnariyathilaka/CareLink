@@ -56,6 +56,11 @@ class _CaregiverOnboarding2ScreenState
     'Dementia care',
   };
 
+  // Validation error messages
+  String? _trainingError;
+  String? _languagesError;
+  String? _skillsError;
+
   @override
   void initState() {
     super.initState();
@@ -209,6 +214,19 @@ class _CaregiverOnboarding2ScreenState
                           ],
                         ),
                       ],
+                      if (_trainingError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 4),
+                          child: Text(
+                            _trainingError!,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.redAccent,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
 
                       const SizedBox(height: 26),
 
@@ -230,11 +248,27 @@ class _CaregiverOnboarding2ScreenState
                                 } else {
                                   _selectedLanguages.add(lang);
                                 }
+                                if (_languagesError != null && _selectedLanguages.isNotEmpty) {
+                                  _languagesError = null;
+                                }
                               });
                             },
                           );
                         }).toList(),
                       ),
+                      if (_languagesError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 4),
+                          child: Text(
+                            _languagesError!,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.redAccent,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
 
                       const SizedBox(height: 32),
 
@@ -267,11 +301,27 @@ class _CaregiverOnboarding2ScreenState
                                 } else {
                                   _selectedSkills.add(skill);
                                 }
+                                if (_skillsError != null && _selectedSkills.isNotEmpty) {
+                                  _skillsError = null;
+                                }
                               });
                             },
                           );
                         }).toList(),
                       ),
+                      if (_skillsError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 4),
+                          child: Text(
+                            _skillsError!,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.redAccent,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
 
                       const SizedBox(height: 32),
                     ],
@@ -289,6 +339,23 @@ class _CaregiverOnboarding2ScreenState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
+                        final trainingErr = _formalTraining == null
+                            ? 'Please select Yes or No for caregiving training'
+                            : null;
+                        final langErr = _selectedLanguages.isEmpty
+                            ? 'Please select at least one language'
+                            : null;
+                        final skillsErr = _selectedSkills.isEmpty
+                            ? 'Please select at least one skill'
+                            : null;
+                        if (trainingErr != null || langErr != null || skillsErr != null) {
+                          setState(() {
+                            _trainingError = trainingErr;
+                            _languagesError = langErr;
+                            _skillsError = skillsErr;
+                          });
+                          return;
+                        }
                         final draft = AppState.caregiverOnboardingDraft;
                         draft.educationalQualification = _selectedQualification;
                         draft.formalTraining = _formalTraining == 'Yes';

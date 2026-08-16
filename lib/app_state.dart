@@ -30,6 +30,11 @@ class AppState {
   static final patientAddress = ValueNotifier<String>('');
   static final relationToPatient = ValueNotifier<String>('Patient');
 
+  // The phone number provided at account-registration time (stored as
+  // +94XXXXXXXXX). Used to enforce that the caregiver's reference phone
+  // must be a *different* number from their own registered number.
+  static final registeredPhone = ValueNotifier<String>('');
+
   // The registering family member's own contact details — collected on the
   // family-details step (before account registration) when someone signs up
   // on behalf of a patient. Distinct from the patientXxx fields above, which

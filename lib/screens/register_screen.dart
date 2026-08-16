@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../app_state.dart';
@@ -161,6 +162,13 @@ class _RegisterScreenState extends State<RegisterScreen>
         email: _emailController.text.trim(),
         role: _role,
       );
+
+      // Persist the registered phone (+94 prefix) so onboarding screens can
+      // validate that a reference/emergency phone is a *different* number.
+      final rawPhone = _phoneController.text.trim();
+      if (rawPhone.isNotEmpty) {
+        AppState.registeredPhone.value = '+94$rawPhone';
+      }
 
       // Patient onboarding no longer asks for the name again (Figma node
       // 123-418 dropped that field since it's already collected here) — so
@@ -330,11 +338,18 @@ class _RegisterScreenState extends State<RegisterScreen>
                           label: 'Phone number',
                           hintText: '71 185 6936',
                           controller: _phoneController,
-                          keyboardType: TextInputType.phone,
+                          keyboardType: TextInputType.number,
                           prefixText: '+94',
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(9),
+                          ],
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
+                            if (value == null || value.trim().isEmpty) {
                               return 'Please enter your phone number';
+                            }
+                            if (!RegExp(r'^\d{9}$').hasMatch(value.trim())) {
+                              return 'Enter exactly 9 digits after +94';
                             }
                             return null;
                           },
@@ -525,6 +540,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     String? Function(String?)? validator,
     TextInputType keyboardType = TextInputType.text,
     String? prefixText,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     const Color darkGreen = Color(0xFF06402B);
 
@@ -546,6 +562,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           obscureText: isPassword && obscureText,
           keyboardType: keyboardType,
           validator: validator,
+          inputFormatters: inputFormatters,
           style: const TextStyle(
             color: Colors.black,
             fontSize: 15,

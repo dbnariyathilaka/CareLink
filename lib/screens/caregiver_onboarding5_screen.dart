@@ -110,6 +110,15 @@ class _CaregiverOnboarding5ScreenState
   }
 
   void _submit() {
+    if (_policeClearance == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please upload your police clearance certificate before submitting.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     final draft = AppState.caregiverOnboardingDraft;
     draft.policeClearanceUrl = _policeClearance?.url ?? '';
     draft.otherDocumentUrls = _otherDocuments.map((d) => d.url).toList();
@@ -168,8 +177,8 @@ class _CaregiverOnboarding5ScreenState
               const SizedBox(height: 7),
               const Text(
                 'Upload a valid police clearance / criminal background '
-                'certificate for verification (optional — you can add this '
-                'later from your profile).',
+                'certificate for verification. This is required to '
+                'activate your caregiver profile.',
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   color: stepLabel,

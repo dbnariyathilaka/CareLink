@@ -126,3 +126,31 @@ Future<PickedUpload?> pickImageOrDocument(
     mimeType: picked.mimeType,
   );
 }
+
+/// Opens the camera directly — no intermediate sheet.
+Future<PickedUpload?> pickFromCamera() async {
+  final picked = await ImagePicker().pickImage(
+    source: ImageSource.camera,
+    imageQuality: 85,
+  );
+  if (picked == null) return null;
+  return PickedUpload(
+    bytes: await picked.readAsBytes(),
+    name: picked.name,
+    mimeType: picked.mimeType,
+  );
+}
+
+/// Opens the photo gallery directly — no intermediate sheet.
+Future<PickedUpload?> pickFromGallery() async {
+  final picked = await ImagePicker().pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 85,
+  );
+  if (picked == null) return null;
+  return PickedUpload(
+    bytes: await picked.readAsBytes(),
+    name: picked.name,
+    mimeType: picked.mimeType,
+  );
+}

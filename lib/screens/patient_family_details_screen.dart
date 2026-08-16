@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
@@ -40,6 +41,8 @@ class _PatientFamilyDetailsScreenState
   final _phoneController = NoUnderlineTextEditingController();
   final _emailController = NoUnderlineTextEditingController();
   final _addressController = NoUnderlineTextEditingController();
+  String? _nicError;
+  String? _phoneError;
 
   final List<String> _relationships = [
     'Mother',
@@ -106,11 +109,37 @@ class _PatientFamilyDetailsScreenState
     );
   }
 
+  String? _validateNic(String value) {
+    final trimmed = value.trim().toUpperCase();
+    if (trimmed.isEmpty) return null;
+    final oldNic = RegExp(r'^\d{9}[VX]$');
+    final newNic = RegExp(r'^\d{12}$');
+    if (oldNic.hasMatch(trimmed) || newNic.hasMatch(trimmed)) return null;
+    return 'Enter 9 digits + V/X (e.g. 972345678V) or 12 digits';
+  }
+
+  String? _validatePhone(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    if (RegExp(r'^\d{9}$').hasMatch(trimmed)) return null;
+    return 'Enter exactly 9 digits after +94';
+  }
+
   void _continue() {
+    final nicErr = _validateNic(_nicController.text);
+    final phoneErr = _validatePhone(_phoneController.text);
+    if (nicErr != null || phoneErr != null) {
+      setState(() {
+        _nicError = nicErr;
+        _phoneError = phoneErr;
+      });
+      return;
+    }
+    final phone = _phoneController.text.trim();
     AppState.familyMemberName.value = _nameController.text.trim();
-    AppState.familyMemberNic.value = _nicController.text.trim();
+    AppState.familyMemberNic.value = _nicController.text.trim().toUpperCase();
     AppState.relationToPatient.value = _relationship;
-    AppState.familyMemberPhone.value = _phoneController.text.trim();
+    AppState.familyMemberPhone.value = phone.isNotEmpty ? '+94$phone' : '';
     AppState.familyMemberEmail.value = _emailController.text.trim();
     AppState.familyMemberAddress.value = _addressController.text.trim();
     Navigator.pushNamed(
@@ -186,6 +215,14 @@ class _PatientFamilyDetailsScreenState
                                     _buildTextField(
                                       controller: _nicController,
                                       hintText: '972345678V',
+                                      errorText: _nicError,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(RegExp(r'[0-9VvXx]')),
+                                        LengthLimitingTextInputFormatter(12),
+                                      ],
+                                      onChanged: (_) {
+                                        if (_nicError != null) setState(() => _nicError = null);
+                                      },
                                     ),
                                   ],
                                 ),
@@ -237,10 +274,12 @@ class _PatientFamilyDetailsScreenState
 
                         _buildLabel('Mobile number'),
                         const SizedBox(height: 7),
-                        _buildTextField(
+                        _buildPhoneField(
                           controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          hintText: '+94 71 234 5678',
+                          errorText: _phoneError,
+                          onChanged: (_) {
+                            if (_phoneError != null) setState(() => _phoneError = null);
+                          },
                         ),
                         const SizedBox(height: 13),
 
@@ -338,43 +377,156 @@ class _PatientFamilyDetailsScreenState
         ),
       );
 
+  /// Locked +94 prefix phone field — user types only 9 digits
+  Widget _buildPhoneField({
+    required TextEditingController controller,
+    String? errorText,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: errorText != null ? Colors.redAccent : fieldBorder,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: fieldBorder.withValues(alpha: 0.35)),
+                  ),
+                ),
+                child: const Text(
+                  '+94',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: fieldValue,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  onChanged: onChanged,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(9),
+                  ],
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: fieldValue,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                    hintText: '71 234 5678',
+                    hintStyle: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: fieldValue.withValues(alpha: 0.42),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 5, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
     String? hintText,
+    String? errorText,
+    List<TextInputFormatter>? inputFormatters,
+    ValueChanged<String>? onChanged,
   }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        border: Border.all(color: fieldBorder),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(
-          fontFamily: 'Open Sans',
-          color: fieldValue,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          filled: false,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
-          hintText: hintText,
-          hintStyle: TextStyle(
-            fontFamily: 'Open Sans',
-            color: fieldValue.withValues(alpha: 0.42),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: errorText != null ? Colors.redAccent : fieldBorder,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            onChanged: onChanged,
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: fieldValue,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+              hintText: hintText,
+              hintStyle: TextStyle(
+                fontFamily: 'Open Sans',
+                color: fieldValue.withValues(alpha: 0.42),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ),
-      ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 5, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

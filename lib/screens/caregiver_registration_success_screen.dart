@@ -113,28 +113,6 @@ class _CaregiverRegistrationSuccessScreenState
       _pulseController.repeat(reverse: true);
     });
 
-    _saveCaregiverProfile();
-  }
-
-  Future<void> _saveCaregiverProfile() async {
-    final user = AuthService.currentUser;
-    if (user == null) return;
-    try {
-      final userProfile = await AuthService.getUserProfile(user.uid);
-      final data = AppState.caregiverOnboardingDraft.toMap();
-      data['agreedToTermsAt'] = FieldValue.serverTimestamp();
-      // Denormalized so search/profile views (readable by any signed-in
-      // user) don't need to read the owner-only users/{uid} document.
-      data['name'] = userProfile?['name'] ?? '';
-      data['email'] = userProfile?['email'] ?? user.email ?? '';
-      await CaregiverService.saveCaregiverProfile(uid: user.uid, data: data);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save your profile: $e')),
-        );
-      }
-    }
   }
 
   Animation<double> _staggeredFade(double start, double end) {
@@ -273,13 +251,6 @@ class _CaregiverRegistrationSuccessScreenState
                             decoration: BoxDecoration(
                               border: Border.all(color: _buttonText),
                               borderRadius: BorderRadius.circular(15),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF06402B).withValues(alpha: 0.5),
-                                  blurRadius: 4,
-                                  offset: const Offset(4, 4),
-                                ),
-                              ],
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             child: const Text(

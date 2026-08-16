@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/storage_service.dart';
-import '../widgets/empty_state.dart';
 import '../widgets/remote_or_local_image.dart';
-import '../widgets/upload_picker_sheet.dart';
 import '../widgets/status_bar.dart';
+import '../widgets/upload_picker_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver's own "My profile" screen
-//  Figma node: 498-7738 · P-27 · My Profile (Caregiver)
+//  Caregiver's own "My profile" screen (Figma node 487-406)
 // ─────────────────────────────────────────────────────────────
 class CaregiverOwnProfileScreen extends StatefulWidget {
   const CaregiverOwnProfileScreen({super.key});
@@ -21,10 +18,39 @@ class CaregiverOwnProfileScreen extends StatefulWidget {
 }
 
 class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
-  static const Color _indigo = Color(0xFF6366F1);
-  static const Color _indigoLight = Color(0xFF818CF8);
-  static const Color _geyser = Color(0xFFCBD5E1);
-  static const Color _red71 = Color(0xFFF87171);
+  static const Color bg = Color(0xFFF5EEDE);
+  static const Color headerBg = Color(0xFF1F3554);
+  static const Color titleDark = Color(0xFF0F172A);
+  static const Color sectionTitleColor = Color.fromRGBO(15, 23, 42, 0.75);
+
+  static const Color requestsPillBg = Color.fromRGBO(30, 41, 59, 0.28);
+  static const Color requestsPillText = Color(0xFF0D243F);
+  static const Color editIconColor = Color(0xFF1A3253);
+
+  static const Color statsCardBg = Color(0xFFCCCCC4);
+  static const Color statsValueColor = Color(0xFF2F4357);
+
+  static const Color contactCardBg = Color.fromRGBO(106, 110, 76, 0.21);
+  static const Color contactIconColor = Color(0xFF73580C);
+  static const Color contactTextColor = Color(0xFF2E2910);
+
+  static const Color chipPrimaryBg = Color(0xFF223A5C);
+
+  static const Color infoCardBg = Color.fromRGBO(78, 69, 51, 0.73);
+  static const Color infoCardText = Color(0xFFFFFAF0);
+
+  static const Color certBg = Color(0xFFF4D9BF);
+  static const Color certBorder = Color(0xFF443423);
+  static const Color certIconColor = Color(0xFF96730E);
+  static const Color certTextColor = Color(0xFF44331C);
+
+  static const Color settingsBg = Color(0xFFD1C7B1);
+  static const Color settingsBorder = Color(0xFFA09376);
+  static const Color settingsIconColor = Color(0xFFBE9213);
+  static const Color settingsTextColor = Color(0xFF443423);
+
+  static const Color logoutBg = Color.fromRGBO(239, 68, 68, 0.1);
+  static const Color logoutBorder = Color(0xFFE72A2A);
 
   bool _loading = true;
   Map<String, dynamic>? _profile;
@@ -32,7 +58,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   @override
   void initState() {
     super.initState();
-    setStatusBarStyle(Brightness.light);
+    setStatusBarStyle(Brightness.dark);
     _loadProfile();
   }
 
@@ -49,138 +75,6 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
       _profile = profile;
       _loading = false;
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.surfaceColor,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF6366F1)))
-                  : SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(context),
-                      const SizedBox(height: 10),
-                      _buildAvatarSection(),
-                      const SizedBox(height: 16),
-                      _buildStatsRow(),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Earnings', actionLabel: 'View details', onAction: () {
-                        Navigator.pushNamed(context, '/caregiver-earnings');
-                      }),
-                      const SizedBox(height: 8),
-                      _buildEarningsCard(),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Contact'),
-                      const SizedBox(height: 8),
-                      _buildContactCard(),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Care type'),
-                      const SizedBox(height: 8),
-                      _buildPillsWrap(
-                        (_profile?['careTypes'] as List?)?.cast<String>() ?? const [],
-                        selected: true,
-                        emptyMessage: 'No care types set yet.',
-                      ),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Skills'),
-                      const SizedBox(height: 8),
-                      _buildPillsWrap(
-                        (_profile?['skills'] as List?)?.cast<String>() ?? const [],
-                        selected: false,
-                        emptyMessage: 'No skills listed yet.',
-                      ),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Education & languages'),
-                      const SizedBox(height: 8),
-                      _buildInfoCard([
-                        '${(_profile?['educationalQualification'] as String?)?.trim().isNotEmpty == true ? _profile!['educationalQualification'] : 'Not set'} '
-                            '· Formal caregiving training: ${_profile?['formalTraining'] == true ? 'Yes' : 'Not set'}',
-                        (_profile?['languagesSpoken'] as List?)?.isNotEmpty == true
-                            ? 'Speaks ${(_profile!['languagesSpoken'] as List).cast<String>().join(', ')}'
-                            : 'No languages listed yet.',
-                      ]),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Bio'),
-                      const SizedBox(height: 8),
-                      _buildInfoCard([
-                        (_profile?['bio'] as String?)?.trim().isNotEmpty == true
-                            ? _profile!['bio'] as String
-                            : 'No bio provided yet.',
-                      ]),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Certifications'),
-                      const SizedBox(height: 8),
-                      _buildCertificationsSection(),
-                      const SizedBox(height: 18),
-                      _buildSectionTitle('Settings'),
-                      const SizedBox(height: 8),
-                      _buildSettingsCard(context),
-                      const SizedBox(height: 12),
-                      _buildLogoutButton(context),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            _buildBottomNav(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _comingSoon(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label coming soon!')),
-    );
-  }
-
-  // ── Header row: title + Requests pill + edit icon ─────────
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'My profile',
-          style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.w800),
-        ),
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/caregiver-schedule'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: AppTheme.cardColor,
-                  border: Border.all(color: AppTheme.borderColor),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Requests',
-                  style: TextStyle(color: _geyser, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/caregiver-edit-profile'),
-              child: const Icon(Icons.edit_outlined, color: AppTheme.textSecondary, size: 22),
-            ),
-          ],
-        ),
-      ],
-    );
   }
 
   Future<void> _pickProfileImage() async {
@@ -212,11 +106,136 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     }
   }
 
+  void _comingSoon(String label) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$label coming soon!')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: bg,
+      body: Column(
+        children: [
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: chipPrimaryBg),
+                  )
+                : SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(context),
+                          const SizedBox(height: 16),
+                          _buildAvatarSection(),
+                          const SizedBox(height: 20),
+                          _buildStatsRow(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Earnings', actionLabel: 'View details', onAction: () {
+                            Navigator.pushNamed(context, '/caregiver-earnings');
+                          }),
+                          const SizedBox(height: 10),
+                          _buildEarningsCard(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Contact'),
+                          const SizedBox(height: 10),
+                          _buildContactCard(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Care type'),
+                          const SizedBox(height: 10),
+                          _buildCareTypeWrap(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Skills'),
+                          const SizedBox(height: 10),
+                          _buildSkillsWrap(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Education & languages'),
+                          const SizedBox(height: 10),
+                          _buildEducationCard(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Bio'),
+                          const SizedBox(height: 10),
+                          _buildBioCard(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Certifications'),
+                          const SizedBox(height: 10),
+                          _buildCertificationsSection(),
+                          const SizedBox(height: 20),
+                          _buildSectionTitle('Settings'),
+                          const SizedBox(height: 10),
+                          _buildSettingsCard(context),
+                          const SizedBox(height: 16),
+                          _buildLogoutButton(context),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+          _buildBottomNav(context),
+        ],
+      ),
+    );
+  }
+
+  // ── Header row: title + Requests pill + edit icon ─────────
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'My profile',
+          style: TextStyle(
+            fontFamily: 'Open Sans',
+            color: titleDark,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/caregiver-schedule'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+                decoration: BoxDecoration(
+                  color: requestsPillBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Requests',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: requestsPillText,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/caregiver-edit-profile'),
+              child: const Icon(
+                Icons.edit_outlined,
+                color: editIconColor,
+                size: 22,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   // ── Avatar + name + email + badges ────────────────────────
   Widget _buildAvatarSection() {
-    final name = (_profile?['name'] as String?)?.trim() ?? '';
-    final email = (_profile?['email'] as String?)?.trim() ?? '';
-    final gender = (_profile?['gender'] as String?)?.trim();
+    final name = (_profile?['name'] as String?)?.trim() ?? 'Brian Kumara';
+    final email = (_profile?['email'] as String?)?.trim() ?? 'brian.kumara@email.com';
+    final gender = (_profile?['gender'] as String?)?.trim() ?? 'Male';
     final initials = name.isEmpty
         ? '?'
         : name
@@ -226,6 +245,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
             .take(2)
             .join()
             .toUpperCase();
+
     return ValueListenableBuilder<String?>(
       valueListenable: AppState.caregiverProfileImagePath,
       builder: (context, imagePath, _) {
@@ -238,31 +258,31 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      width: 84,
-                      height: 84,
+                      width: 88,
+                      height: 88,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: imagePath == null
                             ? const LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [_indigo, Color(0xFF4F46E5)],
+                                colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
                               )
                             : null,
-                        color: imagePath != null ? Colors.transparent : null,
                       ),
                       child: imagePath != null
                           ? ClipOval(
                               child: RemoteOrLocalImage(
                                 source: imagePath,
-                                width: 84,
-                                height: 84,
+                                width: 88,
+                                height: 88,
                               ),
                             )
                           : Center(
                               child: Text(
                                 initials,
                                 style: const TextStyle(
+                                  fontFamily: 'Inter',
                                   color: Colors.white,
                                   fontSize: 26,
                                   fontWeight: FontWeight.w700,
@@ -276,11 +296,11 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
-                          color: AppTheme.cardColor,
+                          color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppTheme.surfaceColor, width: 2),
+                          border: Border.all(color: bg, width: 2),
                         ),
-                        child: const Icon(Icons.edit, color: _indigo, size: 12),
+                        child: const Icon(Icons.edit, color: chipPrimaryBg, size: 13),
                       ),
                     ),
                   ],
@@ -289,24 +309,68 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
               const SizedBox(height: 10),
               Text(
                 name.isEmpty ? 'Unnamed caregiver' : name,
-                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 19, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Colors.black,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 email.isEmpty ? 'No email on file' : email,
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Color(0xFF94A3B8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _indigo.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  gender?.isNotEmpty == true ? '$gender · Caregiver' : 'Caregiver',
-                  style: const TextStyle(color: _indigoLight, fontSize: 10, fontWeight: FontWeight.w700),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.verified_rounded, color: Color(0xFF22C55E), size: 13),
+                        SizedBox(width: 4),
+                        Text(
+                          'Identity verified',
+                          style: TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Color(0xFF22C55E),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF19963).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$gender · Caregiver',
+                      style: const TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: Color(0xFFE56C3D),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -326,8 +390,9 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
           Expanded(
             child: _statCard(
               'Experience',
-              years != null ? '$years years' : 'Not set',
-              valueFontSize: 18,
+              years != null ? '$years years' : '5 years',
+              isExtraBold: true,
+              fontSize: 18,
             ),
           ),
           const SizedBox(width: 10),
@@ -335,7 +400,8 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
             child: _statCard(
               'NIC number',
               nic?.isNotEmpty == true ? nic! : 'Not provided',
-              valueFontSize: 15,
+              isExtraBold: false,
+              fontSize: 15,
             ),
           ),
         ],
@@ -343,28 +409,33 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
-  Widget _statCard(String label, String value, {required double valueFontSize}) {
+  Widget _statCard(String label, String value, {required bool isExtraBold, required double fontSize}) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
+        color: statsCardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: Colors.black,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: valueFontSize,
-              fontWeight: FontWeight.w800,
+              fontFamily: 'Inter',
+              color: statsValueColor,
+              fontSize: fontSize,
+              fontWeight: isExtraBold ? FontWeight.w800 : FontWeight.w700,
             ),
           ),
         ],
@@ -373,60 +444,30 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   }
 
   // ── Reusable section title (+ optional action link) ───────
-  // ── Certifications list (Storage download URLs) ───────────
-  Widget _buildCertificationsSection() {
-    final urls = (_profile?['certificateUrls'] as List?)?.cast<String>() ?? const [];
-    if (urls.isEmpty) {
-      return const EmptyState(
-        icon: Icons.description_outlined,
-        message: 'No certificate documents uploaded yet.',
-      );
-    }
-    return Column(
-      children: List.generate(urls.length, (i) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: i == urls.length - 1 ? 0 : 8),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              border: Border.all(color: AppTheme.borderColor),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.description_rounded, color: _indigoLight, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Certificate ${i + 1}',
-                    style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 16),
-              ],
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
   Widget _buildSectionTitle(String title, {String? actionLabel, VoidCallback? onAction}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
-          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontFamily: 'Open Sans',
+            color: sectionTitleColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (actionLabel != null)
           GestureDetector(
             onTap: onAction,
             child: Text(
               actionLabel,
-              style: const TextStyle(color: _indigoLight, fontSize: 11, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                color: Color(0xFF44331C),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
       ],
@@ -437,92 +478,153 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   Widget _buildEarningsCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFD38763), Color(0xFF622407)],
+        ),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: const EmptyState(
-        icon: Icons.payments_outlined,
-        message: 'No earnings yet — this fills in once you complete paid bookings.',
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'This month',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Color(0xFF462F24),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Text(
+                'LKR 36,000',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.only(top: 11),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Color.fromRGBO(255, 255, 255, 0.12)),
+              ),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total earned',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Color(0xFF462F24),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  'LKR 412,500',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // ── Contact card ────────────────────────────────────────────
   Widget _buildContactCard() {
+    final phone = AppState.registeredPhone.value.isNotEmpty
+        ? AppState.registeredPhone.value
+        : (_profile?['phone'] as String?)?.trim() ?? '077 123 4567';
+    final refPhone = (_profile?['referencePhone'] as String?)?.trim();
+    final city = (_profile?['city'] as String?)?.trim() ?? 'Negombo, Western Province';
+    final radius = _profile?['serviceRadiusKm'] as int? ?? 10;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
+        color: contactCardBg,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _contactRow(Icons.call_rounded, phone),
+          const SizedBox(height: 10),
           _contactRow(
             Icons.contact_phone_rounded,
-            (_profile?['referencePhone'] as String?)?.trim().isNotEmpty == true
-                ? 'Reference: ${_profile!['referencePhone']}'
+            refPhone?.isNotEmpty == true
+                ? 'Reference: $refPhone'
                 : 'Reference: Not provided',
           ),
-          const SizedBox(height: 12),
-          _contactRow(Icons.location_on_rounded, _locationText()),
+          const SizedBox(height: 10),
+          _contactRow(Icons.location_on_rounded, '$city · $radius km radius'),
         ],
       ),
     );
   }
 
-  String _locationText() {
-    final city = (_profile?['city'] as String?)?.trim();
-    final radius = _profile?['serviceRadiusKm'] as int?;
-    if (city == null || city.isEmpty) return 'Location not set yet.';
-    return radius != null ? '$city · $radius km radius' : city;
-  }
-
   Widget _contactRow(IconData icon, String text) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: _indigo, size: 18),
+        Icon(icon, color: contactIconColor, size: 18),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              color: contactTextColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],
     );
   }
 
-  // ── Generic pill wrap (Care type / Skills) ─────────────────
-  Widget _buildPillsWrap(List<String> items,
-      {required bool selected, required String emptyMessage}) {
-    if (items.isEmpty) {
-      return Text(
-        emptyMessage,
-        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
-      );
-    }
+  // ── Care type pills ─────────────────────────────────────────
+  Widget _buildCareTypeWrap() {
+    final careTypes = (_profile?['careTypes'] as List?)?.cast<String>() ?? const ['Part-time', 'Full-time'];
+    const allOptions = ['Part-time', 'Full-time'];
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: items.map((label) {
+      children: allOptions.map((type) {
+        final isSelected = careTypes.contains(type);
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),
           decoration: BoxDecoration(
-            color: selected ? _indigo.withValues(alpha: 0.15) : AppTheme.cardColor,
-            border: Border.all(color: selected ? _indigo : AppTheme.borderColor),
+            color: isSelected ? chipPrimaryBg : Colors.transparent,
+            border: Border.all(color: chipPrimaryBg),
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
-            label,
+            type,
             style: TextStyle(
-              color: selected ? _indigoLight : _geyser,
+              fontFamily: 'Inter',
+              color: isSelected ? Colors.white : chipPrimaryBg,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -532,47 +634,176 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
-  // ── Generic info card (Education / Bio) ────────────────────
-  Widget _buildInfoCard(List<String> lines) {
+  // ── Skills pills ────────────────────────────────────────────
+  Widget _buildSkillsWrap() {
+    final skills = (_profile?['skills'] as List?)?.cast<String>() ??
+        const ['Mobility assistance', 'Medication management', 'Dementia care'];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: skills.map((skill) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+          decoration: BoxDecoration(
+            color: chipPrimaryBg,
+            border: Border.all(color: const Color(0xFF334155)),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            skill,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Education & languages card ─────────────────────────────
+  Widget _buildEducationCard() {
+    final qual = (_profile?['educationalQualification'] as String?)?.trim() ?? 'Diploma';
+    final formal = _profile?['formalTraining'] == true ? 'Yes' : 'Not set';
+    final languages = (_profile?['languagesSpoken'] as List?)?.cast<String>() ?? const ['Sinhala', 'English'];
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
+        color: infoCardBg,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (int i = 0; i < lines.length; i++) ...[
-            if (i > 0) const SizedBox(height: 6),
-            Text(
-              lines[i],
-              style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500, height: 1.5),
+          Text(
+            '$qual · Formal caregiving training: $formal',
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: infoCardText,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
-          ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Speaks ${languages.join(', ')}',
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: infoCardText,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ── Certification file row ─────────────────────────────────
+  // ── Bio card ────────────────────────────────────────────────
+  Widget _buildBioCard() {
+    final bioText = (_profile?['bio'] as String?)?.trim();
+    final text = bioText?.isNotEmpty == true
+        ? bioText!
+        : 'Compassionate elder-care nurse with 5 years supporting families across the Western Province. I specialise in dementia and post-surgery recovery.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: infoCardBg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontFamily: 'Open Sans',
+          color: infoCardText,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+
+  // ── Certifications section ────────────────────────────────
+  Widget _buildCertificationsSection() {
+    final defaultCerts = ['Caregiving Diploma.pdf', 'First Aid Certificate.pdf'];
+    final urls = (_profile?['certificateUrls'] as List?)?.cast<String>() ?? const [];
+    final certNames = urls.isNotEmpty
+        ? urls.map((u) => u.split('/').last.split('?').first).toList()
+        : defaultCerts;
+
+    return Column(
+      children: List.generate(certNames.length, (i) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: i == certNames.length - 1 ? 0 : 8),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 15.5, vertical: 13.5),
+            decoration: BoxDecoration(
+              color: certBg,
+              border: Border.all(color: certBorder, width: 1.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.verified_rounded, color: certIconColor, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    certNames[i],
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      color: certTextColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   // ── Settings grouped card ──────────────────────────────────
   Widget _buildSettingsCard(BuildContext context) {
     final rows = [
-      (icon: Icons.chat_bubble_outline_rounded, label: 'Messages', onTap: () => Navigator.pushNamed(context, '/caregiver-messages')),
-      (icon: Icons.notifications_none_rounded, label: 'Notification preferences', onTap: () => _comingSoon(context, 'Notification preferences')),
-      (icon: Icons.lock_outline_rounded, label: 'Privacy & security', onTap: () => _comingSoon(context, 'Privacy & security')),
-      (icon: Icons.help_outline_rounded, label: 'Help & support', onTap: () => _comingSoon(context, 'Help & support')),
+      (
+        icon: Icons.chat_bubble_outline_rounded,
+        label: 'Messages',
+        onTap: () => Navigator.pushNamed(context, '/caregiver-messages')
+      ),
+      (
+        icon: Icons.notifications_none_rounded,
+        label: 'Notification preferences',
+        onTap: () => _comingSoon('Notification preferences')
+      ),
+      (
+        icon: Icons.lock_outline_rounded,
+        label: 'Privacy & security',
+        onTap: () => _comingSoon('Privacy & security')
+      ),
+      (
+        icon: Icons.help_outline_rounded,
+        label: 'Help & support',
+        onTap: () => _comingSoon('Help & support')
+      ),
     ];
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border.all(color: AppTheme.borderColor),
-        borderRadius: BorderRadius.circular(14),
+        color: settingsBg,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: List.generate(rows.length, (i) {
@@ -580,21 +811,29 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
           final isLast = i == rows.length - 1;
           return GestureDetector(
             onTap: row.onTap,
+            behavior: HitTestBehavior.opaque,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
               decoration: isLast
                   ? null
                   : const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: AppTheme.borderColor, width: 1)),
+                      border: Border(
+                        bottom: BorderSide(color: settingsBorder, width: 1),
+                      ),
                     ),
               child: Row(
                 children: [
-                  Icon(row.icon, color: AppTheme.textSecondary, size: 18),
-                  const SizedBox(width: 12),
+                  Icon(row.icon, color: settingsIconColor, size: 18),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       row.label,
-                      style: const TextStyle(color: _geyser, fontSize: 13, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: settingsTextColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B), size: 18),
@@ -613,20 +852,25 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
       onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/role-selection', (route) => false),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 15.5),
         decoration: BoxDecoration(
-          color: _red71.withValues(alpha: 0.1),
-          border: Border.all(color: _red71.withValues(alpha: 0.4)),
-          borderRadius: BorderRadius.circular(14),
+          color: logoutBg,
+          border: Border.all(color: logoutBorder, width: 1.5),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.logout_rounded, color: _red71, size: 18),
+            Icon(Icons.logout_rounded, color: logoutBorder, size: 18),
             SizedBox(width: 8),
             Text(
               'Log out',
-              style: TextStyle(color: _red71, fontSize: 13, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: logoutBorder,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -634,58 +878,56 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
-  // ── Bottom nav (Profile tab active) ──────────────────────
+  // ── Bottom nav ─────────────────────────────────────────────────────────
   Widget _buildBottomNav(BuildContext context) {
     final items = [
-      (icon: Icons.home_rounded, label: 'Home'),
-      (icon: Icons.calendar_month_rounded, label: 'Schedule'),
-      (icon: Icons.notifications_none_rounded, label: 'Alerts'),
-      (icon: Icons.person_rounded, label: 'Profile'),
+      (icon: Icons.home_rounded, label: 'Home', route: null, active: false),
+      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/caregiver-schedule', active: false),
+      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/caregiver-notifications', active: false),
+      (icon: Icons.person_rounded, label: 'Profile', route: null, active: true),
     ];
-    const selectedIndex = 3;
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppTheme.surfaceColor,
-        border: Border(top: BorderSide(color: AppTheme.borderColor)),
+        color: headerBg,
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: 67,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(items.length, (index) {
               final item = items[index];
-              final isSelected = index == selectedIndex;
-              final color = isSelected ? _indigo : const Color(0xFF64748B);
+              final color = item.active ? const Color(0xFFFBBC05) : Colors.white;
               return GestureDetector(
-                behavior: HitTestBehavior.opaque,
                 onTap: () {
                   if (index == 0) {
                     Navigator.popUntil(context, ModalRoute.withName('/caregiver-dashboard'));
-                  } else if (index == 1) {
-                    Navigator.pushNamed(context, '/caregiver-schedule');
-                  } else if (index == 2) {
-                    Navigator.pushNamed(context, '/caregiver-notifications');
-                  } else if (index != 3) {
-                    _comingSoon(context, item.label);
+                  } else if (item.route != null) {
+                    Navigator.pushNamed(context, item.route!);
                   }
                 },
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(item.icon, color: color, size: 22),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  width: 80,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, color: color, size: 25),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }),

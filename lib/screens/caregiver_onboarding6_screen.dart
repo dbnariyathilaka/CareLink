@@ -25,7 +25,7 @@ class _CaregiverOnboarding6ScreenState
   static const Color termsBody = Color(0xFFCBD5E1);
   static const Color continueBg = Color(0xFF223A5C);
 
-  bool _agreed = true;
+  bool _agreed = false;
 
   @override
   void initState() {
@@ -62,10 +62,17 @@ class _CaregiverOnboarding6ScreenState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: titleDark, size: 20),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: titleDark,
+                      size: 20,
+                    ),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                   ),
                   const Text(
                     'Step 6 of 6',
@@ -174,7 +181,11 @@ class _CaregiverOnboarding6ScreenState
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: _agreed
-                          ? const Icon(Icons.check_rounded, color: titleDark, size: 16)
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: titleDark,
+                              size: 16,
+                            )
                           : null,
                     ),
                     const SizedBox(width: 10),
@@ -259,7 +270,10 @@ class _CaregiverOnboarding6ScreenState
   }
 
   /// Progress bar with segmented steps
-  Widget _buildProgressBar({required int currentStep, required int totalSteps}) {
+  Widget _buildProgressBar({
+    required int currentStep,
+    required int totalSteps,
+  }) {
     return Row(
       children: List.generate(totalSteps, (index) {
         final isActive = index < currentStep;

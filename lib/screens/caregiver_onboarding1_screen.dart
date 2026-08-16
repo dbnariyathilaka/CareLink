@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
@@ -37,10 +38,13 @@ class _CaregiverOnboarding1ScreenState
 
   int _yearsExperience = 5;
 
-  final Set<String> _selectedCareTypes = {'Part-time', 'Full-time'};
+  String? _selectedCareType = 'Part-time';
 
   final _nicController = NoUnderlineTextEditingController();
   final _refPhoneController = NoUnderlineTextEditingController();
+  String? _nicError;
+  String? _phoneError;
+  String? _careTypeError;
 
   @override
   void initState() {
@@ -95,12 +99,50 @@ class _CaregiverOnboarding1ScreenState
 
   void _toggleCareType(String type) {
     setState(() {
-      if (_selectedCareTypes.contains(type)) {
-        _selectedCareTypes.remove(type);
-      } else {
-        _selectedCareTypes.add(type);
-      }
+      _selectedCareType = type; // always set — care type is required
+      if (_careTypeError != null) _careTypeError = null;
     });
+  }
+
+  /// Returns null if valid, or an error message string if invalid.
+  String? _validateNic(String value) {
+    final trimmed = value.trim().toUpperCase();
+    if (trimmed.isEmpty) return 'NIC number is required';
+    // Old format: 9 digits followed by V or X
+    final oldNic = RegExp(r'^\d{9}[VX]$');
+    // New format: exactly 12 digits
+    final newNic = RegExp(r'^\d{12}$');
+    if (oldNic.hasMatch(trimmed) || newNic.hasMatch(trimmed)) return null;
+    return 'Enter 9 digits + V/X (e.g. 972345678V) or 12 digits';
+  }
+
+  String? _validatePhone(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return 'Reference phone number is required';
+    if (RegExp(r'^\d{9}$').hasMatch(trimmed)) return null;
+    return 'Enter exactly 9 digits after +94';
+  }
+
+  bool _runValidation() {
+    final careErr = _selectedCareType == null ? 'Please select a care type' : null;
+    final nicErr = _validateNic(_nicController.text);
+    String? phoneErr = _validatePhone(_refPhoneController.text);
+
+    // Reference phone must differ from the registered account phone
+    if (phoneErr == null && _refPhoneController.text.trim().isNotEmpty) {
+      final refFull = '+94${_refPhoneController.text.trim()}';
+      final regPhone = AppState.registeredPhone.value;
+      if (regPhone.isNotEmpty && refFull == regPhone) {
+        phoneErr = 'Reference phone must be different from your registered number';
+      }
+    }
+
+    setState(() {
+      _careTypeError = careErr;
+      _nicError = nicErr;
+      _phoneError = phoneErr;
+    });
+    return careErr == null && nicErr == null && phoneErr == null;
   }
 
   @override
@@ -231,7 +273,7 @@ class _CaregiverOnboarding1ScreenState
                           Expanded(
                             child: _buildCareTypeChip(
                               label: 'Part-time',
-                              isSelected: _selectedCareTypes.contains('Part-time'),
+                              isSelected: _selectedCareType == 'Part-time',
                               onTap: () => _toggleCareType('Part-time'),
                             ),
                           ),
@@ -239,7 +281,7 @@ class _CaregiverOnboarding1ScreenState
                           Expanded(
                             child: _buildCareTypeChip(
                               label: 'Full-time',
-                              isSelected: _selectedCareTypes.contains('Full-time'),
+                              isSelected: _selectedCareType == 'Full-time',
                               onTap: () => _toggleCareType('Full-time'),
                             ),
                           ),
@@ -251,7 +293,7 @@ class _CaregiverOnboarding1ScreenState
                           Expanded(
                             child: _buildCareTypeChip(
                               label: 'Live-in',
-                              isSelected: _selectedCareTypes.contains('Live-in'),
+                              isSelected: _selectedCareType == 'Live-in',
                               onTap: () => _toggleCareType('Live-in'),
                             ),
                           ),
@@ -259,26 +301,50 @@ class _CaregiverOnboarding1ScreenState
                           Expanded(
                             child: _buildCareTypeChip(
                               label: 'Flexible',
-                              isSelected: _selectedCareTypes.contains('Flexible'),
+                              isSelected: _selectedCareType == 'Flexible',
                               onTap: () => _toggleCareType('Flexible'),
                             ),
                           ),
                         ],
                       ),
+                      if (_careTypeError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 4),
+                          child: Text(
+                            _careTypeError!,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.redAccent,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 26),
                       _buildLabel('NIC number'),
                       const SizedBox(height: 12),
                       _buildTextField(
                         controller: _nicController,
-                        hintText: 'e.g. 200012345678',
+                        hintText: 'e.g. 972345678V or 200012345678',
+                        errorText: _nicError,
+                        inputFormatters: [
+                          // Allow digits and V/X (for old NIC), max 12 chars
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9VvXx]')),
+                          LengthLimitingTextInputFormatter(12),
+                        ],
+                        onChanged: (_) {
+                          if (_nicError != null) setState(() => _nicError = null);
+                        },
                       ),
                       const SizedBox(height: 26),
                       _buildLabel('Reference phone number'),
                       const SizedBox(height: 12),
-                      _buildTextField(
+                      _buildPhoneField(
                         controller: _refPhoneController,
-                        hintText: 'e.g. 077 123 4567',
-                        keyboardType: TextInputType.phone,
+                        errorText: _phoneError,
+                        onChanged: (_) {
+                          if (_phoneError != null) setState(() => _phoneError = null);
+                        },
                       ),
                       const SizedBox(height: 32),
                     ],
@@ -295,12 +361,15 @@ class _CaregiverOnboarding1ScreenState
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () {
+                        if (!_runValidation()) return;
                         final draft = AppState.caregiverOnboardingDraft;
                         draft.gender = _selectedGender;
                         draft.yearsExperience = _yearsExperience;
-                        draft.careTypes = _selectedCareTypes;
-                        draft.nic = _nicController.text.trim();
-                        draft.referencePhone = _refPhoneController.text.trim();
+                        draft.careTypes = _selectedCareType != null ? {_selectedCareType!} : {};
+                        // Store phone with +94 prefix
+                        final phone = _refPhoneController.text.trim();
+                        draft.nic = _nicController.text.trim().toUpperCase();
+                        draft.referencePhone = phone.isNotEmpty ? '+94$phone' : '';
                         Navigator.pushNamed(context, '/caregiver-onboarding-2');
                       },
                       child: const Padding(
@@ -356,6 +425,97 @@ class _CaregiverOnboarding1ScreenState
     );
   }
 
+  /// Locked +94 prefix phone field — user types only 9 digits
+  Widget _buildPhoneField({
+    required TextEditingController controller,
+    String? errorText,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: errorText != null ? Colors.redAccent : fieldBorder,
+              width: 1.5,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              // Locked +94 prefix
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15.5),
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: fieldBorder.withValues(alpha: 0.4)),
+                  ),
+                ),
+                child: const Text(
+                  '+94',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: titleDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              // 9-digit input
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  onChanged: onChanged,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(9),
+                  ],
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: titleDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15.5),
+                    hintText: '71 234 5678',
+                    hintStyle: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: fieldHint,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   /// Equal-width pill for care type selection (multi-select)
   Widget _buildCareTypeChip({
     required String label,
@@ -393,39 +553,65 @@ class _CaregiverOnboarding1ScreenState
     required TextEditingController controller,
     required String hintText,
     TextInputType keyboardType = TextInputType.text,
+    String? errorText,
+    List<TextInputFormatter>? inputFormatters,
+    ValueChanged<String>? onChanged,
   }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        border: Border.all(color: fieldBorder, width: 1.5),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(
-          fontFamily: 'Open Sans',
-          color: titleDark,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          isDense: true,
-          filled: false,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            fontFamily: 'Open Sans',
-            color: fieldHint,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: errorText != null ? Colors.redAccent : fieldBorder,
+              width: 1.5,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
+            onChanged: onChanged,
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: titleDark,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 17.5, vertical: 15.5),
+              hintText: hintText,
+              hintStyle: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: fieldHint,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ),
-      ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

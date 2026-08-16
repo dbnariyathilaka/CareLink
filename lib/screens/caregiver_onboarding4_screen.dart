@@ -38,10 +38,19 @@ class _CaregiverOnboarding4ScreenState
   Uint8List? _photoPreview;
   bool _uploading = false;
 
-  Future<void> _pickPhoto() async {
-    final picked = await pickImageOrDocument(context, allowPdf: false);
+  Future<void> _pickFromCamera() async {
+    final picked = await pickFromCamera();
     if (picked == null || !mounted) return;
+    await _processPickedPhoto(picked);
+  }
 
+  Future<void> _pickFromGallery() async {
+    final picked = await pickFromGallery();
+    if (picked == null || !mounted) return;
+    await _processPickedPhoto(picked);
+  }
+
+  Future<void> _processPickedPhoto(PickedUpload picked) async {
     setState(() {
       _photoPreview = picked.bytes;
       _uploading = true;
@@ -150,7 +159,7 @@ class _CaregiverOnboarding4ScreenState
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
-                        onTap: _uploading ? null : _pickPhoto,
+                        onTap: _uploading ? null : _pickFromGallery,
                         child: Stack(
                           children: [
                             Container(
@@ -214,7 +223,7 @@ class _CaregiverOnboarding4ScreenState
                         child: _buildOptionButton(
                           icon: Icons.photo_camera_rounded,
                           label: 'Take a photo',
-                          onTap: _uploading ? null : _pickPhoto,
+                          onTap: _uploading ? null : _pickFromCamera,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -223,7 +232,7 @@ class _CaregiverOnboarding4ScreenState
                         child: _buildOptionButton(
                           icon: Icons.image_rounded,
                           label: 'Upload from gallery',
-                          onTap: _uploading ? null : _pickPhoto,
+                          onTap: _uploading ? null : _pickFromGallery,
                         ),
                       ),
                     ],
@@ -243,6 +252,15 @@ class _CaregiverOnboarding4ScreenState
                       onTap: _uploading
                           ? null
                           : () {
+                              if (_photoPreview == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please upload a profile photo before continuing.'),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                                return;
+                              }
                               Navigator.pushNamed(context, '/caregiver-onboarding-5');
                             },
                       child: const Padding(

@@ -77,12 +77,14 @@ class AuthService {
     required String name,
     required String email,
     String? role,
+    String? phone,
   }) {
     return Future.wait([
       _firestore.collection('users').doc(uid).set({
         'name': name,
         'email': email,
         if (role != null) 'role': role,
+        if (phone != null) 'phone': phone,
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true)),
       _indexEmailForLookup(email),
@@ -109,8 +111,10 @@ class AuthService {
   /// Whether [email] belongs to a registered account. Used by the
   /// forgot-password screen before attempting a reset email.
   static Future<bool> isEmailRegistered(String email) async {
-    final snap =
-        await _firestore.collection('registeredEmails').doc(_emailKey(email)).get();
+    final snap = await _firestore
+        .collection('registeredEmails')
+        .doc(_emailKey(email))
+        .get();
     return snap.exists;
   }
 
@@ -124,15 +128,17 @@ class AuthService {
       await _firestore.collection('users').doc(uid).delete();
     } catch (_) {}
     try {
-      await _firestore.collection('registeredEmails').doc(_emailKey(email)).delete();
+      await _firestore
+          .collection('registeredEmails')
+          .doc(_emailKey(email))
+          .delete();
     } catch (_) {}
   }
 
   static Future<void> setUserRole(String uid, String role) {
-    return _firestore.collection('users').doc(uid).set(
-      {'role': role},
-      SetOptions(merge: true),
-    );
+    return _firestore.collection('users').doc(uid).set({
+      'role': role,
+    }, SetOptions(merge: true));
   }
 
   /// Returns the `users/{uid}` document, or null if it doesn't exist
