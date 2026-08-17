@@ -1,0 +1,15 @@
+{
+  "name": "carelink-admin-tools",
+  "version": "1.0.0",
+  "description": "One-time Firebase Admin scripts for CareLink maintenance",
+  "scripts": {
+    "dry-run": "node cleanup_incomplete_accounts.js",
+    "delete": "node cleanup_incomplete_accounts.js --delete"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

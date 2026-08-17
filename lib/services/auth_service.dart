@@ -118,6 +118,50 @@ class AuthService {
     return snap.exists;
   }
 
+  /// Deletes an Auth account that never completed onboarding, along with
+  /// every Firestore document created for it. Used to clean up half-baked
+  /// caregiver accounts on login so they cannot access the app in a broken
+  /// state.  Each delete is best-effort — one failure does not block others.
+  static Future<void> deleteIncompleteAccount(String uid, String email) async {
+    // 1. Delete the Firebase Auth user (requires the session to still be live).
+    try {
+      await FirebaseAuth.instance.currentUser?.delete();
+    } catch (_) {}
+
+    // 2. Wipe Firestore documents.
+    for (final collectionPath in [
+      'users',
+      'caregiverProfiles',
+    ]) {
+      try {
+        await _firestore.collection(collectionPath).doc(uid).delete();
+      } catch (_) {}
+    }
+
+    // 3. Remove the email from the lookup index.
+    try {
+      await _firestore
+          .collection('registeredEmails')
+          .doc(_emailKey(email))
+          .delete();
+    } catch (_) {}
+  }
+
+  /// Returns true only when the caregiver has reached the success screen
+  /// and tapped "Go to dashboard" (i.e., `onboardingComplete == true` in
+  /// caregiverProfiles/{uid}).
+  static Future<bool> isCaregiverOnboardingComplete(String uid) async {
+    try {
+      final snap = await _firestore
+          .collection('caregiverProfiles')
+          .doc(uid)
+          .get();
+      return snap.data()?['onboardingComplete'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Best-effort cleanup of whatever saveUserProfile managed to write
   /// before failing partway through — used to roll back a half-created
   /// registration so the email isn't left stuck as "already registered"

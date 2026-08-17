@@ -4,6 +4,7 @@ import '../data/sri_lankan_cities.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
+
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 3 of 6
 //  Figma node: 426-362 · "Location & bio"
@@ -37,8 +38,10 @@ class _CaregiverOnboarding3ScreenState
   static const Color bioBg = Color.fromRGBO(30, 41, 59, 0.43);
   static const Color continueBg = Color(0xFF223A5C);
 
-  final _cityController = TextEditingController(text: 'Negombo, Western Province');
+  final _cityController = TextEditingController();
   final _bioController = NoUnderlineTextEditingController();
+  final FocusNode _cityFocus = FocusNode();
+  List<Map<String, String>> _filteredCities = [];
 
   static const List<String> _radiusOptions = [
     '5 km',
@@ -55,16 +58,184 @@ class _CaregiverOnboarding3ScreenState
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
-    _cityController.addListener(() => setState(() {
-      if (_cityError != null && _cityController.text.trim().isNotEmpty) {
-        _cityError = null;
+    _cityController.addListener(_onCityTextChanged);
+    _cityFocus.addListener(() {
+      setState(() {});
+      if (!_cityFocus.hasFocus) {
+        setState(() => _filteredCities = []);
       }
-    }));
+    });
+  }
+
+  // ── Autocomplete city search ──────────────────────────────
+  void _onCityTextChanged() {
+    final query = _cityController.text.trim();
+    if (_cityError != null && query.isNotEmpty) {
+      setState(() => _cityError = null);
+    }
+    if (query.isEmpty || !_cityFocus.hasFocus) {
+      if (_filteredCities.isNotEmpty) setState(() => _filteredCities = []);
+      return;
+    }
+    final matches = sriLankanCities
+        .where((item) =>
+            item['city']!.toLowerCase().contains(query.toLowerCase()) ||
+            item['district']!.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+    final limited = matches.take(5).toList();
+    final exactMatch = limited.any((item) =>
+        '${item['city']}, ${item['district']}'.toLowerCase() ==
+        query.toLowerCase());
+    setState(() => _filteredCities = exactMatch ? [] : limited);
+  }
+
+  // Full scrollable list opened by tapping the chevron.
+  void _showCityPicker() {
+    String query = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: bg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            final filtered = query.isEmpty
+                ? sriLankanCities
+                : sriLankanCities
+                    .where((c) =>
+                        c['city']!.toLowerCase().contains(query.toLowerCase()) ||
+                        c['district']!
+                            .toLowerCase()
+                            .contains(query.toLowerCase()))
+                    .toList();
+            return SafeArea(
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.72,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Select city / area',
+                              style: TextStyle(
+                                fontFamily: 'Open Sans',
+                                color: titleDark,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(sheetCtx),
+                            child: Icon(Icons.close_rounded,
+                                color: titleDark, size: 22),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: fieldBorder),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: TextField(
+                          autofocus: true,
+                          onChanged: (v) => setSheet(() => query = v),
+                          style: TextStyle(
+                            color: titleDark,
+                            fontSize: 15,
+                          ),
+                          decoration: const InputDecoration(
+                            filled: false,
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 17, vertical: 14),
+                            prefixIcon: Icon(Icons.search_rounded,
+                                color: locationIcon, size: 20),
+                            hintText: 'Search city or district…',
+                            hintStyle: TextStyle(
+                                color: Color.fromRGBO(0, 0, 0, 0.4),
+                                fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No matching cities found',
+                                style: TextStyle(
+                                    color: coverageLabel, fontSize: 14),
+                              ),
+                            )
+                          : ListView.separated(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, _) => Divider(
+                                height: 1,
+                                color: fieldBorder.withValues(alpha: 0.35),
+                              ),
+                              itemBuilder: (ctx, i) {
+                                final item = filtered[i];
+                                final display =
+                                    '${item['city']}, ${item['district']}';
+                                return ListTile(
+                                  leading: Icon(
+                                    Icons.location_on_outlined,
+                                    color: locationIcon,
+                                    size: 20,
+                                  ),
+                                  title: Text(
+                                    display,
+                                    style: TextStyle(
+                                      fontFamily: 'Open Sans',
+                                      color: titleDark,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    setState(() {
+                                      _cityController.text = display;
+                                      _cityController.selection =
+                                          TextSelection.fromPosition(
+                                        TextPosition(
+                                            offset: display.length),
+                                      );
+                                      _filteredCities = [];
+                                    });
+                                    Navigator.pop(sheetCtx);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
     _cityController.dispose();
+    _cityFocus.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -192,28 +363,35 @@ class _CaregiverOnboarding3ScreenState
                       _buildLabel('City / area'),
                       const SizedBox(height: 8),
 
+                      // ── Autocomplete city field ──────────────
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: _cityError != null ? Colors.redAccent : fieldBorder,
+                            color: _cityError != null
+                                ? Colors.redAccent
+                                : (_cityFocus.hasFocus
+                                    ? continueBg
+                                    : fieldBorder),
                             width: 1.5,
                           ),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           children: [
-                            const SizedBox(width: 17.5),
-                            const Icon(Icons.location_on_rounded, color: locationIcon, size: 20),
+                            const SizedBox(width: 14),
+                            const Icon(Icons.location_on_rounded,
+                                color: locationIcon, size: 20),
                             const SizedBox(width: 10),
                             Expanded(
                               child: TextField(
                                 controller: _cityController,
+                                focusNode: _cityFocus,
                                 style: const TextStyle(
                                   fontFamily: 'Open Sans',
                                   color: titleDark,
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w500,
                                 ),
                                 decoration: InputDecoration(
                                   isDense: true,
@@ -222,8 +400,9 @@ class _CaregiverOnboarding3ScreenState
                                   enabledBorder: InputBorder.none,
                                   focusedBorder: InputBorder.none,
                                   disabledBorder: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 15.5),
-                                  hintText: 'Negombo, Western Province',
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 15.5),
+                                  hintText: 'e.g. Negombo, Colombo…',
                                   hintStyle: TextStyle(
                                     fontFamily: 'Open Sans',
                                     color: fieldLabel.withValues(alpha: 0.55),
@@ -233,10 +412,102 @@ class _CaregiverOnboarding3ScreenState
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () {
+                                _cityFocus.unfocus();
+                                _showCityPicker();
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(6),
+                                child: Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: locationIcon,
+                                    size: 22),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
                           ],
                         ),
                       ),
+
+                      // Inline suggestions dropdown
+                      if (_filteredCities.isNotEmpty && _cityFocus.hasFocus)
+                        Container(
+                          margin: const EdgeInsets.only(top: 6),
+                          decoration: BoxDecoration(
+                            color: bg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: fieldBorder),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Column(
+                              children: List.generate(
+                                _filteredCities.length,
+                                (i) {
+                                  final item = _filteredCities[i];
+                                  final display =
+                                      '${item['city']}, ${item['district']}';
+                                  final isLast =
+                                      i == _filteredCities.length - 1;
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _cityController.text = display;
+                                        _cityController.selection =
+                                            TextSelection.fromPosition(
+                                          TextPosition(
+                                              offset: display.length),
+                                        );
+                                        _filteredCities = [];
+                                      });
+                                      _cityFocus.unfocus();
+                                    },
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        border: isLast
+                                            ? null
+                                            : Border(bottom: BorderSide(
+                                                color: fieldBorder
+                                                    .withValues(alpha: 0.4),
+                                                width: 1)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.location_on_rounded,
+                                              color: locationIcon, size: 16),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              display,
+                                              style: TextStyle(
+                                                fontFamily: 'Open Sans',
+                                                color: titleDark,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+
                       if (_cityError != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6, left: 4),

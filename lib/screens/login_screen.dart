@@ -79,6 +79,31 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
 
       if (role == 'caregiver') {
+        // Guard: if the caregiver never finished onboarding (abandoned mid-way),
+        // their account is incomplete. Clean it up and send them back to welcome.
+        final complete = await AuthService.isCaregiverOnboardingComplete(uid);
+        if (!complete) {
+          final email = _emailController.text.trim();
+          await AuthService.deleteIncompleteAccount(uid, email);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Your registration was not completed. '
+                'Please register again to create a full account.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/welcome',
+            (route) => false,
+          );
+          return;
+        }
+        if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/caregiver-dashboard',

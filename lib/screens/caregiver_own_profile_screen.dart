@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
+import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/remote_or_local_image.dart';
@@ -42,7 +43,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   static const Color certBg = Color(0xFFF4D9BF);
   static const Color certBorder = Color(0xFF443423);
   static const Color certIconColor = Color(0xFF96730E);
-  static const Color certTextColor = Color(0xFF44331C);
+  static const Color certTextColor = Color(0xFF443423);
 
   static const Color settingsBg = Color(0xFFD1C7B1);
   static const Color settingsBorder = Color(0xFFA09376);
@@ -54,6 +55,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   bool _loading = true;
   Map<String, dynamic>? _profile;
+  Stream<List<Map<String, dynamic>>>? _bookingsStream;
 
   @override
   void initState() {
@@ -65,14 +67,43 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   Future<void> _loadProfile() async {
     final user = AuthService.currentUser;
     if (user == null) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
       return;
     }
-    final profile = await CaregiverService.getCaregiverProfile(user.uid);
+
+    _bookingsStream = BookingService.streamBookingsForCaregiver(user.uid);
+
+    final cgProfile = await CaregiverService.getCaregiverProfile(user.uid);
+    final userDoc = await AuthService.getUserProfile(user.uid);
+
     if (!mounted) return;
-    AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
+
+    final merged = <String, dynamic>{
+      if (userDoc != null) ...userDoc,
+      if (cgProfile != null) ...cgProfile,
+    };
+
+    final name = (merged['name'] as String?)?.trim() ??
+        (userDoc?['name'] as String?)?.trim() ??
+        user.displayName?.trim() ??
+        '';
+    merged['name'] = name;
+
+    final email = (merged['email'] as String?)?.trim() ??
+        (userDoc?['email'] as String?)?.trim() ??
+        user.email?.trim() ??
+        '';
+    merged['email'] = email;
+
+    final phone = (merged['phone'] as String?)?.trim() ??
+        (userDoc?['phone'] as String?)?.trim() ??
+        AppState.registeredPhone.value;
+    merged['phone'] = phone;
+
+    AppState.hydrateCaregiverPhoto(merged['photoUrl'] as String?);
+
     setState(() {
-      _profile = profile;
+      _profile = merged;
       _loading = false;
     });
   }
@@ -119,61 +150,70 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: chipPrimaryBg),
-                  )
-                : SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeader(context),
-                          const SizedBox(height: 16),
-                          _buildAvatarSection(),
-                          const SizedBox(height: 20),
-                          _buildStatsRow(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Earnings', actionLabel: 'View details', onAction: () {
-                            Navigator.pushNamed(context, '/caregiver-earnings');
-                          }),
-                          const SizedBox(height: 10),
-                          _buildEarningsCard(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Contact'),
-                          const SizedBox(height: 10),
-                          _buildContactCard(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Care type'),
-                          const SizedBox(height: 10),
-                          _buildCareTypeWrap(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Skills'),
-                          const SizedBox(height: 10),
-                          _buildSkillsWrap(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Education & languages'),
-                          const SizedBox(height: 10),
-                          _buildEducationCard(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Bio'),
-                          const SizedBox(height: 10),
-                          _buildBioCard(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Certifications'),
-                          const SizedBox(height: 10),
-                          _buildCertificationsSection(),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('Settings'),
-                          const SizedBox(height: 10),
-                          _buildSettingsCard(context),
-                          const SizedBox(height: 16),
-                          _buildLogoutButton(context),
-                        ],
-                      ),
+            child: SafeArea(
+              bottom: false,
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: chipPrimaryBg),
+                    )
+                  : StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _bookingsStream,
+                      builder: (context, snapshot) {
+                        final bookings = snapshot.data ?? const [];
+                        return SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildHeader(context),
+                                const SizedBox(height: 16),
+                                _buildAvatarSection(),
+                                const SizedBox(height: 20),
+                                _buildStatsRow(),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Earnings', actionLabel: 'View details', onAction: () {
+                                  Navigator.pushNamed(context, '/caregiver-earnings');
+                                }),
+                                const SizedBox(height: 10),
+                                _buildEarningsCard(bookings),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Contact'),
+                                const SizedBox(height: 10),
+                                _buildContactCard(),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Care type'),
+                                const SizedBox(height: 10),
+                                _buildCareTypeWrap(),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Skills'),
+                                const SizedBox(height: 10),
+                                _buildSkillsWrap(),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Education & languages'),
+                                const SizedBox(height: 10),
+                                _buildEducationCard(),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Bio'),
+                                const SizedBox(height: 10),
+                                _buildBioCard(),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Certifications'),
+                                const SizedBox(height: 10),
+                                _buildCertificationsSection(),
+                                const SizedBox(height: 20),
+                                _buildSectionTitle('Settings'),
+                                const SizedBox(height: 10),
+                                _buildSettingsCard(context),
+                                const SizedBox(height: 16),
+                                _buildLogoutButton(context),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
+            ),
           ),
           _buildBottomNav(context),
         ],
@@ -218,7 +258,10 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
             ),
             const SizedBox(width: 10),
             GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/caregiver-edit-profile'),
+              onTap: () async {
+                await Navigator.pushNamed(context, '/caregiver-edit-profile');
+                _loadProfile();
+              },
               child: const Icon(
                 Icons.edit_outlined,
                 color: editIconColor,
@@ -233,12 +276,15 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   // ── Avatar + name + email + badges ────────────────────────
   Widget _buildAvatarSection() {
-    final name = (_profile?['name'] as String?)?.trim() ?? 'Brian Kumara';
-    final email = (_profile?['email'] as String?)?.trim() ?? 'brian.kumara@email.com';
-    final gender = (_profile?['gender'] as String?)?.trim() ?? 'Male';
-    final initials = name.isEmpty
+    final name = (_profile?['name'] as String?)?.trim() ?? '';
+    final email = (_profile?['email'] as String?)?.trim() ?? '';
+    final gender = (_profile?['gender'] as String?)?.trim() ?? 'Caregiver';
+    final displayName = name.isNotEmpty ? name : 'Caregiver';
+    final displayEmail = email.isNotEmpty ? email : 'No email provided';
+
+    final initials = displayName.isEmpty
         ? '?'
-        : name
+        : displayName
             .trim()
             .split(RegExp(r'\s+'))
             .map((w) => w.isNotEmpty ? w[0] : '')
@@ -308,7 +354,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                name.isEmpty ? 'Unnamed caregiver' : name,
+                displayName,
                 style: const TextStyle(
                   fontFamily: 'Open Sans',
                   color: Colors.black,
@@ -318,7 +364,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                email.isEmpty ? 'No email on file' : email,
+                displayEmail,
                 style: const TextStyle(
                   fontFamily: 'Open Sans',
                   color: Color(0xFF94A3B8),
@@ -390,7 +436,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
           Expanded(
             child: _statCard(
               'Experience',
-              years != null ? '$years years' : '5 years',
+              years != null ? '$years years' : '0 years',
               isExtraBold: true,
               fontSize: 18,
             ),
@@ -475,7 +521,33 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   }
 
   // ── Earnings card ────────────────────────────────────────
-  Widget _buildEarningsCard() {
+  Widget _buildEarningsCard(List<Map<String, dynamic>> bookings) {
+    final now = DateTime.now();
+    int monthCount = 0;
+    int totalCount = 0;
+    for (final b in bookings) {
+      if (b['status'] == 'cancelled') continue;
+      totalCount++;
+      final startStr = b['startDate'] as String?;
+      if (startStr != null) {
+        final start = _parseDate(startStr);
+        if (start != null && start.year == now.year && start.month == now.month) {
+          monthCount++;
+        }
+      }
+    }
+
+    final monthEarned = monthCount * 5000;
+    final totalEarned = totalCount * 5000;
+
+    String formatCurrency(int amount) {
+      if (amount == 0) return 'LKR 0';
+      final str = amount.toString();
+      final reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+      final formatted = str.replaceAllMapped(reg, (m) => '${m[1]},');
+      return 'LKR $formatted';
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -501,9 +573,9 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const Text(
-                'LKR 36,000',
-                style: TextStyle(
+              Text(
+                formatCurrency(monthEarned),
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   color: Colors.white,
                   fontSize: 20,
@@ -520,10 +592,10 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                 top: BorderSide(color: Color.fromRGBO(255, 255, 255, 0.12)),
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                const Text(
                   'Total earned',
                   style: TextStyle(
                     fontFamily: 'Inter',
@@ -533,8 +605,8 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                   ),
                 ),
                 Text(
-                  'LKR 412,500',
-                  style: TextStyle(
+                  formatCurrency(totalEarned),
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     color: Colors.white,
                     fontSize: 13,
@@ -549,11 +621,29 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
+  DateTime? _parseDate(String? dateStr) {
+    if (dateStr == null) return null;
+    const months = {
+      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+    };
+    final parts = dateStr.trim().split(RegExp(r'\s+'));
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = months[parts[1]];
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+    return DateTime(year, month, day);
+  }
+
   // ── Contact card ────────────────────────────────────────────
   Widget _buildContactCard() {
-    final phone = AppState.registeredPhone.value.isNotEmpty
-        ? AppState.registeredPhone.value
-        : (_profile?['phone'] as String?)?.trim() ?? '077 123 4567';
+    final rawPhone = (_profile?['phone'] as String?)?.trim();
+    final regPhone = AppState.registeredPhone.value.trim();
+    final phone = (rawPhone != null && rawPhone.isNotEmpty)
+        ? rawPhone
+        : (regPhone.isNotEmpty ? regPhone : 'Not provided');
+
     final refPhone = (_profile?['referencePhone'] as String?)?.trim();
     final city = (_profile?['city'] as String?)?.trim() ?? 'Negombo, Western Province';
     final radius = _profile?['serviceRadiusKm'] as int? ?? 10;
@@ -605,26 +695,42 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   // ── Care type pills ─────────────────────────────────────────
   Widget _buildCareTypeWrap() {
-    final careTypes = (_profile?['careTypes'] as List?)?.cast<String>() ?? const ['Part-time', 'Full-time'];
-    const allOptions = ['Part-time', 'Full-time'];
+    final careTypes = (_profile?['careTypes'] as List?)?.cast<String>() ?? const [];
+
+    if (careTypes.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),
+        decoration: BoxDecoration(
+          border: Border.all(color: chipPrimaryBg),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Text(
+          'None specified',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            color: chipPrimaryBg,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: allOptions.map((type) {
-        final isSelected = careTypes.contains(type);
+      children: careTypes.map((type) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),
           decoration: BoxDecoration(
-            color: isSelected ? chipPrimaryBg : Colors.transparent,
-            border: Border.all(color: chipPrimaryBg),
+            color: chipPrimaryBg,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Text(
             type,
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: 'Inter',
-              color: isSelected ? Colors.white : chipPrimaryBg,
+              color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -636,8 +742,26 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   // ── Skills pills ────────────────────────────────────────────
   Widget _buildSkillsWrap() {
-    final skills = (_profile?['skills'] as List?)?.cast<String>() ??
-        const ['Mobility assistance', 'Medication management', 'Dementia care'];
+    final skills = (_profile?['skills'] as List?)?.cast<String>() ?? const [];
+
+    if (skills.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),
+        decoration: BoxDecoration(
+          border: Border.all(color: chipPrimaryBg),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Text(
+          'No skills listed',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            color: chipPrimaryBg,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
 
     return Wrap(
       spacing: 8,
@@ -668,7 +792,8 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   Widget _buildEducationCard() {
     final qual = (_profile?['educationalQualification'] as String?)?.trim() ?? 'Diploma';
     final formal = _profile?['formalTraining'] == true ? 'Yes' : 'Not set';
-    final languages = (_profile?['languagesSpoken'] as List?)?.cast<String>() ?? const ['Sinhala', 'English'];
+    final languages = (_profile?['languagesSpoken'] as List?)?.cast<String>() ?? const [];
+    final langStr = languages.isNotEmpty ? languages.join(', ') : 'Not specified';
 
     return Container(
       width: double.infinity,
@@ -691,7 +816,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Speaks ${languages.join(', ')}',
+            'Speaks $langStr',
             style: const TextStyle(
               fontFamily: 'Open Sans',
               color: infoCardText,
@@ -709,7 +834,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     final bioText = (_profile?['bio'] as String?)?.trim();
     final text = bioText?.isNotEmpty == true
         ? bioText!
-        : 'Compassionate elder-care nurse with 5 years supporting families across the Western Province. I specialise in dementia and post-surgery recovery.';
+        : 'No bio provided yet. Tap the edit icon at the top to add your summary.';
 
     return Container(
       width: double.infinity,
@@ -720,11 +845,14 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Open Sans',
-          color: infoCardText,
+          color: bioText?.isNotEmpty == true
+              ? infoCardText
+              : infoCardText.withValues(alpha: 0.7),
           fontSize: 13,
           fontWeight: FontWeight.w500,
+          fontStyle: bioText?.isNotEmpty == true ? FontStyle.normal : FontStyle.italic,
           height: 1.4,
         ),
       ),
@@ -733,16 +861,48 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   // ── Certifications section ────────────────────────────────
   Widget _buildCertificationsSection() {
-    final defaultCerts = ['Caregiving Diploma.pdf', 'First Aid Certificate.pdf'];
-    final urls = (_profile?['certificateUrls'] as List?)?.cast<String>() ?? const [];
-    final certNames = urls.isNotEmpty
-        ? urls.map((u) => u.split('/').last.split('?').first).toList()
-        : defaultCerts;
+    final certUrls = (_profile?['certificateUrls'] as List?)?.cast<String>() ?? [];
+    final policeUrl = (_profile?['policeClearanceUrl'] as String?)?.trim() ?? '';
+    final otherUrls = (_profile?['otherDocumentUrls'] as List?)?.cast<String>() ?? [];
+
+    final docItems = <({String title, String type})>[];
+
+    if (policeUrl.isNotEmpty) {
+      docItems.add((title: 'Police Clearance Certificate', type: 'Verified Document'));
+    }
+    for (int i = 0; i < certUrls.length; i++) {
+      docItems.add((title: 'Qualification Certificate ${i + 1}', type: 'Professional Cert'));
+    }
+    for (int i = 0; i < otherUrls.length; i++) {
+      docItems.add((title: 'Supporting Document ${i + 1}', type: 'Document'));
+    }
+
+    if (docItems.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: certBg,
+          border: Border.all(color: certBorder, width: 1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'No certificates or documents uploaded yet.',
+          style: TextStyle(
+            fontFamily: 'Open Sans',
+            color: certTextColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
 
     return Column(
-      children: List.generate(certNames.length, (i) {
+      children: List.generate(docItems.length, (i) {
+        final item = docItems[i];
         return Padding(
-          padding: EdgeInsets.only(bottom: i == certNames.length - 1 ? 0 : 8),
+          padding: EdgeInsets.only(bottom: i == docItems.length - 1 ? 0 : 8),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 15.5, vertical: 13.5),
@@ -756,14 +916,29 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                 const Icon(Icons.verified_rounded, color: certIconColor, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    certNames[i],
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      color: certTextColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          color: certTextColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.type,
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: certTextColor.withValues(alpha: 0.7),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -849,7 +1024,12 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   // ── Log out button ─────────────────────────────────────────
   Widget _buildLogoutButton(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamedAndRemoveUntil(context, '/role-selection', (route) => false),
+      onTap: () async {
+        await AuthService.signOut();
+        if (context.mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+        }
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 15.5),

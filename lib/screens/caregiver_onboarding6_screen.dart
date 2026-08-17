@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../app_state.dart';
+import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -26,6 +29,7 @@ class _CaregiverOnboarding6ScreenState
   static const Color continueBg = Color(0xFF223A5C);
 
   bool _agreed = false;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -33,7 +37,7 @@ class _CaregiverOnboarding6ScreenState
     setStatusBarStyle(Brightness.dark);
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (!_agreed) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -42,7 +46,36 @@ class _CaregiverOnboarding6ScreenState
       );
       return;
     }
-    Navigator.pushNamed(context, '/caregiver-registration-success');
+
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+
+    try {
+      final uid = AuthService.currentUser?.uid;
+      if (uid != null) {
+        await CaregiverService.saveCaregiverProfile(
+          uid: uid,
+          data: {
+            ...AppState.caregiverOnboardingDraft.toMap(),
+            'onboardingComplete': true,
+          },
+        );
+      }
+      if (mounted) {
+        Navigator.pushNamed(context, '/caregiver-registration-success');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not save registration profile: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override

@@ -240,12 +240,31 @@ class _CaregiverRegistrationSuccessScreenState
                         borderRadius: BorderRadius.circular(15),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(15),
-                          onTap: () {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              '/caregiver-dashboard',
-                              (route) => false,
-                            );
+                          onTap: () async {
+                            // Mark onboarding as complete so login can
+                            // distinguish a fully-registered caregiver from
+                            // one who abandoned mid-onboarding.
+                            final uid = AuthService.currentUser?.uid;
+                            if (uid != null) {
+                              try {
+                                await CaregiverService.saveCaregiverProfile(
+                                  uid: uid,
+                                  data: {
+                                    ...AppState.caregiverOnboardingDraft.toMap(),
+                                    'onboardingComplete': true,
+                                  },
+                                );
+                              } catch (_) {
+                                // best-effort; dashboard still loads fine
+                              }
+                            }
+                            if (context.mounted) {
+                              Navigator.pushNamedAndRemoveUntil(
+                                context,
+                                '/caregiver-dashboard',
+                                (route) => false,
+                              );
+                            }
                           },
                           child: Container(
                             decoration: BoxDecoration(

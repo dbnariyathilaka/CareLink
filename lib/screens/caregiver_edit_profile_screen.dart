@@ -29,30 +29,39 @@ class _CaregiverEditProfileScreenState
   static const Color _fieldBg = Color(0xFFD8D3C5);
   static const Color _fieldBorder = Color(0xFF7B7261);
   static const Color _fieldText = Color(0xFF313131);
-  static const Color _stepperIcon = Color(0xFF44331C);
   static const Color _addPhoneIcon = Color(0xFF6F5620);
   static const Color _addPhoneText = Color(0xFF885F36);
   static const Color _chipSelectedBg = Color(0xFF223A5C);
-  static const Color _chipSelectedText = Color(0xFFFFFFFF);
-  static const Color _chipUnselectedText = Color(0xFF223A5C);
   static const Color _certBg = Color(0xFFF4D9BF);
   static const Color _certBorder = Color(0xFF443423);
-  static const Color _certIcon = Color(0xFF9C7919);
-  static const Color _certText = Color(0xFF44331C);
-  static const Color _certDelete = Color(0xFF7A5A2E);
+  static const Color _certText = Color(0xFF443423);
   static const Color _addCertIcon = Color(0xFFFBBC05);
   static const Color _saveBg = Color(0xFF1F3554);
 
   final _nameController = NoUnderlineTextEditingController();
   final _emailController = NoUnderlineTextEditingController();
   final List<TextEditingController> _phoneControllers = [];
+  final _nicController = NoUnderlineTextEditingController();
+  final _refPhoneController = NoUnderlineTextEditingController();
   final _cityController = NoUnderlineTextEditingController();
   final _bioController = NoUnderlineTextEditingController();
 
   bool _loading = true;
   bool _saving = false;
+
+  String _gender = 'Male';
   int _yearsExperience = 5;
   int _radiusKm = 10;
+  String _educationalQualification = 'Diploma';
+  bool _formalTraining = false;
+
+  static const List<String> _allCareTypes = [
+    'Part-time',
+    'Full-time',
+    'Live-in',
+    'Flexible',
+  ];
+  final Set<String> _selectedCareTypes = {'Part-time', 'Full-time'};
 
   static const List<String> _skills = [
     'Mobility assistance',
@@ -74,6 +83,17 @@ class _CaregiverEditProfileScreenState
   final List<String> _certificateUrls = [];
   bool _addingCertificate = false;
 
+  // Inline error strings
+  String? _nameError;
+  String? _emailError;
+  String? _phoneError;
+  String? _nicError;
+  String? _refPhoneError;
+  String? _cityError;
+  String? _careTypeError;
+  String? _skillsError;
+  String? _languagesError;
+
   @override
   void initState() {
     super.initState();
@@ -88,38 +108,60 @@ class _CaregiverEditProfileScreenState
       return;
     }
     final profile = await CaregiverService.getCaregiverProfile(user.uid);
+    final userDoc = await AuthService.getUserProfile(user.uid);
     if (!mounted) return;
 
-    AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
-    _nameController.text = (profile?['name'] as String?) ?? '';
-    _emailController.text = (profile?['email'] as String?) ?? user.email ?? '';
-    _cityController.text = (profile?['city'] as String?) ?? '';
-    _bioController.text = (profile?['bio'] as String?) ?? '';
+    final merged = <String, dynamic>{
+      if (userDoc != null) ...userDoc,
+      if (profile != null) ...profile,
+    };
 
-    // Load phones
-    final String rawPhone = (profile?['phone'] as String?) ?? AppState.registeredPhone.value;
+    AppState.hydrateCaregiverPhoto(merged['photoUrl'] as String?);
+    _nameController.text = (merged['name'] as String?)?.trim() ?? user.displayName ?? '';
+    _emailController.text = (merged['email'] as String?)?.trim() ?? user.email ?? '';
+    _nicController.text = (merged['nic'] as String?)?.trim() ?? '';
+    _cityController.text = (merged['city'] as String?)?.trim() ?? '';
+    _bioController.text = (merged['bio'] as String?)?.trim() ?? '';
+
+    // Phones
+    final String rawPhone = (merged['phone'] as String?) ?? AppState.registeredPhone.value;
     final String cleanPhone = rawPhone.replaceAll('+94', '').trim();
     _phoneControllers.clear();
     _phoneControllers.add(NoUnderlineTextEditingController(text: cleanPhone));
 
-    final certUrls = (profile?['certificateUrls'] as List?)?.cast<String>() ?? const [];
+    // Ref phone
+    final String rawRef = (merged['referencePhone'] as String?) ?? '';
+    _refPhoneController.text = rawRef.replaceAll('+94', '').trim();
+
+    final certUrls = (merged['certificateUrls'] as List?)?.cast<String>() ?? const [];
 
     setState(() {
-      _yearsExperience = profile?['yearsExperience'] as int? ?? 5;
-      _radiusKm = profile?['serviceRadiusKm'] as int? ?? 10;
+      _gender = (merged['gender'] as String?)?.trim() ?? 'Male';
+      _yearsExperience = merged['yearsExperience'] as int? ?? 5;
+      _radiusKm = merged['serviceRadiusKm'] as int? ?? 10;
+      _educationalQualification =
+          (merged['educationalQualification'] as String?)?.trim() ?? 'Diploma';
+      _formalTraining = merged['formalTraining'] == true;
+
+      _selectedCareTypes
+        ..clear()
+        ..addAll((merged['careTypes'] as List?)?.cast<String>() ?? const ['Part-time', 'Full-time']);
+
       _selectedSkills
         ..clear()
-        ..addAll((profile?['skills'] as List?)?.cast<String>() ?? const [
+        ..addAll((merged['skills'] as List?)?.cast<String>() ?? const [
           'Mobility assistance',
           'Medication management',
           'Dementia care',
         ]);
+
       _selectedLanguages
         ..clear()
-        ..addAll((profile?['languagesSpoken'] as List?)?.cast<String>() ?? const [
+        ..addAll((merged['languagesSpoken'] as List?)?.cast<String>() ?? const [
           'Sinhala',
           'English',
         ]);
+
       _certificateUrls
         ..clear()
         ..addAll(certUrls);
@@ -132,7 +174,102 @@ class _CaregiverEditProfileScreenState
     });
   }
 
+  // ── Validation logic ──────────────────────────────────────
+  String? _validateName(String val) {
+    final v = val.trim();
+    if (v.isEmpty) return 'Full name is required';
+    if (v.length < 2) return 'Name must be at least 2 characters';
+    return null;
+  }
+
+  String? _validateEmail(String val) {
+    final v = val.trim();
+    if (v.isEmpty) return 'Email address is required';
+    if (!v.contains('@') || !v.contains('.')) return 'Enter a valid email address';
+    return null;
+  }
+
+  String? _validatePhone(String val) {
+    final v = val.trim();
+    if (v.isEmpty) return 'Phone number is required';
+    if (!RegExp(r'^\d{9}$').hasMatch(v)) return 'Enter exactly 9 digits after +94';
+    return null;
+  }
+
+  String? _validateNic(String val) {
+    final v = val.trim().toUpperCase();
+    if (v.isEmpty) return 'NIC number is required';
+    final oldNic = RegExp(r'^\d{9}[VX]$');
+    final newNic = RegExp(r'^\d{12}$');
+    if (oldNic.hasMatch(v) || newNic.hasMatch(v)) return null;
+    return 'Enter 9 digits + V/X (e.g. 972345678V) or 12 digits';
+  }
+
+  String? _validateRefPhone(String val) {
+    final v = val.trim();
+    if (v.isEmpty) return null; // Optional
+    if (!RegExp(r'^\d{9}$').hasMatch(v)) return 'Reference phone must be exactly 9 digits';
+    final primary = _phoneControllers.isNotEmpty ? _phoneControllers[0].text.trim() : '';
+    if (primary.isNotEmpty && v == primary) {
+      return 'Reference phone must be different from primary phone';
+    }
+    return null;
+  }
+
+  String? _validateCity(String val) {
+    final v = val.trim();
+    if (v.isEmpty) return 'City / area is required';
+    if (v.length < 2) return 'City must be at least 2 characters';
+    return null;
+  }
+
+  bool _runValidation() {
+    final nameErr = _validateName(_nameController.text);
+    final emailErr = _validateEmail(_emailController.text);
+    final phoneErr = _phoneControllers.isNotEmpty
+        ? _validatePhone(_phoneControllers[0].text)
+        : 'Phone number is required';
+    final nicErr = _validateNic(_nicController.text);
+    final refPhoneErr = _validateRefPhone(_refPhoneController.text);
+    final cityErr = _validateCity(_cityController.text);
+    final careErr = _selectedCareTypes.isEmpty ? 'Select at least one care type' : null;
+    final skillsErr = _selectedSkills.isEmpty ? 'Select at least one skill' : null;
+    final langErr = _selectedLanguages.isEmpty ? 'Select at least one language' : null;
+
+    setState(() {
+      _nameError = nameErr;
+      _emailError = emailErr;
+      _phoneError = phoneErr;
+      _nicError = nicErr;
+      _refPhoneError = refPhoneErr;
+      _cityError = cityErr;
+      _careTypeError = careErr;
+      _skillsError = skillsErr;
+      _languagesError = langErr;
+    });
+
+    return nameErr == null &&
+        emailErr == null &&
+        phoneErr == null &&
+        nicErr == null &&
+        refPhoneErr == null &&
+        cityErr == null &&
+        careErr == null &&
+        skillsErr == null &&
+        langErr == null;
+  }
+
   Future<void> _saveProfile() async {
+    if (!_runValidation()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fix the errors in the form before saving.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     final user = AuthService.currentUser;
     if (user == null) return;
 
@@ -140,22 +277,33 @@ class _CaregiverEditProfileScreenState
     try {
       final firstPhoneDigits =
           _phoneControllers.isNotEmpty ? _phoneControllers[0].text.trim() : '';
-      final fullPhone =
-          firstPhoneDigits.isNotEmpty ? '+94$firstPhoneDigits' : '';
+      final fullPhone = firstPhoneDigits.isNotEmpty ? '+94$firstPhoneDigits' : '';
+
+      final refDigits = _refPhoneController.text.trim();
+      final fullRefPhone = refDigits.isNotEmpty ? '+94$refDigits' : '';
 
       final caregiverData = <String, dynamic>{
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
-        'city': _cityController.text.trim(),
-        'bio': _bioController.text.trim(),
+        'gender': _gender,
+        'nic': _nicController.text.trim().toUpperCase(),
         'yearsExperience': _yearsExperience,
+        'educationalQualification': _educationalQualification,
+        'formalTraining': _formalTraining,
+        'city': _cityController.text.trim(),
         'serviceRadiusKm': _radiusKm,
+        'careTypes': _selectedCareTypes.toList(),
         'skills': _selectedSkills.toList(),
         'languagesSpoken': _selectedLanguages.toList(),
+        'bio': _bioController.text.trim(),
         'certificateUrls': _certificateUrls,
       };
+
       if (fullPhone.isNotEmpty) {
         caregiverData['phone'] = fullPhone;
+      }
+      if (fullRefPhone.isNotEmpty) {
+        caregiverData['referencePhone'] = fullRefPhone;
       }
 
       await CaregiverService.saveCaregiverProfile(
@@ -163,7 +311,7 @@ class _CaregiverEditProfileScreenState
         data: caregiverData,
       );
 
-      // Best effort sync with users collection
+      // Sync with users collection
       try {
         await AuthService.saveUserProfile(
           uid: user.uid,
@@ -200,6 +348,8 @@ class _CaregiverEditProfileScreenState
     for (final c in _phoneControllers) {
       c.dispose();
     }
+    _nicController.dispose();
+    _refPhoneController.dispose();
     _cityController.dispose();
     _bioController.dispose();
     super.dispose();
@@ -330,17 +480,51 @@ class _CaregiverEditProfileScreenState
 
                           _buildLabel('Full name'),
                           const SizedBox(height: 8),
-                          _buildTextField(_nameController, showEditIcon: true),
+                          _buildTextField(
+                            _nameController,
+                            errorText: _nameError,
+                            showEditIcon: true,
+                            onChanged: (_) {
+                              if (_nameError != null) setState(() => _nameError = null);
+                            },
+                          ),
                           const SizedBox(height: 18),
 
                           _buildLabel('Email address'),
                           const SizedBox(height: 8),
-                          _buildTextField(_emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              showEditIcon: true),
+                          _buildTextField(
+                            _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            errorText: _emailError,
+                            showEditIcon: true,
+                            onChanged: (_) {
+                              if (_emailError != null) setState(() => _emailError = null);
+                            },
+                          ),
                           const SizedBox(height: 18),
 
-                          _buildLabel('Phone numbers'),
+                          _buildLabel('Gender'),
+                          const SizedBox(height: 8),
+                          _buildGenderSelector(),
+                          const SizedBox(height: 18),
+
+                          _buildLabel('NIC number'),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            _nicController,
+                            hintText: 'e.g. 972345678V or 200012345678',
+                            errorText: _nicError,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9VvXx]')),
+                              LengthLimitingTextInputFormatter(12),
+                            ],
+                            onChanged: (_) {
+                              if (_nicError != null) setState(() => _nicError = null);
+                            },
+                          ),
+                          const SizedBox(height: 18),
+
+                          _buildLabel('Primary phone number'),
                           const SizedBox(height: 8),
                           Column(
                             children: [
@@ -349,33 +533,31 @@ class _CaregiverEditProfileScreenState
                                 _buildPhoneField(
                                   _phoneControllers[i],
                                   canDelete: i > 0,
+                                  errorText: i == 0 ? _phoneError : null,
                                   onDelete: () => setState(
                                       () => _phoneControllers.removeAt(i)),
+                                  onChanged: (val) {
+                                    if (i == 0 && _phoneError != null) {
+                                      setState(() => _phoneError = null);
+                                    }
+                                  },
                                 ),
                               ],
                             ],
                           ),
-                          const SizedBox(height: 10),
-                          GestureDetector(
-                            onTap: () => setState(() => _phoneControllers
-                                .add(NoUnderlineTextEditingController())),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_circle_outline_rounded,
-                                    color: _addPhoneIcon, size: 18),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Add another phone number',
-                                  style: TextStyle(
-                                    fontFamily: 'Open Sans',
-                                    color: _addPhoneText,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          const SizedBox(height: 18),
+
+                          _buildLabel('Reference phone number'),
+                          const SizedBox(height: 8),
+                          _buildPhoneField(
+                            _refPhoneController,
+                            canDelete: false,
+                            errorText: _refPhoneError,
+                            onChanged: (_) {
+                              if (_refPhoneError != null) {
+                                setState(() => _refPhoneError = null);
+                              }
+                            },
                           ),
                           const SizedBox(height: 20),
 
@@ -394,9 +576,25 @@ class _CaregiverEditProfileScreenState
                           ),
                           const SizedBox(height: 20),
 
+                          _buildLabel('Educational qualification'),
+                          const SizedBox(height: 8),
+                          _buildEduDropdown(),
+                          const SizedBox(height: 20),
+
+                          _buildLabel('Formal caregiving training'),
+                          const SizedBox(height: 8),
+                          _buildFormalTrainingToggle(),
+                          const SizedBox(height: 20),
+
                           _buildLabel('City / area'),
                           const SizedBox(height: 8),
-                          _buildTextField(_cityController),
+                          _buildTextField(
+                            _cityController,
+                            errorText: _cityError,
+                            onChanged: (_) {
+                              if (_cityError != null) setState(() => _cityError = null);
+                            },
+                          ),
                           const SizedBox(height: 20),
 
                           _buildLabel('Service radius'),
@@ -410,54 +608,19 @@ class _CaregiverEditProfileScreenState
                           ),
                           const SizedBox(height: 20),
 
+                          _buildLabel('Care type'),
+                          const SizedBox(height: 10),
+                          _buildCareTypeWrap(),
+                          const SizedBox(height: 20),
+
                           _buildLabel('Skills'),
                           const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _skills.map((skill) {
-                              final isSelected =
-                                  _selectedSkills.contains(skill);
-                              return _buildCheckChip(
-                                label: skill,
-                                isSelected: isSelected,
-                                onTap: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedSkills.remove(skill);
-                                    } else {
-                                      _selectedSkills.add(skill);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ),
+                          _buildSkillsWrap(),
                           const SizedBox(height: 20),
 
                           _buildLabel('Languages spoken'),
                           const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _languages.map((lang) {
-                              final isSelected =
-                                  _selectedLanguages.contains(lang);
-                              return _buildCheckChip(
-                                label: lang,
-                                isSelected: isSelected,
-                                onTap: () {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedLanguages.remove(lang);
-                                    } else {
-                                      _selectedLanguages.add(lang);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ),
+                          _buildLanguagesWrap(),
                           const SizedBox(height: 20),
 
                           _buildLabel('Short bio'),
@@ -465,7 +628,7 @@ class _CaregiverEditProfileScreenState
                           _buildBioField(),
                           const SizedBox(height: 20),
 
-                          _buildLabel('Certificates'),
+                          _buildLabel('Certificates & documents'),
                           const SizedBox(height: 10),
                           Column(
                             children: [
@@ -604,8 +767,8 @@ class _CaregiverEditProfileScreenState
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 88,
-                height: 88,
+                width: 96,
+                height: 96,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: imagePath == null
@@ -619,16 +782,20 @@ class _CaregiverEditProfileScreenState
                 child: imagePath != null
                     ? ClipOval(
                         child: RemoteOrLocalImage(
-                            source: imagePath, width: 88, height: 88),
+                          source: imagePath,
+                          width: 96,
+                          height: 96,
+                        ),
                       )
                     : Center(
                         child: Text(
                           _initials(),
                           style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.w700),
+                            fontFamily: 'Inter',
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
               ),
@@ -636,15 +803,13 @@ class _CaregiverEditProfileScreenState
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  width: 28,
-                  height: 28,
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF383A81),
+                    color: Colors.white,
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFF5EEDE), width: 2),
+                    border: Border.all(color: _bg, width: 2),
                   ),
-                  child: const Icon(Icons.photo_camera_rounded,
-                      color: Colors.white, size: 14),
+                  child: const Icon(Icons.edit, color: _saveBg, size: 14),
                 ),
               ),
             ],
@@ -661,169 +826,429 @@ class _CaregiverEditProfileScreenState
         fontFamily: 'Open Sans',
         color: _fieldLabel,
         fontSize: 13,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
 
-  /// Locked +94 prefix phone field — user types only 9 digits
-  Widget _buildPhoneField(
-    TextEditingController controller, {
-    bool canDelete = false,
-    VoidCallback? onDelete,
-  }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: _fieldBg,
-        border: Border.all(color: _fieldBorder, width: 1.5),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(color: _fieldBorder.withValues(alpha: 0.4)),
-              ),
-            ),
-            child: const Text(
-              '+94',
-              style: TextStyle(
-                fontFamily: 'Open Sans',
-                color: _fieldText,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(9),
-              ],
-              style: const TextStyle(
-                fontFamily: 'Open Sans',
-                color: _fieldText,
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: const InputDecoration(
-                isDense: true,
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                hintText: '77 123 4567',
-                hintStyle: TextStyle(
-                  fontFamily: 'Open Sans',
-                  color: Colors.black38,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
+  Widget _buildGenderSelector() {
+    final options = ['Male', 'Female', 'Other'];
+    return Row(
+      children: options.map((g) {
+        final isSelected = _gender == g;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => setState(() => _gender = g),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? _chipSelectedBg : _fieldBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _fieldBorder),
+                ),
+                child: Text(
+                  g,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: isSelected ? Colors.white : _fieldText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
           ),
-          if (canDelete)
-            GestureDetector(
-              onTap: onDelete,
-              child: const Padding(
-                padding: EdgeInsets.only(right: 14),
-                child: Icon(Icons.delete_outline_rounded,
-                    color: _certDelete, size: 20),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildEduDropdown() {
+    final options = ["High school", "Diploma", "Bachelor's degree", "Master's degree"];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: _fieldBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _fieldBorder, width: 1),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: options.contains(_educationalQualification)
+              ? _educationalQualification
+              : 'Diploma',
+          isExpanded: true,
+          dropdownColor: _fieldBg,
+          style: const TextStyle(
+            fontFamily: 'Open Sans',
+            color: _fieldText,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          items: options.map((opt) {
+            return DropdownMenuItem<String>(
+              value: opt,
+              child: Text(opt),
+            );
+          }).toList(),
+          onChanged: (val) {
+            if (val != null) setState(() => _educationalQualification = val);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormalTrainingToggle() {
+    return Row(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _formalTraining = true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: _formalTraining ? _chipSelectedBg : _fieldBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _fieldBorder),
+              ),
+              child: Text(
+                'Yes (Trained)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: _formalTraining ? Colors.white : _fieldText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-        ],
-      ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _formalTraining = false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: !_formalTraining ? _chipSelectedBg : _fieldBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _fieldBorder),
+              ),
+              child: Text(
+                'No formal training',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: !_formalTraining ? Colors.white : _fieldText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCareTypeWrap() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _allCareTypes.map((type) {
+            final isSelected = _selectedCareTypes.contains(type);
+            return _buildCheckChip(
+              label: type,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedCareTypes.remove(type);
+                  } else {
+                    _selectedCareTypes.add(type);
+                  }
+                  if (_careTypeError != null) _careTypeError = null;
+                });
+              },
+            );
+          }).toList(),
+        ),
+        if (_careTypeError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              _careTypeError!,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSkillsWrap() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _skills.map((skill) {
+            final isSelected = _selectedSkills.contains(skill);
+            return _buildCheckChip(
+              label: skill,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedSkills.remove(skill);
+                  } else {
+                    _selectedSkills.add(skill);
+                  }
+                  if (_skillsError != null) _skillsError = null;
+                });
+              },
+            );
+          }).toList(),
+        ),
+        if (_skillsError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              _skillsError!,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLanguagesWrap() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _languages.map((lang) {
+            final isSelected = _selectedLanguages.contains(lang);
+            return _buildCheckChip(
+              label: lang,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    _selectedLanguages.remove(lang);
+                  } else {
+                    _selectedLanguages.add(lang);
+                  }
+                  if (_languagesError != null) _languagesError = null;
+                });
+              },
+            );
+          }).toList(),
+        ),
+        if (_languagesError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              _languagesError!,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildTextField(
     TextEditingController controller, {
+    String? hintText,
     TextInputType keyboardType = TextInputType.text,
     bool showEditIcon = false,
+    String? errorText,
+    List<TextInputFormatter>? inputFormatters,
+    ValueChanged<String>? onChanged,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: _fieldBg,
-        border: Border.all(color: _fieldBorder, width: 1.5),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: keyboardType,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: _fieldBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: errorText != null ? Colors.redAccent : _fieldBorder,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  inputFormatters: inputFormatters,
+                  onChanged: onChanged,
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: _fieldText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 15.5),
+                    hintText: hintText,
+                    hintStyle: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: _fieldText.withValues(alpha: 0.4),
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              if (showEditIcon)
+                const Padding(
+                  padding: EdgeInsets.only(right: 14),
+                  child: Icon(Icons.edit_outlined, color: _saveBg, size: 18),
+                ),
+            ],
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              errorText,
               style: const TextStyle(
                 fontFamily: 'Open Sans',
-                color: _fieldText,
-                fontSize: 15,
+                color: Colors.redAccent,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
-              ),
-              decoration: const InputDecoration(
-                isDense: true,
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
               ),
             ),
           ),
-          if (showEditIcon) ...[
-            const SizedBox(width: 8),
-            const Icon(Icons.edit_rounded, color: Color(0xFF1A3253), size: 18),
-          ],
-        ],
-      ),
+      ],
     );
   }
 
-  Widget _buildBioField() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: _fieldBg,
-        border: Border.all(color: _fieldBorder, width: 1.5),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextField(
-        controller: _bioController,
-        maxLines: 4,
-        minLines: 3,
-        style: const TextStyle(
-          fontFamily: 'Open Sans',
-          color: _fieldText,
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          height: 1.4,
-        ),
-        decoration: const InputDecoration(
-          isDense: true,
-          filled: false,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-          hintText: 'Tell patients a little about yourself...',
-          hintStyle: TextStyle(
-            fontFamily: 'Open Sans',
-            color: Colors.black38,
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
+  Widget _buildPhoneField(
+    TextEditingController controller, {
+    required bool canDelete,
+    String? errorText,
+    VoidCallback? onDelete,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: _fieldBg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: errorText != null ? Colors.redAccent : _fieldBorder,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15.5),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    right: BorderSide(color: _fieldBorder, width: 1),
+                  ),
+                ),
+                child: const Text(
+                  '+94',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: _fieldText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(9),
+                  ],
+                  onChanged: onChanged,
+                  style: const TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: _fieldText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 14, vertical: 15.5),
+                    hintText: '71 185 6936',
+                  ),
+                ),
+              ),
+              if (canDelete)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.redAccent, size: 20),
+                  onPressed: onDelete,
+                ),
+            ],
           ),
         ),
-      ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -833,12 +1258,11 @@ class _CaregiverEditProfileScreenState
     required VoidCallback onIncrement,
   }) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: _fieldBg,
-        border: Border.all(color: _fieldBorder, width: 1.5),
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _fieldBorder),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -848,22 +1272,22 @@ class _CaregiverEditProfileScreenState
             style: const TextStyle(
               fontFamily: 'Open Sans',
               color: _fieldText,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
           Row(
             children: [
               GestureDetector(
                 onTap: onDecrement,
-                child: const Icon(Icons.remove_rounded,
-                    color: _stepperIcon, size: 22),
+                child: const Icon(Icons.remove_circle_outline_rounded,
+                    color: _saveBg, size: 22),
               ),
               const SizedBox(width: 14),
               GestureDetector(
                 onTap: onIncrement,
-                child: const Icon(Icons.add_rounded,
-                    color: _stepperIcon, size: 22),
+                child: const Icon(Icons.add_circle_outline_rounded,
+                    color: _saveBg, size: 22),
               ),
             ],
           ),
@@ -879,70 +1303,86 @@ class _CaregiverEditProfileScreenState
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? _chipSelectedBg : Colors.transparent,
+          color: isSelected ? _chipSelectedBg : _fieldBg,
           borderRadius: BorderRadius.circular(999),
-          border: isSelected
-              ? null
-              : Border.all(color: _chipUnselectedText, width: 1.5),
+          border: Border.all(color: _fieldBorder),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected) ...[
-              const Icon(Icons.check_rounded,
-                  color: _chipSelectedText, size: 15),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Open Sans',
-                color: isSelected ? _chipSelectedText : _chipUnselectedText,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Open Sans',
+            color: isSelected ? Colors.white : _fieldText,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildCertRow(String filename, VoidCallback onRemove) {
+  Widget _buildBioField() {
     return Container(
-      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _fieldBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _fieldBorder),
+      ),
+      child: TextField(
+        controller: _bioController,
+        maxLines: 4,
+        style: const TextStyle(
+          fontFamily: 'Open Sans',
+          color: _fieldText,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: const InputDecoration(
+          isDense: true,
+          filled: false,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: EdgeInsets.all(14),
+          hintText: 'Write a brief description of your experience and care approach...',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCertRow(String name, VoidCallback onDelete) {
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: _certBg,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _certBorder),
       ),
       child: Row(
         children: [
-          const Icon(Icons.description_rounded, color: _certIcon, size: 18),
+          const Icon(Icons.description_outlined, color: _saveBg, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              filename,
-              overflow: TextOverflow.ellipsis,
+              name,
               style: const TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: 'Open Sans',
                 color: _certText,
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           GestureDetector(
-            onTap: onRemove,
-            child: const Icon(Icons.cancel_rounded,
-                color: _certDelete, size: 18),
+            onTap: onDelete,
+            child: const Icon(Icons.delete_outline_rounded,
+                color: Colors.redAccent, size: 20),
           ),
         ],
       ),
     );
   }
 }
+

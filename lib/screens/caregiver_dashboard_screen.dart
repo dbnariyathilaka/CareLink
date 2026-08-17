@@ -89,9 +89,23 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   Future<void> _loadProfile(String uid) async {
     final profile = await CaregiverService.getCaregiverProfile(uid);
     AppState.hydrateCaregiverPhoto(profile?['photoUrl'] as String?);
-    final name = profile?['name'] as String?;
+
+    // 1. Try name from caregiverProfiles (populated after edit-profile)
+    String? name = (profile?['name'] as String?)?.trim();
+
+    // 2. Fall back to the users/{uid} document (always written at registration)
+    if (name == null || name.isEmpty) {
+      final userDoc = await AuthService.getUserProfile(uid);
+      name = (userDoc?['name'] as String?)?.trim();
+    }
+
+    // 3. Last resort: Firebase Auth displayName
+    if (name == null || name.isEmpty) {
+      name = AuthService.currentUser?.displayName?.trim();
+    }
+
     if (mounted && name != null && name.isNotEmpty) {
-      setState(() => _caregiverName = name);
+      setState(() => _caregiverName = name!);
     }
   }
 

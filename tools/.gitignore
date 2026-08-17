@@ -1,0 +1,5 @@
+# NEVER commit the service account private key
+serviceAccountKey.json
+
+# Node modules
+node_modules/
