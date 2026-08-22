@@ -3,7 +3,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/matching_service.dart';
 import '../services/patient_service.dart';
+import '../services/profile_gate.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
@@ -22,6 +24,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   String _userName = 'there';
   int? _caregiverCount;
 
+  bool _loadingTopMatches = true;
+  List<MatchResult> _topMatches = const [];
+
   late final AnimationController _matchIconController;
   late final Animation<double> _matchIconRotation;
 
@@ -32,6 +37,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     _loadUserName();
     _loadOwnPhoto();
     _loadCaregiverCount();
+    _loadTopMatches();
     // 2s stopped, then a full turn that gradually accelerates (3s) and
     // gradually decelerates (3s) — an 8s cycle that then repeats.
     _matchIconController = AnimationController(
@@ -94,6 +100,39 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     }
   }
 
+  // The onboarding-preview occasion: scores every caregiver in the pool
+  // against only what onboarding collected — care type/skill, preferred
+  // gender, city, work nature (careLevel) — with no eligibility gate, since
+  // this is a passive "how would you rank" view rather than a committed
+  // request. Skipped entirely for an account with no patientProfiles doc
+  // yet — there's nothing to score against.
+  Future<void> _loadTopMatches() async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) {
+      if (mounted) setState(() => _loadingTopMatches = false);
+      return;
+    }
+    final profile = await PatientService.getPatientProfile(uid);
+    if (profile == null) {
+      if (mounted) setState(() => _loadingTopMatches = false);
+      return;
+    }
+
+    final matchContext = MatchContext(patientProfile: profile);
+    final caregivers = await CaregiverService.searchCaregivers();
+    final ranked = MatchingService.rankCaregivers(
+      caregivers: caregivers,
+      context: matchContext,
+      profile: MatchProfile.onboardingPreview,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _topMatches = ranked.take(3).toList();
+      _loadingTopMatches = false;
+    });
+  }
+
   static const Color bgCream = Color(0xFFF5EEDE);
   static const Color darkGreen = Color(0xFF06402B);
   static const Color emergencyRed = Color(0xFF9E0606);
@@ -117,6 +156,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                   _buildEmergencyBanner(),
                   const SizedBox(height: 14),
                   _buildStatsRow(),
+                  const SizedBox(height: 20),
+                  _buildTopMatchesSection(),
                   const SizedBox(height: 20),
                   _buildSectionHeader(),
                   const SizedBox(height: 14),
@@ -289,9 +330,154 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     );
   }
 
-  Widget _buildStatsRow() {
+  // Shared by the Match FAB and the "See all" link on the top-matches
+  // section: resume an active match if one exists, otherwise gate on
+  // profile completeness and start a fresh advanced-match request.
+  Future<void> _startOrViewMatch() async {
+    if (AppState.hasActiveMatch.value) {
+      Navigator.pushNamed(context, '/advanced-match-results');
+      return;
+    }
+    if (!await ensurePatientProfileComplete(context)) return;
+    if (!mounted) return;
+    Navigator.pushNamed(context, '/advanced-match-send-request');
+  }
+
+  String _initialsOf(String? name) {
+    final parts = (name ?? '').trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  Widget _buildTopMatchesSection() {
+    if (_loadingTopMatches) return const SizedBox.shrink();
+    if (_topMatches.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Top matches for you',
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: darkGreen,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            GestureDetector(
+              onTap: _startOrViewMatch,
+              child: const Text(
+                'See all',
+                style: TextStyle(
+                  fontFamily: 'Quattrocento Sans',
+                  color: darkGreen,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ..._topMatches.map(_buildTopMatchRow),
+      ],
+    );
+  }
+
+  Widget _buildTopMatchRow(MatchResult m) {
+    final uid = m.caregiver['uid'] as String?;
+    final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
+    final years = m.caregiver['yearsExperience'];
+    final subtitle = years != null ? '$years yrs experience' : 'Caregiver';
+
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/search'),
+      onTap: () => Navigator.pushNamed(
+        context,
+        '/caregiver-profile',
+        arguments: {'caregiverId': uid},
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: statCardBg,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: darkGreen),
+              alignment: Alignment.center,
+              child: Text(
+                _initialsOf(name),
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: darkGreen,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: Color(0xFF5C5A5A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: darkGreen,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '${m.matchPercent.round()}%',
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsRow() {
+    final bestMatch = _topMatches.isNotEmpty ? _topMatches.first : null;
+    return GestureDetector(
+      onTap: _startOrViewMatch,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -314,7 +500,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Caregivers available',
+                  'Your best match',
                   style: TextStyle(
                     fontFamily: 'Quattrocento Sans',
                     color: darkGreen,
@@ -324,7 +510,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _caregiverCount == null ? '—' : '$_caregiverCount',
+                  _loadingTopMatches || bestMatch == null
+                      ? '—'
+                      : '${bestMatch.matchPercent.round()}%',
                   style: const TextStyle(
                     fontFamily: 'Quattrocento Sans',
                     color: darkGreen,
@@ -334,7 +522,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                 ),
               ],
             ),
-            const Icon(Icons.search_rounded, color: darkGreen, size: 30),
+            const Icon(Icons.workspace_premium_rounded, color: darkGreen, size: 30),
           ],
         ),
       ),
@@ -501,13 +689,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
 
   Widget _buildMatchFab() {
     return GestureDetector(
-      onTap: () {
-        if (AppState.hasActiveMatch.value) {
-          Navigator.pushNamed(context, '/advanced-match-results');
-        } else {
-          Navigator.pushNamed(context, '/advanced-match-send-request');
-        }
-      },
+      onTap: _startOrViewMatch,
       child: Container(
         width: 65,
         height: 65,

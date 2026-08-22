@@ -39,29 +39,10 @@ class _StartingScreenState extends State<StartingScreen> {
     if (!mounted) return;
 
     if (role == 'caregiver') {
-      final complete = await AuthService.isCaregiverOnboardingComplete(user.uid);
-      if (!complete) {
-        // Incomplete caregiver account — wipe it and send to welcome.
-        final email = (profile?['email'] as String?) ?? user.email ?? '';
-        await AuthService.deleteIncompleteAccount(user.uid, email);
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/welcome');
-        // Show snackbar after the new screen is rendered.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Your previous registration was incomplete. '
-                'Please sign up again to create a full account.',
-              ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 5),
-            ),
-          );
-        });
-        return;
-      }
-      if (!mounted) return;
+      // An incomplete caregiver account is no longer deleted on relaunch —
+      // it goes straight to the dashboard, same as a complete one.
+      // Completeness is enforced only at the accept-job action (see
+      // ensureCaregiverProfileComplete in profile_gate.dart), not here.
       Navigator.pushReplacementNamed(context, '/caregiver-dashboard');
     } else if (role == 'patient') {
       Navigator.pushReplacementNamed(context, '/patient-dashboard');

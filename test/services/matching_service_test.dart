@@ -10,7 +10,7 @@ Map<String, dynamic> _professionalCaregiver({
   String gender = 'Female',
   List<String> languagesSpoken = const ['Sinhala', 'English'],
   int yearsExperience = 6,
-  String referencePhone = '+94771234567',
+  String educationalQualification = 'Degree or higher',
   bool formalTraining = true,
   List<String> certificateUrls = const ['https://example.com/cert.pdf'],
 }) {
@@ -24,7 +24,7 @@ Map<String, dynamic> _professionalCaregiver({
     'gender': gender,
     'languagesSpoken': languagesSpoken,
     'yearsExperience': yearsExperience,
-    'referencePhone': referencePhone,
+    'educationalQualification': educationalQualification,
     'formalTraining': formalTraining,
     'certificateUrls': certificateUrls,
   };
@@ -48,7 +48,7 @@ Map<String, dynamic> _informalCaregiverMissingEverything({
     'gender': gender,
     'languagesSpoken': languagesSpoken,
     'yearsExperience': null,
-    'referencePhone': '',
+    'educationalQualification': 'Secondary',
     'formalTraining': false,
     'certificateUrls': const <String>[],
   };
@@ -79,7 +79,7 @@ void main() {
     }
   });
 
-  group('Stage 1 — eligibility', () {
+  group('Stage 1 — eligibility (advanced-match flow only)', () {
     test('excludes a caregiver missing the required language', () {
       final caregiver = _professionalCaregiver(languagesSpoken: ['Tamil']);
       final ctx = MatchContext(requestArgs: {
@@ -145,52 +145,90 @@ void main() {
   });
 
   group('Stage 3 — structural absence (hybrid rule)', () {
-    test('a professional caregiver is never flagged, even with missing data', () {
-      final caregiver = _professionalCaregiver()
-        ..['referencePhone'] = ''
-        ..['yearsExperience'] = null;
-      final absent = MatchingService.structurallyAbsentCriteria(caregiver, reviewCount: 0);
+    test('a professional caregiver is never flagged, even with missing experience', () {
+      final caregiver = _professionalCaregiver()..['yearsExperience'] = null;
+      final absent = MatchingService.structurallyAbsentCriteria(caregiver);
       expect(absent, isEmpty);
     });
 
-    test('an informal caregiver with data present is not flagged for that criterion', () {
-      final caregiver = _informalCaregiverMissingEverything()
-        ..['referencePhone'] = '+94770000000'
-        ..['yearsExperience'] = 3;
-      final absent = MatchingService.structurallyAbsentCriteria(caregiver, reviewCount: 2);
-      expect(absent, isNot(contains(MatchCriterion.references)));
+    test('an informal caregiver with experience on file is not flagged for it', () {
+      final caregiver = _informalCaregiverMissingEverything()..['yearsExperience'] = 3;
+      final absent = MatchingService.structurallyAbsentCriteria(caregiver);
       expect(absent, isNot(contains(MatchCriterion.experience)));
-      expect(absent, isNot(contains(MatchCriterion.feedback)));
       // Certification is definitionally tied to isProfessional() — see the
       // doc comment on MatchingService.isProfessional — so it's still
       // flagged for an informal caregiver even when other fields are filled.
       expect(absent, contains(MatchCriterion.certification));
     });
 
-    test('an informal caregiver missing everything is flagged for all four', () {
+    test('an informal caregiver with no experience on file is flagged for both', () {
       final caregiver = _informalCaregiverMissingEverything();
-      final absent = MatchingService.structurallyAbsentCriteria(caregiver, reviewCount: 0);
+      final absent = MatchingService.structurallyAbsentCriteria(caregiver);
       expect(
         absent,
-        containsAll(<MatchCriterion>[
-          MatchCriterion.experience,
-          MatchCriterion.references,
-          MatchCriterion.feedback,
-          MatchCriterion.certification,
-        ]),
+        containsAll(<MatchCriterion>[MatchCriterion.experience, MatchCriterion.certification]),
       );
     });
   });
 
-  group('Stage 4 — S1 weight redistribution', () {
+  group('MatchProfile.onboardingPreview (dashboard)', () {
+    test('scores only the 4 onboarding-sourced criteria, equally weighted', () {
+      final caregiver = _professionalCaregiver(city: 'Negombo', careTypes: const ['Full-time']);
+      final ctx = MatchContext(
+        patientProfile: {
+          'city': 'Negombo',
+          'careType': 'Elder care',
+          'careLevel': 'Full-time',
+          'preferredCaregiverGender': 'Female',
+        },
+      );
+      final result = MatchingService.score(
+        caregiver: caregiver,
+        context: ctx,
+        profile: MatchProfile.onboardingPreview,
+      );
+
+      expect(result.breakdown.length, 4);
+      expect(
+        result.breakdown.map((r) => r.criterion).toSet(),
+        {
+          MatchCriterion.skillMatch,
+          MatchCriterion.genderMatch,
+          MatchCriterion.proximity,
+          MatchCriterion.availability,
+        },
+      );
+      // Every criterion should be a perfect match by construction (same
+      // city, matching gender, Full-time caregiver covering a Full-time
+      // request, skills covering 'Elder care' in full).
+      expect(result.matchPercent, closeTo(100, 0.01));
+    });
+
+    test('has no eligibility gate — a wrong-gender caregiver still gets scored, just lower', () {
+      final caregiver = _professionalCaregiver(gender: 'Male');
+      final ctx = MatchContext(
+        patientProfile: {'city': 'Negombo', 'preferredCaregiverGender': 'Female'},
+      );
+      final result = MatchingService.score(
+        caregiver: caregiver,
+        context: ctx,
+        profile: MatchProfile.onboardingPreview,
+      );
+      final genderRow =
+          result.breakdown.firstWhere((r) => r.criterion == MatchCriterion.genderMatch);
+      expect(genderRow.rawValue, 0.0);
+      expect(result.matchPercent, lessThan(100));
+    });
+  });
+
+  group('MatchProfile.advanced — S1 weight redistribution', () {
     test('weights sum to 1.0 when nothing is absent', () {
       final caregiver = _professionalCaregiver();
       final ctx = MatchContext(requestArgs: {'location': 'Negombo', 'careType': 'Elder care'});
       final result = MatchingService.score(
         caregiver: caregiver,
         context: ctx,
-        avgRating: 4.5,
-        reviewCount: 10,
+        profile: MatchProfile.advanced,
       );
       final presentWeights = result.breakdown
           .where((row) => !row.structurallyAbsent)
@@ -198,20 +236,20 @@ void main() {
           .fold(0.0, (a, b) => a + b);
       expect(presentWeights, closeTo(1.0, 1e-9));
       expect(result.breakdown.every((row) => !row.structurallyAbsent), isTrue);
+      expect(result.breakdown.length, MatchProfile.advanced.criteria.length);
     });
 
     test('remaining weights rescale to 1.0 as absent criteria increase', () {
       final ctx = MatchContext(requestArgs: {'location': 'Negombo', 'careType': 'Elder care'});
 
       for (final caregiver in [
-        _informalCaregiverMissingEverything()..['referencePhone'] = '+94770000000',
+        _informalCaregiverMissingEverything()..['yearsExperience'] = 3,
         _informalCaregiverMissingEverything(),
       ]) {
         final result = MatchingService.score(
           caregiver: caregiver,
           context: ctx,
-          avgRating: 0,
-          reviewCount: 0,
+          profile: MatchProfile.advanced,
         );
         final presentWeights = result.breakdown
             .where((row) => !row.structurallyAbsent)
@@ -228,8 +266,7 @@ void main() {
       final result = MatchingService.score(
         caregiver: caregiver,
         context: ctx,
-        avgRating: 0,
-        reviewCount: 0,
+        profile: MatchProfile.advanced,
       );
       final certRow =
           result.breakdown.firstWhere((row) => row.criterion == MatchCriterion.certification);
@@ -239,47 +276,47 @@ void main() {
     });
 
     test('matchPercent matches a hand-computed value for a fully-scored caregiver', () {
-      // All patient-conditional criteria forced to 1.0 by construction:
-      // same district (proximity=1.0), Full-time caregiver covering a
-      // Full-time request (availability=1.0), skills covering 'Elder care'
-      // in full (skillMatch=1.0). Credential criteria: experience capped at
-      // 10 years -> 6/10 = 0.6; references present -> 1.0; certified -> 1.0;
-      // feedback 4.0/5.0 = 0.8.
+      // All 8 advanced-profile criteria forced to 1.0 by construction:
+      // same district (proximity), Full-time caregiver covering a
+      // Full-time request (availability), skills covering 'Elder care' in
+      // full (skillMatch), matching gender (genderMatch), matching
+      // language (languageMatch), 'Degree or higher' education (1.0),
+      // certified (certification=1.0) — except experience, capped at 10
+      // years -> 6/10 = 0.6.
       final caregiver = _professionalCaregiver(
         city: 'Negombo',
         careTypes: const ['Full-time'],
         yearsExperience: 6,
+        languagesSpoken: const ['Sinhala'],
       );
       final ctx = MatchContext(
+        patientProfile: {'preferredCaregiverGender': 'Female'},
         requestArgs: {
           'location': 'Negombo',
           'careType': 'Elder care',
           'schedule': 'Full-time',
+          'languages': ['Sinhala'],
         },
       );
       final result = MatchingService.score(
         caregiver: caregiver,
         context: ctx,
-        avgRating: 4.0,
-        reviewCount: 5,
+        profile: MatchProfile.advanced,
       );
 
-      const expected = 0.1667 * 1.0 + // skillMatch
-          0.1667 * 1.0 + // availability
-          0.1667 * 1.0 + // proximity
-          0.1685 * 0.8 + // feedback
-          0.1629 * 1.0 + // references
-          0.1461 * 0.6 + // experience
-          0.0225 * 1.0; // certification
+      const n = 8; // MatchProfile.advanced.criteria.length
+      const expected = (1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0 + 0.6 + 1.0) / n;
+      // skillMatch + genderMatch + proximity + availability + education
+      // + certification + experience(0.6) + languageMatch, in some order.
       expect(result.matchPercent, closeTo(expected * 100, 0.01));
     });
   });
 
   group('rankCaregivers', () {
-    test('excludes ineligible caregivers and sorts the rest descending', () {
-      final eligibleStrong = _professionalCaregiver(city: 'Negombo');
-      final eligibleWeak = _informalCaregiverMissingEverything(city: 'Negombo');
-      final ineligible = _professionalCaregiver(gender: 'Male')..['uid'] = 'wrong-gender';
+    test('sorts descending and applies no eligibility gate of its own', () {
+      final strong = _professionalCaregiver(city: 'Negombo');
+      final weak = _informalCaregiverMissingEverything(city: 'Negombo')
+        ..['gender'] = 'Male';
 
       final ctx = MatchContext(
         patientProfile: {'preferredCaregiverGender': 'Female', 'city': 'Negombo'},
@@ -287,18 +324,37 @@ void main() {
       );
 
       final ranked = MatchingService.rankCaregivers(
-        caregivers: [ineligible, eligibleWeak, eligibleStrong],
+        caregivers: [weak, strong],
         context: ctx,
-        ratings: {
-          'pro-1': (avg: 4.5, count: 8),
-          'informal-1': (avg: 0.0, count: 0),
-        },
+        profile: MatchProfile.advanced,
       );
 
-      expect(ranked.map((r) => r.caregiver['uid']), isNot(contains('wrong-gender')));
+      // Both caregivers are present — rankCaregivers itself never filters;
+      // that's the caller's job via isEligible (see advanced_match_results_screen.dart).
       expect(ranked.length, 2);
       expect(ranked.first.caregiver['uid'], 'pro-1');
       expect(ranked.first.matchPercent, greaterThanOrEqualTo(ranked.last.matchPercent));
+    });
+
+    test('isEligible + rankCaregivers together exclude an ineligible caregiver', () {
+      final eligible = _professionalCaregiver(city: 'Negombo');
+      final ineligible = _professionalCaregiver(gender: 'Male')..['uid'] = 'wrong-gender';
+
+      final ctx = MatchContext(
+        patientProfile: {'preferredCaregiverGender': 'Female', 'city': 'Negombo'},
+        requestArgs: {'careType': 'Elder care', 'schedule': 'Full-time'},
+      );
+
+      final pool = [eligible, ineligible];
+      final filtered = pool.where((c) => MatchingService.isEligible(c, ctx)).toList();
+      final ranked = MatchingService.rankCaregivers(
+        caregivers: filtered,
+        context: ctx,
+        profile: MatchProfile.advanced,
+      );
+
+      expect(ranked.map((r) => r.caregiver['uid']), isNot(contains('wrong-gender')));
+      expect(ranked.length, 1);
     });
   });
 }

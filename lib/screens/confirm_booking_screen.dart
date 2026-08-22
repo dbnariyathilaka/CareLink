@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/profile_gate.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -458,7 +459,11 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Firestore write ──────────────────────────────────────────────────────
-  Future<void> _createBookingRequest({
+  // Returns whether the request was actually created — false means the
+  // caller (the onTap handler below) must not proceed to the
+  // matching-analysis/confirmed-dialog step, since nothing was booked.
+  Future<bool> _createBookingRequest({
+    required BuildContext context,
     required bool isAdvanced,
     required String? caregiverId,
     required String caregiverName,
@@ -472,8 +477,10 @@ class ConfirmBookingScreen extends StatelessWidget {
     double? locationLat,
     double? locationLng,
   }) async {
+    if (!await ensurePatientProfileComplete(context)) return false;
+    if (!context.mounted) return false;
     final uid = AuthService.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) return false;
     final isFlexible = careType.contains('Flexible');
     await BookingService.createBookingRequest(
       patientUid: uid,
@@ -490,6 +497,7 @@ class ConfirmBookingScreen extends StatelessWidget {
       locationLng: locationLng,
       isAdvanced: isAdvanced,
     );
+    return true;
   }
 
   // ── Bottom actions ─────────────────────────────────────────────────────────
@@ -530,7 +538,8 @@ class ConfirmBookingScreen extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
                 onTap: () async {
-                  await _createBookingRequest(
+                  final created = await _createBookingRequest(
+                    context:       context,
                     isAdvanced:    isAdvanced,
                     caregiverId:   args?['caregiverId'] as String?,
                     caregiverName: caregiverName,
@@ -544,6 +553,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                     locationLat:   args?['lat'] as double?,
                     locationLng:   args?['lng'] as double?,
                   );
+                  if (!created) return;
                   if (!context.mounted) return;
                   if (isAdvanced) {
                     // Advanced flow → show matching analysis loading screen

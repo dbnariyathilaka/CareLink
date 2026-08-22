@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'who_needs_care_sheet.dart';
+import '../services/auth_service.dart';
 import '../widgets/status_bar.dart';
 
 const Color _cardSubtitleColor = Color.fromRGBO(0, 0, 0, 0.5);
@@ -48,6 +49,35 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   void dispose() {
     _fadeController.dispose();
     super.dispose();
+  }
+
+  // This screen serves two different situations that look identical in the
+  // UI but need different handling: a brand-new, unauthenticated visitor
+  // choosing which signup flow to enter (reached from welcome_screen.dart),
+  // and an already-authenticated user resuming an account that has no role
+  // set yet (reached from login_screen.dart / starting_screen.dart after
+  // sign-in, when users/{uid} has no role). Routing the second case through
+  // /register was the root cause of the "email already exists" dead end,
+  // since that account's Firebase Auth user already exists — there's
+  // nothing left to register, just a role to record.
+  Future<void> _selectRole(BuildContext context, String role) async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid != null) {
+      await AuthService.setUserRole(uid, role);
+      if (!context.mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        role == 'caregiver' ? '/caregiver-onboarding-1' : '/patient-onboarding-1',
+        (route) => false,
+      );
+      return;
+    }
+
+    if (role == 'caregiver') {
+      Navigator.pushNamed(context, '/register', arguments: {'role': 'caregiver'});
+    } else {
+      showWhoNeedsCareSheet(context);
+    }
   }
 
   @override
@@ -125,9 +155,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                             illustrationLeft: 60,
                             illustrationWidth: 183,
                             illustrationHeight: 209,
-                            onTap: () {
-                              showWhoNeedsCareSheet(context);
-                            },
+                            onTap: () => _selectRole(context, 'patient'),
                           ),
                           const SizedBox(height: 7),
 
@@ -145,13 +173,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                             illustrationLeft: 58,
                             illustrationWidth: 200,
                             illustrationHeight: 216,
-                            onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/register',
-                                arguments: {'role': 'caregiver'},
-                              );
-                            },
+                            onTap: () => _selectRole(context, 'caregiver'),
                           ),
                         ],
                       ),

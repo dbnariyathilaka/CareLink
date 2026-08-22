@@ -6,7 +6,7 @@ import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/matching_service.dart';
 import '../services/patient_service.dart';
-import '../services/review_service.dart';
+import '../services/profile_gate.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/request_sent_dialog.dart';
 import '../widgets/restart_match_dialog.dart';
@@ -14,13 +14,15 @@ import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Advanced Match Results Screen  (Figma node 324-471)
-//  Ranking is produced by MatchingService — a disclosed 7-criterion
-//  weighted-sum score (skill match, availability, proximity, feedback,
-//  references, experience, certification) with hard eligibility filtering
-//  applied first (language, gender preference, certification-mandatory,
-//  travel distance) and weight redistribution for caregivers whose
-//  credential data is structurally absent, rather than scoring it as zero.
-//  See lib/services/matching_service.dart for the full algorithm.
+//  Ranking is produced by MatchingService using MatchProfile.advanced — a
+//  disclosed, equally-weighted score (skill match, availability, proximity,
+//  gender preference, languages, education, experience, training) with
+//  hard eligibility filtering applied first (language, gender preference,
+//  certification-mandatory, travel distance) and weight redistribution for
+//  caregivers whose credential data is structurally absent, rather than
+//  scoring it as zero. See lib/services/matching_service.dart for the full
+//  algorithm, and patient_dashboard_screen.dart for the lighter
+//  MatchProfile.onboardingPreview used on the dashboard.
 // ─────────────────────────────────────────────────────────────────────────────
 class AdvancedMatchResultsScreen extends StatefulWidget {
   const AdvancedMatchResultsScreen({super.key});
@@ -90,6 +92,8 @@ class _AdvancedMatchResultsScreenState
   // schedule/location details already collected earlier in the advanced
   // matching wizard — no need to ask the patient to re-enter them.
   Future<void> _sendRequest(MatchResult m) async {
+    if (!await ensurePatientProfileComplete(context)) return;
+    if (!mounted) return;
     final uid = AuthService.currentUser?.uid;
     if (uid == null) return;
     final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
@@ -143,17 +147,11 @@ class _AdvancedMatchResultsScreenState
     final eligible = caregivers
         .where((c) => MatchingService.isEligible(c, matchContext))
         .toList();
-    final ratings = await ReviewService.fetchRatingsFor(
-      eligible
-          .map((c) => c['uid'] as String? ?? '')
-          .where((id) => id.isNotEmpty)
-          .toList(),
-    );
 
     final ranked = MatchingService.rankCaregivers(
       caregivers: eligible,
       context: matchContext,
-      ratings: ratings,
+      profile: MatchProfile.advanced,
     );
 
     if (!mounted) return;
@@ -887,6 +885,8 @@ class _AdvancedMatchResultsScreenState
   Widget _buildMatchFab(BuildContext context) {
     return GestureDetector(
       onTap: () async {
+        if (!await ensurePatientProfileComplete(context)) return;
+        if (!context.mounted) return;
         if (AppState.hasActiveMatch.value) {
           // Already viewing the current top 5 — tapping Match again here can
           // only mean "redo it", so confirm before discarding them.

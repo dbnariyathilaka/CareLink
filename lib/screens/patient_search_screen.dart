@@ -5,6 +5,7 @@ import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
+import '../services/profile_gate.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/remote_or_local_image.dart';
@@ -596,11 +597,15 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
-                    onTap: () => Navigator.pushNamed(
-                      context,
-                      '/send-request',
-                      arguments: {'caregiverId': uid},
-                    ),
+                    onTap: () async {
+                      if (!await ensurePatientProfileComplete(context)) return;
+                      if (!mounted) return;
+                      Navigator.pushNamed(
+                        context,
+                        '/send-request',
+                        arguments: {'caregiverId': uid},
+                      );
+                    },
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 11),
                       child: Text(
@@ -787,12 +792,14 @@ class _MatchFabState extends State<_MatchFab> with SingleTickerProviderStateMixi
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         if (AppState.hasActiveMatch.value) {
           Navigator.pushNamed(context, '/advanced-match-results');
-        } else {
-          Navigator.pushNamed(context, '/advanced-match-send-request');
+          return;
         }
+        if (!await ensurePatientProfileComplete(context)) return;
+        if (!context.mounted) return;
+        Navigator.pushNamed(context, '/advanced-match-send-request');
       },
       child: Container(
         width: 65,

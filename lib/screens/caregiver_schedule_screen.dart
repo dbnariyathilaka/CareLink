@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
+import '../services/profile_gate.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/status_bar.dart';
 import 'report_unavailability_dialog.dart';
@@ -187,6 +188,12 @@ class _CaregiverScheduleScreenState extends State<CaregiverScheduleScreen> {
   }
 
   Future<void> _respond(String bookingId, bool accept) async {
+    // Declining stays allowed regardless of profile completeness — only
+    // accepting a job requires a complete caregiver profile.
+    if (accept) {
+      if (!await ensureCaregiverProfileComplete(context)) return;
+      if (!mounted) return;
+    }
     await BookingService.respondToRequest(bookingId, accept: accept);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
