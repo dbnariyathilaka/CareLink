@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
+    AppState.reset();
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -68,6 +70,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     setState(() => _isSubmitting = true);
     try {
+      AppState.reset();
       final credential = await AuthService.signInWithEmail(
         email: _emailController.text,
         password: _passwordController.text,

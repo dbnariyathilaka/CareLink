@@ -63,13 +63,23 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
   Future<void> _selectRole(BuildContext context, String role) async {
     final uid = AuthService.currentUser?.uid;
     if (uid != null) {
+      // Already-authenticated user with no role yet (e.g. returned from a
+      // partially-completed registration). Save the role first, then continue
+      // through the normal flow — patients still see "Who needs care?" so
+      // they can choose self vs. family, rather than jumping straight to
+      // onboarding and bypassing that sheet entirely.
       await AuthService.setUserRole(uid, role);
       if (!context.mounted) return;
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        role == 'caregiver' ? '/caregiver-onboarding-1' : '/patient-onboarding-1',
-        (route) => false,
-      );
+
+      if (role == 'caregiver') {
+        // Use pushNamed (not pushNamedAndRemoveUntil) so the back button
+        // returns to role-selection instead of showing a black screen.
+        Navigator.pushNamed(context, '/caregiver-onboarding-1');
+      } else {
+        // Patient: show the "Who needs care?" sheet first, just as the
+        // unauthenticated path does.
+        showWhoNeedsCareSheet(context);
+      }
       return;
     }
 

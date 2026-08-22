@@ -149,9 +149,19 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
 
     if (!mounted) return;
     AppState.hydratePatientPhoto(patientProfile?['photoUrl'] as String?);
+    final resolvedName = (patientProfile?['name'] as String?) ??
+        (patientProfile?['patientName'] as String?) ??
+        (userProfile?['name'] as String?) ??
+        AppState.patientName.value;
+    if (resolvedName.isNotEmpty) {
+      AppState.patientName.value = resolvedName;
+    }
     setState(() {
-      _name = (userProfile?['name'] as String?) ?? '';
-      _email = (userProfile?['email'] as String?) ?? user.email ?? '';
+      _name = resolvedName;
+      _email = (userProfile?['email'] as String?) ??
+          (patientProfile?['email'] as String?) ??
+          user.email ??
+          '';
       _patientProfile = patientProfile;
       _favoriteCaregivers = favorites;
       _familyMembers = familyMembers;
@@ -408,8 +418,15 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
 
   // ── Personal details card ─────────────────────────────────
   Widget _buildPersonalDetailsCard() {
-    final gender = _patientProfile?['patientGender'] as String?;
-    final age = _patientProfile?['patientAge'];
+    final gender = (_patientProfile?['patientGender'] as String?) ??
+        (_patientProfile?['gender'] as String?) ??
+        AppState.patientGenderSelf.value;
+    final rawAge = _patientProfile?['patientAge'] ?? _patientProfile?['age'];
+    final age = (rawAge != null && rawAge != 0)
+        ? rawAge
+        : (AppState.patientAge.value.isNotEmpty
+            ? AppState.patientAge.value
+            : null);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -450,7 +467,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
                   ),
                 ),
                 Text(
-                  (gender == null || gender.isEmpty) ? 'Not set' : gender,
+                  gender.isEmpty ? 'Not set' : gender,
                   style: const TextStyle(
                     fontFamily: 'Open Sans',
                     color: personalRowValue,
@@ -788,7 +805,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
             ),
             const SizedBox(height: 6),
             GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/edit-care-requirements'),
+              onTap: () async {
+                await Navigator.pushNamed(context, '/edit-care-requirements');
+                if (mounted) _loadProfile();
+              },
               child: const Text(
                 'Set requirements',
                 style: TextStyle(
@@ -830,7 +850,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
                   divider: false),
               const SizedBox(height: 10),
               GestureDetector(
-                onTap: () => Navigator.pushNamed(context, '/edit-care-requirements'),
+                onTap: () async {
+                  await Navigator.pushNamed(context, '/edit-care-requirements');
+                  if (mounted) _loadProfile();
+                },
                 child: const Text(
                   'Edit requirements',
                   style: TextStyle(
@@ -1067,15 +1090,19 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          '/welcome',
-                          (route) => false,
-                        );
-                      },
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          Navigator.pop(context); // dismiss dialog
+                          await AuthService.signOut();
+                          if (context.mounted) {
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              '/welcome',
+                              (route) => false,
+                            );
+                          }
+                        },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(

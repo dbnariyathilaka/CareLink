@@ -79,10 +79,16 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   Future<void> _loadUserName() async {
     final user = AuthService.currentUser;
     if (user == null) return;
-    final profile = await AuthService.getUserProfile(user.uid);
-    final name = profile?['name'] as String?;
-    if (mounted && name != null && name.isNotEmpty) {
-      setState(() => _userName = name);
+    final patientProf = await PatientService.getPatientProfile(user.uid);
+    final userProf = await AuthService.getUserProfile(user.uid);
+    final name = (patientProf?['patientName'] as String?) ??
+        (patientProf?['name'] as String?) ??
+        (userProf?['name'] as String?);
+    if (name != null && name.isNotEmpty) {
+      AppState.patientName.value = name;
+      if (mounted) {
+        setState(() => _userName = name);
+      }
     }
   }
 
@@ -155,6 +161,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                 children: [
                   _buildEmergencyBanner(),
                   const SizedBox(height: 14),
+                  // TODO: Remove this temporary billing test card after testing.
+                  _buildBillingTestCard(),
+                  const SizedBox(height: 14),
                   _buildStatsRow(),
                   const SizedBox(height: 20),
                   _buildTopMatchesSection(),
@@ -214,15 +223,22 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    _userName,
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: ValueListenableBuilder<String>(
+                    valueListenable: AppState.patientName,
+                    builder: (_, name, _) {
+                      final displayName =
+                          name.trim().isNotEmpty ? name.trim() : _userName;
+                      return Text(
+                        displayName,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontFamily: 'Quattrocento Sans',
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -266,6 +282,87 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // TODO: Remove this entire method after testing.
+  Widget _buildBillingTestCard() {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(
+        context,
+        '/billing',
+        arguments: {
+          'bookingId': 'DEMO-BOOKING-001',
+          'amount': 4500.0,
+          'caregiverName': 'Demo Caregiver',
+          'serviceDescription': 'Elder Care – Home Visit',
+          'serviceDate': 'Aug 25, 2026',
+          'durationHours': 3,
+        },
+      ),
+      child: Container(
+        width: double.infinity,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 17, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A6B47), Color(0xFF06402B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF06402B).withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.payment_rounded,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pay Bill  •  TEST',
+                    style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Tap to open the billing screen (sandbox mode)',
+                    style: TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Color(0xFFB2DFCC),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: Colors.white, size: 22),
+          ],
+        ),
       ),
     );
   }

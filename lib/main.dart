@@ -60,6 +60,7 @@ import 'screens/qualifications_selection_screen.dart';
 import 'screens/qualifications_intro_screen.dart';
 import 'screens/matching_analysis_screen.dart';
 import 'screens/advanced_match_results_screen.dart';
+import 'screens/patient_billing_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -156,6 +157,7 @@ class CareMatchApp extends StatelessWidget {
             const ForgotPasswordEmailSentScreen(),
         '/forgot-password-reset-success': (context) =>
             const ForgotPasswordResetSuccessScreen(),
+        '/billing': (context) => const PatientBillingScreen(),
       },
     );
   }

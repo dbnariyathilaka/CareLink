@@ -43,6 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
+    AppState.reset();
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -98,6 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       final userCredential =
           await AuthService.signInWithGoogleCredential(credential);
 
+      AppState.reset();
       if (mounted) {
         setState(() {
           _googleSignedIn = true;

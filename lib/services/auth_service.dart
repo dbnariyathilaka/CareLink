@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../app_state.dart';
 
 /// Thin wrapper around Firebase Auth + the `users` Firestore collection.
 ///
@@ -38,7 +39,10 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
-  static Future<void> signOut() => _auth.signOut();
+  static Future<void> signOut() async {
+    AppState.reset();
+    await _auth.signOut();
+  }
 
   /// Sends a real Firebase-hosted password-reset email. Firebase only
   /// delivers it to addresses with an existing account; depending on the
@@ -78,34 +82,51 @@ class AuthService {
     required String email,
     String? role,
     String? phone,
-  }) {
-    return Future.wait([
-      _firestore.collection('users').doc(uid).set({
-        'name': name,
-        'email': email,
-        if (role != null) 'role': role,
-        if (phone != null) 'phone': phone,
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)),
-      _indexEmailForLookup(email),
-    ]);
+  }) async {
+    await _firestore.collection('users').doc(uid).set({
+      'name': name,
+      'email': email,
+      if (role != null) 'role': role,
+      if (phone != null) 'phone': phone,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await _indexEmailForLookup(email);
+  }
+
+  /// Updates only the user profile in `users/{uid}` without changing creation timestamp or failing on secondary index.
+  static Future<void> updateUserProfile({
+    required String uid,
+    required String name,
+    String? email,
+    String? phone,
+  }) async {
+    final data = <String, dynamic>{
+      'name': name,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    await _firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
+    if (email != null && email.isNotEmpty) {
+      await _indexEmailForLookup(email);
+    }
   }
 
   static String _emailKey(String email) => email.trim().toLowerCase();
 
   /// Registers this email into a minimal, PII-free existence index so
   /// isEmailRegistered (below) can answer "does an account exist for this
-  /// email" from an unauthenticated screen — Firebase's own
-  /// sendPasswordResetEmail can't reliably answer that itself; see its doc
-  /// comment. No Cloud Functions exist in this project to do this lookup
-  /// server-side, so this is the lowest-exposure client-only alternative:
-  /// the Firestore rule for this collection allows a single-document `get`
-  /// (check one already-known email) but not `list` (bulk-enumerate every
-  /// registered email).
-  static Future<void> _indexEmailForLookup(String email) {
-    return _firestore.collection('registeredEmails').doc(_emailKey(email)).set({
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+  /// email" from an unauthenticated screen.
+  /// Marked best-effort so secondary index failures never block user profile saves.
+  static Future<void> _indexEmailForLookup(String email) async {
+    if (email.trim().isEmpty) return;
+    try {
+      await _firestore.collection('registeredEmails').doc(_emailKey(email)).set({
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {
+      // Best-effort: index failure should not block primary user/patient profile operations
+    }
   }
 
   /// Whether [email] belongs to a registered account. Used by the

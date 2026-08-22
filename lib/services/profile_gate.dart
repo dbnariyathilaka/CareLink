@@ -24,7 +24,7 @@ Future<bool> ensurePatientProfileComplete(BuildContext context) async {
       title: "Your profile setup isn't finished",
       missingSections: const [],
       buttonLabel: 'Continue setup',
-      buttonRoute: '/patient-onboarding-1',
+      buttonRoute: '/edit-care-requirements',
     );
   } else {
     await showIncompleteProfileDialog(

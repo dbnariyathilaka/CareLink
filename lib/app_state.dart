@@ -49,19 +49,40 @@ class AppState {
   // to Firestore (caregiverProfiles/{uid}) once, on the final step.
   static final caregiverOnboardingDraft = CaregiverOnboardingDraft();
 
-  // Backfills a profile picture from Firestore only if nothing has been
-  // picked locally yet this session — avoids a stale read clobbering a
-  // just-uploaded photo.
+  // Resets all in-memory user and profile state so accounts never leak
+  // photos, cached match results, or personal details into other sessions.
+  static void reset() {
+    profileImagePath.value = null;
+    caregiverProfileImagePath.value = null;
+    hasActiveMatch.value = false;
+    lastMatchArgs = null;
+    careType.value = 'Elder care';
+    careSchedule.value = 'Full-time';
+    careLocation.value = 'Negombo, Western Province';
+    preferredGender.value = 'No preference';
+    additionalCareNotes.value = '';
+    patientName.value = '';
+    patientGenderSelf.value = 'Female';
+    patientAge.value = '';
+    patientAddress.value = '';
+    relationToPatient.value = 'Patient';
+    registeredPhone.value = '';
+    familyMemberName.value = '';
+    familyMemberNic.value = '';
+    familyMemberPhone.value = '';
+    familyMemberEmail.value = '';
+    familyMemberAddress.value = '';
+    caregiverOnboardingDraft.reset();
+  }
+
   static void hydrateCaregiverPhoto(String? url) {
-    if (caregiverProfileImagePath.value == null && url != null && url.isNotEmpty) {
-      caregiverProfileImagePath.value = url;
-    }
+    caregiverProfileImagePath.value =
+        (url != null && url.isNotEmpty) ? url : null;
   }
 
   static void hydratePatientPhoto(String? url) {
-    if (profileImagePath.value == null && url != null && url.isNotEmpty) {
-      profileImagePath.value = url;
-    }
+    profileImagePath.value =
+        (url != null && url.isNotEmpty) ? url : null;
   }
 }
 
@@ -91,6 +112,29 @@ class CaregiverOnboardingDraft {
   List<String> certificateUrls = [];
   String policeClearanceUrl = '';
   List<String> otherDocumentUrls = [];
+
+  void reset() {
+    gender = 'Male';
+    yearsExperience = 5;
+    careTypes = {'Part-time', 'Full-time'};
+    nic = '';
+    referencePhone = '';
+    educationalQualification = 'Diploma';
+    formalTraining = false;
+    languagesSpoken = {'Sinhala', 'English'};
+    skills = {
+      'Mobility assistance',
+      'Medication management',
+      'Dementia care',
+    };
+    city = 'Negombo, Western Province';
+    serviceRadius = '10 km';
+    bio = '';
+    photoUrl = '';
+    certificateUrls = [];
+    policeClearanceUrl = '';
+    otherDocumentUrls = [];
+  }
 
   Map<String, dynamic> toMap() {
     return {

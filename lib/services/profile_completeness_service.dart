@@ -32,7 +32,8 @@ class PatientCompleteness {
 }
 
 PatientCompleteness evaluatePatientProfile(Map<String, dynamic>? profile) {
-  if (profile == null || _isBlank(profile['patientName'])) {
+  if (profile == null ||
+      (_isBlank(profile['patientName']) && _isBlank(profile['name']))) {
     return const PatientCompleteness(neverOnboarded: true, missingSections: []);
   }
 

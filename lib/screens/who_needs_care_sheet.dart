@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  "Who needs care?" bottom sheet
@@ -55,14 +56,25 @@ class _WhoNeedsCareSheetState extends State<_WhoNeedsCareSheet> {
 
   void _continue() {
     Navigator.pop(context);
+    final isAlreadyRegistered = AuthService.currentUser != null;
+
     if (_selected == _CareRecipient.familyMember) {
+      // Family-member path: collect the registrant's contact info first.
+      // If they're already registered we still need family-details before
+      // onboarding, so this branch is the same either way.
       Navigator.pushNamed(context, '/patient-family-details');
     } else {
-      Navigator.pushNamed(
-        context,
-        '/register',
-        arguments: {'role': 'patient', 'careRecipient': 'self'},
-      );
+      if (isAlreadyRegistered) {
+        // Already registered — go straight to patient onboarding.
+        Navigator.pushNamed(context, '/patient-onboarding-1');
+      } else {
+        // New user — register first, then onboarding follows.
+        Navigator.pushNamed(
+          context,
+          '/register',
+          arguments: {'role': 'patient', 'careRecipient': 'self'},
+        );
+      }
     }
   }
 
