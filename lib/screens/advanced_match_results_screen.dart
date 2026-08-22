@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
-import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/matching_service.dart';
+import '../services/patient_service.dart';
+import '../services/review_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/request_sent_dialog.dart';
 import '../widgets/restart_match_dialog.dart';
@@ -12,11 +14,13 @@ import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Advanced Match Results Screen  (Figma node 324-471)
-//  There is no trained matching model behind this app, so the ranking here is
-//  a plain, disclosed formula — care-type match + real distance between the
-//  patient's saved city and each caregiver's city (haversine, both looked up
-//  in sriLankanCities). Fields with no real backing data yet (star ratings,
-//  "available now" badges) are intentionally left out rather than faked.
+//  Ranking is produced by MatchingService — a disclosed 7-criterion
+//  weighted-sum score (skill match, availability, proximity, feedback,
+//  references, experience, certification) with hard eligibility filtering
+//  applied first (language, gender preference, certification-mandatory,
+//  travel distance) and weight redistribution for caregivers whose
+//  credential data is structurally absent, rather than scoring it as zero.
+//  See lib/services/matching_service.dart for the full algorithm.
 // ─────────────────────────────────────────────────────────────────────────────
 class AdvancedMatchResultsScreen extends StatefulWidget {
   const AdvancedMatchResultsScreen({super.key});
@@ -24,13 +28,6 @@ class AdvancedMatchResultsScreen extends StatefulWidget {
   @override
   State<AdvancedMatchResultsScreen> createState() =>
       _AdvancedMatchResultsScreenState();
-}
-
-class _RankedCaregiver {
-  final Map<String, dynamic> data;
-  final double score;
-  final double? distanceKm;
-  const _RankedCaregiver(this.data, this.score, this.distanceKm);
 }
 
 class _AdvancedMatchResultsScreenState
@@ -58,14 +55,18 @@ class _AdvancedMatchResultsScreenState
   ];
 
   bool _loading = true;
-  List<_RankedCaregiver> _matches = const [];
+  List<MatchResult> _matches = const [];
   Map<String, dynamic> _bookingArgs = {};
+  bool _startedLoading = false;
 
   @override
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.light);
-    _loadMatches();
+    // _loadMatches() is deliberately NOT called here: it needs
+    // _bookingArgs, which didChangeDependencies below hasn't populated yet
+    // at initState time (initState always runs first in the Flutter
+    // lifecycle) — see the _startedLoading guard there.
   }
 
   @override
@@ -77,15 +78,21 @@ class _AdvancedMatchResultsScreenState
     } else if (AppState.lastMatchArgs != null) {
       _bookingArgs = Map<String, dynamic>.from(AppState.lastMatchArgs!);
     }
+    // didChangeDependencies can fire more than once; only kick off the
+    // (expensive, Firestore-backed) match load the first time.
+    if (!_startedLoading) {
+      _startedLoading = true;
+      _loadMatches();
+    }
   }
 
   // Creates a booking request tied to this specific caregiver, reusing the
   // schedule/location details already collected earlier in the advanced
   // matching wizard — no need to ask the patient to re-enter them.
-  Future<void> _sendRequest(_RankedCaregiver m) async {
+  Future<void> _sendRequest(MatchResult m) async {
     final uid = AuthService.currentUser?.uid;
     if (uid == null) return;
-    final name = (m.data['name'] as String?) ?? 'Caregiver';
+    final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
     final careType = _bookingArgs['careType'] as String? ?? AppState.careType.value;
     final startDate = _bookingArgs['startDate'] as String? ?? '';
     final startTime = _bookingArgs['startTime'] as String? ?? '';
@@ -93,7 +100,7 @@ class _AdvancedMatchResultsScreenState
 
     await BookingService.createBookingRequest(
       patientUid: uid,
-      caregiverId: m.data['uid'] as String?,
+      caregiverId: m.caregiver['uid'] as String?,
       caregiverName: name,
       careType: careType,
       startDate: startDate,
@@ -110,51 +117,45 @@ class _AdvancedMatchResultsScreenState
     showRequestSentDialog(context);
   }
 
-  Map<String, String>? _findCity(String name) {
-    final target = name.trim().toLowerCase();
-    for (final c in sriLankanCities) {
-      if (c['city']!.toLowerCase() == target) return c;
-    }
-    return null;
-  }
-
-  double? _distanceKmTo(String? caregiverCity) {
-    if (caregiverCity == null || caregiverCity.isEmpty) return null;
-    final patientCityName = AppState.careLocation.value.split(',').first.trim();
-    final patientCity = _findCity(patientCityName);
-    final otherCity = _findCity(caregiverCity);
-    if (patientCity == null || otherCity == null) return null;
-    return haversineKm(
-      double.parse(patientCity['lat']!),
-      double.parse(patientCity['lng']!),
-      double.parse(otherCity['lat']!),
-      double.parse(otherCity['lng']!),
-    );
-  }
-
-  double _scoreFor(Map<String, dynamic> caregiver, String requestedCareType,
-      double? distanceKm) {
-    final careTypes = (caregiver['careTypes'] as List?)?.cast<String>() ?? [];
-    final matchesCareType = careTypes
-        .any((c) => c.toLowerCase() == requestedCareType.toLowerCase());
-    double score = matchesCareType ? 65 : 30;
-    if (distanceKm != null) {
-      score += (25 - distanceKm).clamp(0, 25);
-    } else {
-      score += 12;
-    }
-    return score.clamp(0, 99);
-  }
-
   Future<void> _loadMatches() async {
-    final requestedCareType = AppState.careType.value;
+    final uid = AuthService.currentUser?.uid;
+    final patientProfile =
+        uid != null ? await PatientService.getPatientProfile(uid) : null;
+
+    // AppState holds the patient's standing care-requirement defaults;
+    // patientProfile (when present) and _bookingArgs (this specific
+    // request) each take precedence over it in MatchContext's getters, in
+    // that order, so this only fills the gaps rather than overriding them.
+    final effectiveProfile = <String, dynamic>{
+      'careType': AppState.careType.value,
+      'careLevel': AppState.careSchedule.value,
+      'city': AppState.careLocation.value,
+      'preferredCaregiverGender': AppState.preferredGender.value,
+      ...?patientProfile,
+    };
+
+    final matchContext = MatchContext(
+      patientProfile: effectiveProfile,
+      requestArgs: _bookingArgs,
+    );
+
     final caregivers = await CaregiverService.searchCaregivers();
-    final ranked = caregivers.map((c) {
-      final distanceKm = _distanceKmTo(c['city'] as String?);
-      final score = _scoreFor(c, requestedCareType, distanceKm);
-      return _RankedCaregiver(c, score, distanceKm);
-    }).toList();
-    ranked.sort((a, b) => b.score.compareTo(a.score));
+    final eligible = caregivers
+        .where((c) => MatchingService.isEligible(c, matchContext))
+        .toList();
+    final ratings = await ReviewService.fetchRatingsFor(
+      eligible
+          .map((c) => c['uid'] as String? ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList(),
+    );
+
+    final ranked = MatchingService.rankCaregivers(
+      caregivers: eligible,
+      context: matchContext,
+      ratings: ratings,
+    );
+
     if (!mounted) return;
     setState(() {
       _matches = ranked.take(5).toList();
@@ -217,7 +218,7 @@ class _AdvancedMatchResultsScreenState
           ),
           const SizedBox(height: 4),
           const Text(
-            'Ranked by care type match and distance from you',
+            'Ranked by skills, availability, proximity and your requirements',
             style: TextStyle(
               fontFamily: 'Open Sans',
               color: Color.fromRGBO(226, 217, 227, 0.87),
@@ -241,7 +242,9 @@ class _AdvancedMatchResultsScreenState
       return EmptyState(
         icon: Icons.person_search_rounded,
         message:
-            'No caregiver profiles are in the system yet. Try searching '
+            'No caregivers meet your requirements yet — this can happen if '
+            'very few caregivers match your language, gender preference, '
+            'certification, or travel-distance needs. Try searching '
             'directly, or check back once more caregivers have joined.',
         iconColor: cardBorderBrown,
         textColor: const Color(0xFF5C5A5A),
@@ -271,9 +274,9 @@ class _AdvancedMatchResultsScreenState
         .toUpperCase();
   }
 
-  String _subtitleFor(_RankedCaregiver m) {
-    final careTypes = (m.data['careTypes'] as List?)?.cast<String>() ?? [];
-    final years = m.data['yearsExperience'];
+  String _subtitleFor(MatchResult m) {
+    final careTypes = (m.caregiver['careTypes'] as List?)?.cast<String>() ?? [];
+    final years = m.caregiver['yearsExperience'];
     final parts = [
       if (careTypes.isNotEmpty) careTypes.first,
       if (years != null) '$years yrs exp',
@@ -282,11 +285,122 @@ class _AdvancedMatchResultsScreenState
     return parts.isEmpty ? 'Caregiver' : parts.join(' · ');
   }
 
+  // Opens a bottom sheet showing the per-criterion breakdown behind a
+  // caregiver's match percentage — how MatchingService actually reached
+  // that number, including which criteria (if any) were left out of a
+  // caregiver's score because the data was structurally absent rather than
+  // scored against them as zero.
+  void _showBreakdown(BuildContext context, MatchResult m) {
+    final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bgCream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Why $name matched at ${m.matchPercent.round()}%',
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: darkGreen,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Each factor is weighted from what patients told us matters '
+                'most. A greyed-out factor means this caregiver has no '
+                'recorded data for it — it was left out of their score, not '
+                'counted against them.',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Color(0xFF5C5A5A),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...m.breakdown.map(_buildBreakdownRow),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBreakdownRow(CriterionScore row) {
+    final label = MatchingService.labels[row.criterion]!;
+    final absent = row.structurallyAbsent;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: absent ? const Color(0xFF9C9C9C) : const Color(0xFF1E1E1E),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 5,
+            child: absent
+                ? const Text(
+                    'Not available — excluded, not penalized',
+                    style: TextStyle(
+                      fontFamily: 'Open Sans',
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: Color(0xFF9C9C9C),
+                    ),
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: row.rawValue,
+                      minHeight: 6,
+                      backgroundColor: scoreBarTrack.withValues(alpha: 0.15),
+                      valueColor: const AlwaysStoppedAnimation(scoreBarFill),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 34,
+            child: Text(
+              absent ? '—' : '+${row.contributionPoints.round()}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Best match card (rank 1, red accent) ───────────────────────────────
   Widget _buildBestMatchCard(
-      BuildContext context, _RankedCaregiver m, List<Color> gradient) {
-    final uid = m.data['uid'] as String?;
-    final name = (m.data['name'] as String?) ?? 'Caregiver';
+      BuildContext context, MatchResult m, List<Color> gradient) {
+    final uid = m.caregiver['uid'] as String?;
+    final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -377,27 +491,43 @@ class _AdvancedMatchResultsScreenState
                   ],
                 ),
               ),
-              Container(
-                width: 50,
-                height: 50,
-                decoration: const BoxDecoration(
-                  color: Color.fromRGBO(206, 128, 80, 0.4),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${m.score.round()}%',
-                  style: const TextStyle(
-                    fontFamily: 'Open Sans',
-                    color: Color(0xFF7E3411),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+              GestureDetector(
+                onTap: () => _showBreakdown(context, m),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: const BoxDecoration(
+                    color: Color.fromRGBO(206, 128, 80, 0.4),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${m.matchPercent.round()}%',
+                    style: const TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: Color(0xFF7E3411),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () => _showBreakdown(context, m),
+            child: const Text(
+              'Why this match? ›',
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: bestBorderRed,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -463,11 +593,11 @@ class _AdvancedMatchResultsScreenState
   }
 
   // ── Ranked cards (2-5, tan/brown accent) ───────────────────────────────
-  Widget _buildRankedCard(BuildContext context, int rank, _RankedCaregiver m,
+  Widget _buildRankedCard(BuildContext context, int rank, MatchResult m,
       List<Color> gradient) {
-    final uid = m.data['uid'] as String?;
-    final name = (m.data['name'] as String?) ?? 'Caregiver';
-    final fillFraction = (m.score / 100).clamp(0.08, 1.0);
+    final uid = m.caregiver['uid'] as String?;
+    final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
+    final fillFraction = (m.matchPercent / 100).clamp(0.08, 1.0);
     return Container(
       padding: const EdgeInsets.fromLTRB(15, 12, 12, 12),
       decoration: BoxDecoration(
@@ -559,40 +689,43 @@ class _AdvancedMatchResultsScreenState
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    '${m.score.round()}%',
-                    style: const TextStyle(
-                      fontFamily: 'Open Sans',
-                      color: scoreBarFill,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+              GestureDetector(
+                onTap: () => _showBreakdown(context, m),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${m.matchPercent.round()}%',
+                      style: const TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: scoreBarFill,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 38,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: scoreBarTrack,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: fillFraction,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: scoreBarFill,
-                            borderRadius: BorderRadius.circular(999),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: scoreBarTrack,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: fillFraction,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: scoreBarFill,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

@@ -29,6 +29,39 @@ class ReviewService {
     });
   }
 
+  /// Batch-fetches average rating + review count for many caregivers at
+  /// once, chunked by Firestore's 30-item `whereIn` limit — so scoring a
+  /// candidate list costs O(candidates / 30) queries instead of one query
+  /// per caregiver. Caregivers with no reviews are included with count: 0.
+  static Future<Map<String, ({double avg, int count})>> fetchRatingsFor(
+    List<String> caregiverIds,
+  ) async {
+    final result = <String, ({double avg, int count})>{};
+    if (caregiverIds.isEmpty) return result;
+
+    final ids = caregiverIds.toSet().toList();
+    for (var i = 0; i < ids.length; i += 30) {
+      final chunk = ids.sublist(i, i + 30 > ids.length ? ids.length : i + 30);
+      final snap = await _collection.where('caregiverId', whereIn: chunk).get();
+
+      final sums = <String, int>{};
+      final counts = <String, int>{};
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final id = data['caregiverId'] as String?;
+        final rating = data['rating'] as int?;
+        if (id == null || rating == null) continue;
+        sums[id] = (sums[id] ?? 0) + rating;
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+      for (final id in chunk) {
+        final count = counts[id] ?? 0;
+        result[id] = (avg: count == 0 ? 0.0 : sums[id]! / count, count: count);
+      }
+    }
+    return result;
+  }
+
   static Stream<List<Map<String, dynamic>>> streamReviewsForCaregiver(
     String caregiverId,
   ) {
