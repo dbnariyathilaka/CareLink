@@ -6,6 +6,7 @@ import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
 import '../services/review_service.dart';
+import '../widgets/caregiver_bottom_nav.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
@@ -208,7 +209,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               },
             ),
           ),
-          _buildBottomNav(context),
+          const CaregiverBottomNav(activeTab: CaregiverNavTab.home),
         ],
       ),
     );
@@ -734,59 +735,6 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             child: Text(statusLabel, style: const TextStyle(fontFamily: 'Open Sans', color: scheduleBadgeText, fontSize: 11, fontWeight: FontWeight.w600)),
           ),
         ],
-      ),
-    );
-  }
-
-  // ── Bottom nav ─────────────────────────────────────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
-    final items = [
-      (icon: Icons.home_rounded, label: 'Home', route: null, active: true),
-      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/caregiver-schedule', active: false),
-      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/caregiver-notifications', active: false),
-      (icon: Icons.person_outline_rounded, label: 'Profile', route: '/caregiver-own-profile', active: false),
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: headerBg,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 67,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(items.length, (index) {
-              final item = items[index];
-              final color = item.active ? const Color(0xFFFBBC05) : Colors.white;
-              return GestureDetector(
-                onTap: item.route == null ? null : () => Navigator.pushNamed(context, item.route!),
-                behavior: HitTestBehavior.opaque,
-                child: SizedBox(
-                  width: 80,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(item.icon, color: color, size: 25),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          color: color,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
       ),
     );
   }

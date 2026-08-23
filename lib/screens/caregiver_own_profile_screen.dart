@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/caregiver_bottom_nav.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 import '../widgets/upload_picker_sheet.dart';
@@ -24,8 +25,6 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   static const Color titleDark = Color(0xFF0F172A);
   static const Color sectionTitleColor = Color.fromRGBO(15, 23, 42, 0.75);
 
-  static const Color requestsPillBg = Color.fromRGBO(30, 41, 59, 0.28);
-  static const Color requestsPillText = Color(0xFF0D243F);
   static const Color editIconColor = Color(0xFF1A3253);
 
   static const Color statsCardBg = Color(0xFFCCCCC4);
@@ -181,10 +180,8 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                                 _buildSectionTitle('Contact'),
                                 const SizedBox(height: 10),
                                 _buildContactCard(),
-                                const SizedBox(height: 20),
-                                _buildSectionTitle('Care type'),
-                                const SizedBox(height: 10),
-                                _buildCareTypeWrap(),
+                                const SizedBox(height: 16),
+                                _buildCareTypeBanner(),
                                 const SizedBox(height: 20),
                                 _buildSectionTitle('Skills'),
                                 const SizedBox(height: 10),
@@ -215,13 +212,13 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                     ),
             ),
           ),
-          _buildBottomNav(context),
+          const CaregiverBottomNav(),
         ],
       ),
     );
   }
 
-  // ── Header row: title + Requests pill + edit icon ─────────
+  // ── Header row: title + edit icon ────────────────────────
   Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -235,40 +232,16 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pushNamed(context, '/caregiver-schedule'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-                decoration: BoxDecoration(
-                  color: requestsPillBg,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Requests',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    color: requestsPillText,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: () async {
-                await Navigator.pushNamed(context, '/caregiver-edit-profile');
-                _loadProfile();
-              },
-              child: const Icon(
-                Icons.edit_outlined,
-                color: editIconColor,
-                size: 22,
-              ),
-            ),
-          ],
+        GestureDetector(
+          onTap: () async {
+            await Navigator.pushNamed(context, '/caregiver-edit-profile');
+            _loadProfile();
+          },
+          child: const Icon(
+            Icons.edit_outlined,
+            color: editIconColor,
+            size: 22,
+          ),
         ),
       ],
     );
@@ -661,13 +634,13 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
           _contactRow(Icons.call_rounded, phone),
           const SizedBox(height: 10),
           _contactRow(
-            Icons.contact_phone_rounded,
+            Icons.badge_outlined,
             refPhone?.isNotEmpty == true
-                ? 'Reference: $refPhone'
-                : 'Reference: Not provided',
+                ? 'Reference No: $refPhone'
+                : 'Reference No: Not provided',
           ),
           const SizedBox(height: 10),
-          _contactRow(Icons.location_on_rounded, '$city · $radius km radius'),
+          _contactRow(Icons.location_on_outlined, '$city - $radius km radius'),
         ],
       ),
     );
@@ -693,50 +666,50 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
-  // ── Care type pills ─────────────────────────────────────────
-  Widget _buildCareTypeWrap() {
+  // ── Care type banner ─────────────────────────────────────────
+  Widget _buildCareTypeBanner() {
     final careTypes = (_profile?['careTypes'] as List?)?.cast<String>() ?? const [];
-
-    if (careTypes.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),
-        decoration: BoxDecoration(
-          border: Border.all(color: chipPrimaryBg),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: const Text(
-          'None specified',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            color: chipPrimaryBg,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
+    final singleType = _profile?['careType'] as String?;
+    final String careTypeLabel;
+    if (careTypes.isNotEmpty) {
+      careTypeLabel = careTypes.join(' / ');
+    } else if (singleType != null && singleType.trim().isNotEmpty) {
+      careTypeLabel = singleType.trim();
+    } else {
+      careTypeLabel = 'Part-time';
     }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: careTypes.map((type) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7.5),
-          decoration: BoxDecoration(
-            color: chipPrimaryBg,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            type,
-            style: const TextStyle(
-              fontFamily: 'Inter',
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF525359),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Text(
+            'Care type :   ',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
               color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        );
-      }).toList(),
+          Expanded(
+            child: Text(
+              careTypeLabel,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Color(0xFFF59E0B),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1053,65 +1026,6 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ── Bottom nav ─────────────────────────────────────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
-    final items = [
-      (icon: Icons.home_rounded, label: 'Home', route: null, active: false),
-      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/caregiver-schedule', active: false),
-      (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/caregiver-notifications', active: false),
-      (icon: Icons.person_rounded, label: 'Profile', route: null, active: true),
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: headerBg,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 67,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(items.length, (index) {
-              final item = items[index];
-              final color = item.active ? const Color(0xFFFBBC05) : Colors.white;
-              return GestureDetector(
-                onTap: () {
-                  if (index == 0) {
-                    Navigator.popUntil(context, ModalRoute.withName('/caregiver-dashboard'));
-                  } else if (item.route != null) {
-                    Navigator.pushNamed(context, item.route!);
-                  }
-                },
-                behavior: HitTestBehavior.opaque,
-                child: SizedBox(
-                  width: 80,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(item.icon, color: color, size: 25),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          fontFamily: 'Quattrocento Sans',
-                          color: color,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
         ),
       ),
     );

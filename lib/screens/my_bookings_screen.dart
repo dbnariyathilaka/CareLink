@@ -198,10 +198,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color.fromRGBO(6, 64, 43, 0.92),
+            color: const Color(0xFFF5EEE8),
             borderRadius: BorderRadius.circular(20),
           ),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding: const EdgeInsets.fromLTRB(26, 16, 26, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -210,17 +210,25 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 alignment: Alignment.topRight,
                 child: GestureDetector(
                   onTap: () => Navigator.pop(dialogCtx),
-                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4.0),
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFFA82222),
+                      size: 26,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color.fromRGBO(58, 73, 69, 0.66),
+                  color: const Color.fromRGBO(58, 73, 69, 0.37),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: Column(
                   children: List.generate(rows.length, (i) {
                     final isLast = i == rows.length - 1;
@@ -230,7 +238,10 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                           ? null
                           : const BoxDecoration(
                               border: Border(
-                                bottom: BorderSide(color: Color.fromRGBO(70, 86, 81, 0.61)),
+                                bottom: BorderSide(
+                                  color: Color.fromRGBO(70, 86, 81, 0.61),
+                                  width: 1,
+                                ),
                               ),
                             ),
                       child: Row(
@@ -241,7 +252,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                             rows[i].key,
                             style: const TextStyle(
                               fontFamily: 'Open Sans',
-                              color: Color(0xFF8ABE65),
+                              color: Color(0xFF1E293B),
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -255,8 +266,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                               rows[i].value,
                               textAlign: TextAlign.right,
                               style: const TextStyle(
-                                fontFamily: 'Inter',
-                                color: Color(0xFFA1A0A7),
+                                fontFamily: 'Open Sans',
+                                color: Color(0xFF312960),
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -273,7 +284,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 children: [
                   Expanded(
                     child: Material(
-                      color: const Color(0xFF82B19A),
+                      color: const Color(0xFFE9BDBD),
                       borderRadius: BorderRadius.circular(10),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
@@ -292,8 +303,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                             'Cancel request',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF073F2B),
+                              fontFamily: 'Open Sans',
+                              color: Color(0xFFEF4444),
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -302,7 +313,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 17),
                   Expanded(
                     child: Material(
                       color: Colors.transparent,
@@ -313,15 +324,15 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 11),
                           decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFF4C7E65), width: 2),
+                            border: Border.all(color: const Color(0xFF1E293B), width: 2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Text(
                             'Back',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF4C7E65),
+                              fontFamily: 'Open Sans',
+                              color: Color(0xFF1E293B),
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),

@@ -64,7 +64,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   // Messaging is only meaningful once a booking has moved past a bare
   // request — matches the footer's "confirmed bookings" copy.
   bool _isUnlocked(String status) =>
-      status == 'upcoming' || status == 'ongoing' || status == 'completed';
+      status == 'confirmed' ||
+      status == 'upcoming' ||
+      status == 'ongoing' ||
+      status == 'completed';
 
   String _statusLabel(String status) {
     switch (status) {
@@ -72,6 +75,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         return 'Ongoing';
       case 'completed':
         return 'Completed';
+      case 'confirmed':
       case 'upcoming':
         return 'Upcoming';
       default:
@@ -227,9 +231,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ],
                   ),
                   const SizedBox(height: 3),
-                  const Text(
-                    'No messages yet',
-                    style: TextStyle(
+                  Text(
+                    (booking['lastMessage'] as String?)?.isNotEmpty == true
+                        ? (booking['lastMessage'] as String)
+                        : 'No messages yet',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
                       fontFamily: 'Open Sans',
                       color: previewText,
                       fontSize: 12,
@@ -252,6 +259,28 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ],
               ),
             ),
+            if (((booking['patientUnreadCount'] as num?)?.toInt() ?? 0) > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                height: 20,
+                constraints: const BoxConstraints(minWidth: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${booking['patientUnreadCount']}',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

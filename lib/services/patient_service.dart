@@ -21,6 +21,25 @@ class PatientService {
     return {'uid': snap.id, ...?snap.data()};
   }
 
+  /// Returns the display name of a patient by checking their patient profile
+  /// ('name' or 'patientName') with fallback to the user record in `users/{uid}`.
+  static Future<String> getPatientName(
+    String uid, {
+    String fallback = 'Patient',
+  }) async {
+    try {
+      final profile = await getPatientProfile(uid);
+      final name = (profile?['name'] as String?)?.trim() ??
+          (profile?['patientName'] as String?)?.trim();
+      if (name != null && name.isNotEmpty) return name;
+
+      final userSnap = await _firestore.collection('users').doc(uid).get();
+      final userName = (userSnap.data()?['name'] as String?)?.trim();
+      if (userName != null && userName.isNotEmpty) return userName;
+    } catch (_) {}
+    return fallback;
+  }
+
   static Future<void> toggleFavorite({
     required String patientUid,
     required String caregiverUid,

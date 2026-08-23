@@ -61,16 +61,17 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
   @override
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments;
-    final userName = (args is Map && args['name'] != null && args['name'].toString().isNotEmpty)
-        ? args['name'].toString()
+    final userName = (args is Map && args['name'] != null && args['name'].toString().trim().isNotEmpty)
+        ? args['name'].toString().trim()
         : 'Nipuni';
     final role = (args is Map && args['role'] is String) ? args['role'] as String : null;
-
-    const Color darkGreen = Color(0xFF06402B);
+    final routeName = ModalRoute.of(context)?.settings.name;
+    final isCaregiver = role == 'caregiver' || routeName == '/caregiver-account-created';
+    final Color bgColor = isCaregiver ? const Color(0xFF55463A) : const Color(0xFF06402B);
     const Color creamColor = Color(0xFFF6F0E2);
 
     return Scaffold(
-      backgroundColor: darkGreen,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -116,9 +117,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                       child: const Text(
                         'Account created!',
                         style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 38,
-                          fontWeight: FontWeight.w800,
+                          fontFamily: 'Quattrocento Sans',
+                          fontSize: 40,
+                          fontWeight: FontWeight.w700,
                           color: Colors.white,
                           letterSpacing: 3,
                         ),
@@ -141,11 +142,11 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                         child: Text(
                           "Welcome to CareLink, $userName. Let's set up your profile so we can find your matches.",
                           style: const TextStyle(
-                            fontFamily: 'Inter',
+                            fontFamily: 'Quattrocento Sans',
                             fontSize: 20,
-                            fontWeight: FontWeight.normal,
+                            fontWeight: FontWeight.w400,
                             color: Colors.white,
-                            height: 1.4,
+                            height: 1.35,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -171,9 +172,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                   padding: const EdgeInsets.only(bottom: 24),
                   child: Container(
                     width: double.infinity,
-                    height: 58,
+                    height: 59,
                     decoration: BoxDecoration(
-                      color: Colors.transparent,
+                      color: bgColor,
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
                         color: creamColor,
@@ -181,9 +182,11 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
+                          color: isCaregiver
+                              ? const Color.fromRGBO(85, 70, 58, 0.5)
+                              : const Color.fromRGBO(6, 64, 43, 0.5),
                           blurRadius: 4,
-                          offset: const Offset(2, 4),
+                          offset: const Offset(4, 4),
                         ),
                       ],
                     ),
@@ -196,7 +199,7 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                           // collected before registration, so both
                           // careRecipient cases land on the same onboarding
                           // flow here.
-                          if (role == 'caregiver') {
+                          if (isCaregiver) {
                             Navigator.pushNamed(context, '/caregiver-onboarding-1');
                           } else if (role == 'patient') {
                             Navigator.pushNamed(context, '/patient-onboarding-1');
@@ -209,9 +212,9 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                             'Set my profile',
                             style: TextStyle(
                               color: creamColor,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Quattrocento Sans',
                             ),
                           ),
                         ),

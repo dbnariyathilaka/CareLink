@@ -1,40 +1,20 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'call_screen.dart';
+import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient Chat Screen  (Chat Thread — Patient view)
 //  Figma node: 388-144
-//  There's no messaging backend yet, so the thread starts honestly
-//  empty — no fabricated conversation history. What IS real: the
-//  booking banner (from the tapped conversation row), locally-typed
-//  messages you send in this session, and call/video buttons that
-//  push the real (simulated) CallScreen and log the actual elapsed
-//  duration once you hang up.
 // ─────────────────────────────────────────────────────────────
 class PatientChatScreen extends StatefulWidget {
   const PatientChatScreen({super.key});
 
   @override
   State<PatientChatScreen> createState() => _PatientChatScreenState();
-}
-
-enum _EntryType { text, callLog }
-
-class _ChatEntry {
-  final _EntryType type;
-  final bool fromMe;
-  final String text;
-  final IconData? icon;
-  final DateTime time;
-  const _ChatEntry({
-    required this.type,
-    required this.fromMe,
-    required this.text,
-    this.icon,
-    required this.time,
-  });
 }
 
 class _PatientChatScreenState extends State<PatientChatScreen> {
@@ -45,6 +25,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   static const Color accentGreen = Color(0xFF22C55E);
   static const Color receivedBubbleBg = Color(0xFF1E3B30);
   static const Color receivedBubbleText = Color(0xFF5ED5A7);
+  static const Color sentBubbleBg = Color(0xFFE8DAC2);
   static const Color sentBubbleText = Color(0xFF42413F);
   static const Color timestampColor = Color(0xFF64748B);
   static const Color callLogBg = Color.fromRGBO(34, 197, 94, 0.1);
@@ -59,10 +40,10 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
 
   final TextEditingController _textController = NoUnderlineTextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<_ChatEntry> _entries = [];
 
   Map<String, dynamic> _args = {};
   bool _loadedArgs = false;
+  Stream<List<Map<String, dynamic>>>? _messagesStream;
 
   @override
   void initState() {
@@ -78,6 +59,11 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map) {
       _args = Map<String, dynamic>.from(args);
+    }
+    final bookingId = _args['bookingId'] as String?;
+    if (bookingId != null && bookingId.isNotEmpty) {
+      _messagesStream = ChatService.streamMessages(bookingId);
+      ChatService.markAsRead(bookingId: bookingId, readerRole: 'patient');
     }
   }
 
@@ -128,19 +114,21 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     return '$hour:$minute $period';
   }
 
-  String _formatCallDuration(Duration d) {
-    final m = d.inMinutes;
-    final s = d.inSeconds.remainder(60);
-    return '${m}m ${s}s';
-  }
-
-  void _sendText() {
+  Future<void> _sendText() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
-    setState(() {
-      _entries.add(_ChatEntry(type: _EntryType.text, fromMe: true, text: text, time: DateTime.now()));
-    });
+    final bookingId = _args['bookingId'] as String?;
+    final senderId = AuthService.currentUser?.uid ?? '';
     _textController.clear();
+
+    if (bookingId != null && bookingId.isNotEmpty) {
+      await ChatService.sendMessage(
+        bookingId: bookingId,
+        senderId: senderId,
+        senderRole: 'patient',
+        text: text,
+      );
+    }
     _scrollToBottom();
   }
 
@@ -156,15 +144,17 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       ),
     );
     if (duration == null || !mounted) return;
-    setState(() {
-      _entries.add(_ChatEntry(
-        type: _EntryType.callLog,
-        fromMe: false,
-        icon: isVideo ? Icons.videocam_rounded : Icons.call_rounded,
-        text: '${isVideo ? 'Video' : 'Voice'} call · ${_formatCallDuration(duration)}',
-        time: DateTime.now(),
-      ));
-    });
+    final bookingId = _args['bookingId'] as String?;
+    final senderId = AuthService.currentUser?.uid ?? '';
+    if (bookingId != null && bookingId.isNotEmpty) {
+      await ChatService.logCall(
+        bookingId: bookingId,
+        senderId: senderId,
+        senderRole: 'patient',
+        isVideo: isVideo,
+        duration: duration,
+      );
+    }
     _scrollToBottom();
   }
 
@@ -226,15 +216,15 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF450A54), Color(0xFF3D0640)],
+                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
               ),
             ),
             alignment: Alignment.center,
             child: Text(
               _initials,
               style: const TextStyle(
-                fontFamily: 'Open Sans',
-                color: Color(0xFFFEE269),
+                fontFamily: 'Inter',
+                color: Color(0xFF42413F),
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -250,8 +240,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                   _caregiverName,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontFamily: 'Inter',
-                    color: Color(0xFFF8FAFC),
+                    fontFamily: 'Open Sans',
+                    color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -269,7 +259,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                     Text(
                       _statusLabel,
                       style: TextStyle(
-                        fontFamily: 'Open Sans',
+                        fontFamily: 'Inter',
                         color: _statusColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -283,28 +273,28 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           GestureDetector(
             onTap: () => _startCall(false),
             child: Container(
-              width: 38,
-              height: 38,
-              margin: const EdgeInsets.only(right: 10),
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: callBtnBg,
                 shape: BoxShape.circle,
                 border: Border.all(color: callBtnBorder),
               ),
-              child: const Icon(Icons.call_rounded, color: callBtnIcon, size: 20),
+              child: const Icon(Icons.call_rounded, color: callBtnIcon, size: 18),
             ),
           ),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: () => _startCall(true),
             child: Container(
-              width: 38,
-              height: 38,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: callBtnBg,
                 shape: BoxShape.circle,
                 border: Border.all(color: callBtnBorder),
               ),
-              child: const Icon(Icons.videocam_rounded, color: callBtnIcon, size: 20),
+              child: const Icon(Icons.videocam_rounded, color: callBtnIcon, size: 18),
             ),
           ),
         ],
@@ -317,9 +307,10 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     final careType = _args['careType'] as String?;
     final startDate = _args['startDate'] as String?;
     final endDate = _args['endDate'] as String?;
+    final dateRange = startDate != null && endDate != null ? '$startDate – $endDate' : startDate;
     final parts = [
       if (careType != null && careType.isNotEmpty) careType,
-      if (startDate != null && endDate != null) '$startDate – $endDate',
+      ?dateRange,
     ];
     final label = parts.isEmpty ? 'Booking details' : 'Booking: ${parts.join(' · ')}';
 
@@ -327,11 +318,11 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       onTap: () => Navigator.pushNamed(context, '/my-bookings'),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         color: bannerBg,
         child: Row(
           children: [
-            const Icon(Icons.event_rounded, color: accentGreen, size: 17),
+            const Icon(Icons.event_rounded, color: accentGreen, size: 16),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -340,18 +331,18 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 style: const TextStyle(
                   fontFamily: 'Open Sans',
                   color: bannerText,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
             const Text(
               'View',
               style: TextStyle(
-                fontFamily: 'Open Sans',
+                fontFamily: 'Inter',
                 color: accentGreen,
                 fontSize: 11,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -360,37 +351,62 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     );
   }
 
-  // ── Message thread — real entries only, honestly empty otherwise ──
+  // ── Live message area ─────────────────────────────────────────
   Widget _buildMessageArea() {
-    if (_entries.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Text(
-            'No messages yet. Say hello below, or start a call using the '
-            'buttons above.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Open Sans',
-              color: Colors.white.withValues(alpha: 0.4),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              height: 1.5,
-            ),
-          ),
-        ),
-      );
+    if (_messagesStream == null) {
+      return _buildEmptyPlaceholder();
     }
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      itemCount: _entries.length,
-      itemBuilder: (context, i) => _buildEntry(_entries[i]),
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _messagesStream,
+      builder: (context, snapshot) {
+        final messages = snapshot.data ?? const [];
+
+        if (messages.isEmpty) {
+          return _buildEmptyPlaceholder();
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+        return ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          itemCount: messages.length,
+          itemBuilder: (context, i) => _buildEntry(messages[i]),
+        );
+      },
     );
   }
 
-  Widget _buildEntry(_ChatEntry entry) {
-    if (entry.type == _EntryType.callLog) {
+  Widget _buildEmptyPlaceholder() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Text(
+          'No messages yet. Say hello below, or start a call using the buttons above.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Open Sans',
+            color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            height: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEntry(Map<String, dynamic> message) {
+    final type = message['type'] as String? ?? 'text';
+    final senderRole = message['senderRole'] as String? ?? 'caregiver';
+    final fromMe = senderRole == 'patient';
+    final text = message['text'] as String? ?? '';
+    final createdAt = message['createdAt'];
+    final time = createdAt is Timestamp ? createdAt.toDate() : DateTime.now();
+
+    if (type == 'callLog') {
+      final isVideo = text.startsWith('Video');
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Center(
@@ -404,10 +420,10 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(entry.icon ?? Icons.call_rounded, color: callLogBorder, size: 15),
+                Icon(isVideo ? Icons.videocam_rounded : Icons.call_rounded, color: callLogBorder, size: 15),
                 const SizedBox(width: 6),
                 Text(
-                  entry.text,
+                  text,
                   style: const TextStyle(
                     fontFamily: 'Open Sans',
                     color: callLogBorder,
@@ -422,7 +438,6 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       );
     }
 
-    final fromMe = entry.fromMe;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
@@ -432,7 +447,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             constraints: const BoxConstraints(maxWidth: 280),
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
             decoration: BoxDecoration(
-              color: fromMe ? accentGreen : receivedBubbleBg,
+              color: fromMe ? sentBubbleBg : receivedBubbleBg,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(14),
                 topRight: const Radius.circular(14),
@@ -441,24 +456,24 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               ),
             ),
             child: Text(
-              entry.text,
+              text,
               style: TextStyle(
                 fontFamily: 'Open Sans',
                 color: fromMe ? sentBubbleText : receivedBubbleText,
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w400,
                 height: 1.4,
               ),
             ),
           ),
           const SizedBox(height: 3),
           Text(
-            _formatTime(entry.time),
+            _formatTime(time),
             style: const TextStyle(
               fontFamily: 'Open Sans',
               color: timestampColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -469,9 +484,9 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   // ── Input bar ─────────────────────────────────────────────────
   Widget _buildInputBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 13, 18, 12),
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
       decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color.fromRGBO(37, 106, 81, 0.34))),
+        border: Border(top: BorderSide(color: headerBorder)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -482,67 +497,61 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 border: Border.all(color: inputBorder),
                 borderRadius: BorderRadius.circular(999),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        filled: false,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                        hintText: 'Type a message…',
-                        hintStyle: const TextStyle(
-                          fontFamily: 'Inter',
-                          color: inputBorder,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      onSubmitted: (_) => _sendText(),
-                    ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+              child: TextField(
+                controller: _textController,
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 11),
+                  hintText: 'Type a message…',
+                  hintStyle: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
                   ),
-                  GestureDetector(
-                    onTap: () => _notAvailableYet('Attachments'),
-                    child: const Icon(Icons.attach_file_rounded, color: inputBorder, size: 20),
-                  ),
-                ],
+                ),
+                onSubmitted: (_) => _sendText(),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: () => _notAvailableYet('Voice messages'),
             child: Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: roundBtnBg,
                 shape: BoxShape.circle,
                 border: Border.all(color: roundBtnBorder),
               ),
-              child: const Icon(Icons.mic_rounded, color: roundBtnIcon, size: 21),
+              child: const Icon(Icons.mic_rounded, color: roundBtnIcon, size: 20),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: _sendText,
             child: Container(
-              width: 42,
-              height: 42,
-              decoration: const BoxDecoration(color: roundBtnBg, shape: BoxShape.circle),
-              child: const Icon(Icons.send_rounded, color: roundBtnIcon, size: 20),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: roundBtnBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: roundBtnBorder),
+              ),
+              child: const Icon(Icons.send_rounded, color: roundBtnIcon, size: 19),
             ),
           ),
         ],

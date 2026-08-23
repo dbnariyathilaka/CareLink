@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
-import '../widgets/empty_state.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -106,13 +105,16 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen>
     with SingleTickerProviderStateMixin {
-  static const Color bgCream = Color(0xFFF5EEDE);
+  static const Color bgCream = Color(0xFFFEFBEF);
   static const Color darkGreen = Color(0xFF06402B);
   static const Color cardBg = Color(0xFFEEDEC9);
   static const Color tabGreen = Color(0xFF2A9C5B);
   static const Color timeText = Color(0xFF765F43);
   static const Color navHomeLabel = Color(0xFFFEE269);
   static const Color navMatchLabel = Color(0xFFFFA722);
+  static const Color emptyTitleBrown = Color(0xFF462911);
+  static const Color emptyBodyBrown = Color.fromRGBO(70, 41, 17, 0.67);
+  static const String _emptyNotificationGif = 'assets/images/notification.gif';
 
   _NotificationCategory? _selectedCategory; // null = All
 
@@ -675,12 +677,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             const SizedBox(height: 12),
             Expanded(
               child: filtered.isEmpty
-                  ? EmptyState(
-                      icon: Icons.notifications_none_rounded,
-                      iconColor: darkGreen,
-                      textColor: darkGreen.withValues(alpha: 0.7),
-                      message: 'No notifications yet.',
-                    )
+                  ? _buildEmptyState()
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(17, 0, 12, 20),
                       itemCount: filtered.length,
@@ -689,6 +686,61 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     ),
             ),
             _buildBottomBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Honest empty state (Figma node 594-198) ────────────────
+  Widget _buildEmptyState() {
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 297,
+              height: 297,
+              child: Image.asset(
+                _emptyNotificationGif,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 120,
+                  color: tabGreen,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No Notifications Yet',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: emptyTitleBrown,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const SizedBox(
+              width: 354,
+              child: Text(
+                "Notifications appear once there's an update. You'll see booking confirmations, reminders, and messages here.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: emptyBodyBrown,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  height: 22.4 / 15,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -731,7 +783,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   // ── Filter tabs ────────────────────────────────────────────
   Widget _buildFilterTabs() {
     final tabs = [
-      (category: null, label: 'All ${_notifications.length}'),
+      (category: null, label: _notifications.isEmpty ? 'All' : 'All ${_notifications.length}'),
       (category: _NotificationCategory.booking, label: 'Booking'),
       (category: _NotificationCategory.reminder, label: 'Reminders'),
       (category: _NotificationCategory.system, label: 'System'),

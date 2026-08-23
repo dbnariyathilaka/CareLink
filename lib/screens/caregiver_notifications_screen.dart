@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/patient_service.dart';
 import '../services/review_service.dart';
-import '../widgets/empty_state.dart';
+import '../widgets/caregiver_bottom_nav.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -36,11 +36,14 @@ class CaregiverNotificationsScreen extends StatefulWidget {
 }
 
 class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScreen> {
-  static const Color bg = Color(0xFFF5EEDE);
-  static const Color titleDark = Color(0xFF113341);
+  static const Color bg = Color(0xFFFEFBEF);
+  static const Color titleDark = Color(0xFF1F3554);
   static const Color cardBg = Color(0xFFEEDEC9);
   static const Color timeMuted = Color(0xFF765F43);
   static const Color subtitleMuted = Color.fromRGBO(0, 0, 0, 0.55);
+  static const Color emptyTitleBrown = Color(0xFF462911);
+  static const Color emptyBodyColor = Color.fromRGBO(39, 34, 77, 0.67);
+  static const String _emptyNotificationGif = 'assets/images/notification.gif';
 
   static const Color inboxAccent = Color(0xFF424366);
   static const Color extendAccent = Color(0xFF336466);
@@ -158,19 +161,19 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(22, 12, 22, 8),
+              padding: EdgeInsets.fromLTRB(22, 16, 22, 10),
               child: Text(
                 'Notifications',
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   color: titleDark,
-                  fontSize: 20,
+                  fontSize: 24,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
             Expanded(child: _buildBody(context)),
-            _buildBottomNav(context),
+            const CaregiverBottomNav(activeTab: CaregiverNavTab.notification),
           ],
         ),
       ),
@@ -179,7 +182,7 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
 
   Widget _buildBody(BuildContext context) {
     if (_bookingsStream == null) {
-      return const EmptyState(icon: Icons.notifications_none_rounded, message: 'No notifications yet.');
+      return _buildEmptyState();
     }
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _bookingsStream,
@@ -191,17 +194,70 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
             final reviews = reviewSnap.data ?? const [];
             final cards = _buildCards(bookings, reviews);
             if (cards.isEmpty) {
-              return const EmptyState(icon: Icons.notifications_none_rounded, message: 'No notifications yet.');
+              return _buildEmptyState();
             }
             return ListView.separated(
               padding: const EdgeInsets.fromLTRB(17, 4, 17, 16),
               itemCount: cards.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, i) => cards[i],
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 297,
+              height: 297,
+              child: Image.asset(
+                _emptyNotificationGif,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.notifications_none_rounded,
+                  size: 120,
+                  color: titleDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No Notifications Yet',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: emptyTitleBrown,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const SizedBox(
+              width: 354,
+              child: Text(
+                "Notifications appear once there's an update. You'll see booking confirmations, reminders, and messages here.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: emptyBodyColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  height: 22.4 / 15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -218,7 +274,7 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
       final startTime = _parseTime(b['startTime'] as String?);
       final endTime = _parseTime(b['endTime'] as String?);
       final shiftStart = _combine(date, startTime);
-      final shiftEnd = _combine(date, endTime) ?? (shiftStart != null ? shiftStart.add(const Duration(hours: 8)) : null);
+      final shiftEnd = _combine(date, endTime) ?? shiftStart?.add(const Duration(hours: 8));
       final arrivalConfirmed = b['arrivalConfirmed'] == true;
 
       if (status == 'requested') {
@@ -501,68 +557,6 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
         },
       ),
       onTap: () => _openPatientProfile(review),
-    );
-  }
-
-  // ── Bottom nav (Alerts tab active) ────────────────────────
-  Widget _buildBottomNav(BuildContext context) {
-    const indigo = Color(0xFF6366F1);
-    const muted = Color(0xFF94A3B8);
-    final items = [
-      (icon: Icons.home_rounded, label: 'Home'),
-      (icon: Icons.calendar_month_rounded, label: 'Schedule'),
-      (icon: Icons.notifications_none_rounded, label: 'Alerts'),
-      (icon: Icons.person_outline_rounded, label: 'Profile'),
-    ];
-    const selectedIndex = 2;
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1F3554),
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(items.length, (index) {
-              final item = items[index];
-              final isSelected = index == selectedIndex;
-              final color = isSelected ? indigo : muted;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  if (index == 0) {
-                    Navigator.popUntil(context, ModalRoute.withName('/caregiver-dashboard'));
-                  } else if (index == 1) {
-                    Navigator.pushNamed(context, '/caregiver-schedule');
-                  } else if (index == 3) {
-                    Navigator.pushNamed(context, '/caregiver-own-profile');
-                  }
-                },
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(item.icon, color: color, size: 22),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        color: color,
-                        fontSize: 10,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
     );
   }
 }

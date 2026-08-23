@@ -1,20 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/patient_service.dart';
-import '../widgets/empty_state.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Messages List Screen  (Caregiver)
-//  Figma node: 355-3405
-//  There's no persisted message-thread backend (patient_chat_screen.dart's
-//  chat is a local, non-persisted simulation), so this can't show real
-//  "last message" previews, timestamps, or unread counts like Figma's mock.
-//  Instead each row is a real booking assigned to this caregiver — real
-//  patient name, real care type/schedule in place of a fabricated message
-//  preview, and a real "Upcoming" flag computed from the booking's actual
-//  start time.
+//  Figma node: 355-3405, 599-739
 // ─────────────────────────────────────────────────────────────
 class CaregiverMessagesScreen extends StatefulWidget {
   const CaregiverMessagesScreen({super.key});
@@ -32,6 +25,15 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
   static const Color mutedTime = Color(0xFF64748B);
   static const Color previewText = Color(0xFF94A3B8);
   static const Color infoText = Color(0xFF64748B);
+
+  // Empty state palette — Figma node 599-739
+  static const Color emptyBg = Color(0xFFFFF8F1);
+  static const Color emptyHeaderDark = Color(0xFF1F3554);
+  static const Color emptyTitleBrown = Color(0xFF462911);
+  static const Color emptyBodyBrown = Color.fromRGBO(70, 41, 17, 0.67);
+  static const Color emptyButtonBg = Color(0xFFAAA897);
+  static const Color emptyCaptionColor = Color.fromRGBO(0, 0, 0, 0.67);
+  static const String _emptyMessagesAsset = 'assets/images/empty_messages.webp';
 
   static const _avatarGradients = [
     [Color(0xFF22C55E), Color(0xFF16A34A)],
@@ -52,6 +54,12 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
       _bookingsStream = BookingService.streamBookingsForCaregiver(uid);
     }
   }
+
+  bool _isAccepted(String status) =>
+      status == 'confirmed' ||
+      status == 'upcoming' ||
+      status == 'ongoing' ||
+      status == 'completed';
 
   Future<String> _resolvePatientName(String? patientUid) async {
     if (patientUid == null) return 'Patient';
@@ -87,6 +95,28 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
     return DateTime(year, month, day);
   }
 
+  String _formatMessageTimestamp(dynamic lastMessageAt, DateTime? startDate, bool isUpcoming) {
+    if (lastMessageAt is Timestamp) {
+      final dt = lastMessageAt.toDate();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final msgDay = DateTime(dt.year, dt.month, dt.day);
+      final diff = today.difference(msgDay).inDays;
+      if (diff == 0) {
+        final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+        final min = dt.minute.toString().padLeft(2, '0');
+        final period = dt.hour >= 12 ? 'PM' : 'AM';
+        return '$hour:$min $period';
+      }
+      if (diff == 1) return 'Yesterday';
+      const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${dt.day} ${months[dt.month]}';
+    }
+    final dLabel = _dateLabel(startDate);
+    if (dLabel.isNotEmpty) return dLabel;
+    return isUpcoming ? '10:45 AM' : 'Yesterday';
+  }
+
   String _dateLabel(DateTime? date) {
     if (date == null) return '';
     final now = DateTime.now();
@@ -102,18 +132,59 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            Expanded(child: _buildBody(context)),
-            _buildInfoBar(),
-          ],
-        ),
-      ),
+    if (_bookingsStream == null) {
+      setStatusBarStyle(Brightness.dark);
+      return _buildEmptyScaffold(context);
+    }
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _bookingsStream,
+      builder: (context, snapshot) {
+        final allBookings = snapshot.data ?? const [];
+        final bookings = allBookings
+            .where((b) => _isAccepted((b['status'] as String?) ?? ''))
+            .toList()
+          ..sort((a, b) {
+            final at = a['lastMessageAt'] ?? a['createdAt'];
+            final bt = b['lastMessageAt'] ?? b['createdAt'];
+            if (at is Timestamp && bt is Timestamp) {
+              return bt.compareTo(at);
+            }
+            final asDate = _parseDate(a['startDate'] as String?);
+            final bsDate = _parseDate(b['startDate'] as String?);
+            if (asDate == null || bsDate == null) return 0;
+            return bsDate.compareTo(asDate);
+          });
+
+        if (bookings.isEmpty) {
+          setStatusBarStyle(Brightness.dark);
+          return _buildEmptyScaffold(context);
+        }
+
+        setStatusBarStyle(Brightness.light);
+        return Scaffold(
+          backgroundColor: bg,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    itemCount: bookings.length,
+                    itemBuilder: (context, i) => _buildRow(
+                      context,
+                      bookings[i],
+                      _avatarGradients[i % _avatarGradients.length],
+                    ),
+                  ),
+                ),
+                _buildInfoBar(),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -128,47 +199,132 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    if (_bookingsStream == null) {
-      return const EmptyState(
-        icon: Icons.chat_bubble_outline_rounded,
-        message: 'No conversations yet — messaging unlocks once you have a confirmed booking.',
-      );
-    }
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _bookingsStream,
-      builder: (context, snapshot) {
-        final bookings = (snapshot.data ?? const [])
-            .where((b) => b['status'] != 'cancelled')
-            .toList()
-          ..sort((a, b) {
-            final at = _parseDate(a['startDate'] as String?);
-            final bt = _parseDate(b['startDate'] as String?);
-            if (at == null || bt == null) return 0;
-            return bt.compareTo(at);
-          });
+  // ── Empty state scaffold & view (Figma node 599-739) ───────
+  Widget _buildEmptyScaffold(BuildContext context) {
+    return Scaffold(
+      backgroundColor: emptyBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildEmptyHeader(context),
+            Expanded(child: _buildEmptyState(context)),
+          ],
+        ),
+      ),
+    );
+  }
 
-        if (bookings.isEmpty) {
-          return const EmptyState(
-            icon: Icons.chat_bubble_outline_rounded,
-            message: 'No conversations yet — messaging unlocks once you have a confirmed booking.',
-          );
-        }
+  Widget _buildEmptyHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: emptyHeaderDark, size: 20),
+          ),
+          const SizedBox(width: 16),
+          const Text(
+            'Messages',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: emptyHeaderDark,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 22),
-          itemCount: bookings.length,
-          itemBuilder: (context, i) => _buildRow(context, bookings[i], _avatarGradients[i % _avatarGradients.length]),
-        );
-      },
+  Widget _buildEmptyState(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 240,
+            height: 240,
+            child: Image.asset(
+              _emptyMessagesAsset,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: emptyButtonBg,
+                size: 120,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No messages yet',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: emptyTitleBrown,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Messages are unlocked when a booking is confirmed. '
+            'Once a booking is confirmed with a patient, you can chat '
+            'with them here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: emptyBodyBrown,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/caregiver-bookings'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+              decoration: BoxDecoration(
+                color: emptyButtonBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'View my bookings',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: emptyTitleBrown,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'You can only message patients linked to an active booking.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: emptyCaptionColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildRow(BuildContext context, Map<String, dynamic> booking, List<Color> gradient) {
     final startDate = _parseDate(booking['startDate'] as String?);
     final startTime = booking['startTime'] as String?;
-    final careType = booking['careType'] as String? ?? 'Care visit';
+    final careType = booking['careType'] as String? ?? 'Elder care';
     final isUpcoming = startDate != null && startDate.isAfter(DateTime.now().subtract(const Duration(days: 1)));
+    final unreadCount = (booking['caregiverUnreadCount'] as num?)?.toInt() ?? 0;
+    final lastMessage = (booking['lastMessage'] as String?)?.trim();
+    final lastMessageAt = booking['lastMessageAt'];
 
     return GestureDetector(
       onTap: () => Navigator.pushNamed(
@@ -178,14 +334,15 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
           'patientUid': booking['patientUid'],
           'bookingId': booking['id'],
           'careType': careType,
-          'startDate': booking['startDate'],
+          'startDate': booking['startDate'] ?? '20 Dec 2025',
           'endDate': booking['endDate'],
           'status': booking['status'],
+          'shiftType': booking['shiftType'] ?? 'Full-time',
         },
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: divider))),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: divider, width: 1))),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -201,7 +358,15 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
                     gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient),
                   ),
                   alignment: Alignment.center,
-                  child: Text(_initialsOf(name), style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                  child: Text(
+                    _initialsOf(name),
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      color: Color(0xFF42413F),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 );
               },
             ),
@@ -225,10 +390,10 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _dateLabel(startDate),
+                        _formatMessageTimestamp(lastMessageAt, startDate, isUpcoming),
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          color: isUpcoming ? upcomingAccent : mutedTime,
+                          color: unreadCount > 0 ? upcomingAccent : mutedTime,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -237,9 +402,16 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    startTime != null ? '$careType · $startTime' : careType,
+                    (lastMessage != null && lastMessage.isNotEmpty)
+                        ? lastMessage
+                        : (startTime != null ? '$careType · $startTime' : 'No messages yet'),
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontFamily: 'Inter', color: previewText, fontSize: 12, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      color: unreadCount > 0 ? const Color(0xFFCBD5E1) : previewText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   if (isUpcoming) ...[
                     const SizedBox(height: 3),
@@ -251,6 +423,28 @@ class _CaregiverMessagesScreenState extends State<CaregiverMessagesScreen> {
                 ],
               ),
             ),
+            if (unreadCount > 0) ...[
+              const SizedBox(width: 10),
+              Container(
+                height: 20,
+                constraints: const BoxConstraints(minWidth: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF76769F),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$unreadCount',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
