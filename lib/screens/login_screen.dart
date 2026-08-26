@@ -68,6 +68,19 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final inputEmail = _emailController.text.trim().toLowerCase();
+    final inputPassword = _passwordController.text;
+
+    // Check for admin credentials
+    if (inputEmail == 'admin@gmail.com' && inputPassword == 'admin1234') {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/admin-dashboard',
+        (route) => false,
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
       AppState.reset();
@@ -81,7 +94,13 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (!mounted) return;
 
-      if (role == 'caregiver') {
+      if (role == 'admin') {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/admin-dashboard',
+          (route) => false,
+        );
+      } else if (role == 'caregiver') {
         // A caregiver who never finished onboarding still gets into their
         // dashboard — their account is no longer deleted on login. What
         // they can't do (accept a job) is gated at that specific action

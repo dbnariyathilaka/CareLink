@@ -127,7 +127,7 @@ class _QualificationsSelectionScreenState
       return _buildQuestionCard(
         context,
         heroAsset: 'assets/images/qualification3.png',
-        title: 'Have you received formal caregiving training?',
+        title: 'Do you accept a formal trained caregiver?',
         options: _trainOptions,
         isSelected: (v) => v == _training,
         onToggle: (v) => setState(() => _training = v),
