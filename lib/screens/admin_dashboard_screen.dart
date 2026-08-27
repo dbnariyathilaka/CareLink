@@ -1,6 +1,14 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../widgets/status_bar.dart';
+import 'admin_bookings_screen.dart';
 import 'admin_caregivers_screen.dart';
+import 'admin_content_taxonomy_screen.dart';
+import 'admin_finance_screen.dart';
+import 'admin_patients_screen.dart';
+import 'admin_pricing_screen.dart';
+import 'admin_review_moderation_screen.dart';
+import 'admin_support_hub_screen.dart';
 import 'admin_verification_queue_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -12,6 +20,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _currentNavIndex = 0;
+  bool _showMoreMenu = false;
 
   static const Color bgColor = Color(0xFFF5EEDE);
   static const Color headerBg = Color(0xFF766B58);
@@ -34,12 +43,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   static const Color requestBg = Color(0xFF979F8E);
   static const Color requestBorder = Color(0xFF2E4F09);
   static const Color requestTitle = Color(0xFF3B5A18);
-  static const Color requestSubtitle = Color(0xFF466127);
+  static const Color requestSubtitle = Color(0xFFCBE0AF);
 
   // Operations Colors
   static const Color opCardBg = Color(0xFFA89F90);
   static const Color opValueColor = Color(0xFF47381E);
-  static const Color opLabelColor = Color(0xFF534027);
+  static const Color opLabelColor = Color.fromRGBO(83, 64, 39, 0.77);
   static const Color starGold = Color(0xFFB28502);
 
   // Bookings Chart Colors
@@ -51,6 +60,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // Bottom Nav
   static const Color bottomNavBg = Color(0xFF3A3328);
   static const Color activeGold = Color(0xFFFBBC05);
+  static const double bottomNavHeight = 51;
+
+  // "More" popup
+  static const Color moreMenuBg = Color(0xFF2C251D);
+  static const Color moreMenuItemBg = Color(0xFF4A4032);
 
   @override
   void initState() {
@@ -283,47 +297,86 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       backgroundColor: bgColor,
       body: SafeArea(
         top: false,
-        child: Column(
+        child: Stack(
           children: [
-            // Top Scrollable Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header Section
-                    _buildHeader(),
+            Column(
+              children: [
+                // Top Scrollable Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header Section
+                        _buildHeader(),
 
-                    const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                    // Needs Attention Section
-                    _buildSectionHeader('NEEDS ATTENTION'),
-                    const SizedBox(height: 8),
-                    _buildNeedsAttention(),
+                        // Needs Attention Section
+                        _buildSectionHeader('NEEDS ATTENTION'),
+                        const SizedBox(height: 8),
+                        _buildNeedsAttention(),
 
-                    const SizedBox(height: 22),
+                        const SizedBox(height: 22),
 
-                    // Operations Section
-                    _buildSectionHeader('OPERATIONS'),
-                    const SizedBox(height: 8),
-                    _buildOperationsGrid(),
+                        // Operations Section
+                        _buildSectionHeader('OPERATIONS'),
+                        const SizedBox(height: 8),
+                        _buildOperationsGrid(),
 
-                    const SizedBox(height: 22),
+                        const SizedBox(height: 22),
 
-                    // Bookings · Last 7 Days Section
-                    _buildSectionHeader('BOOKINGS · LAST 7 DAYS'),
-                    const SizedBox(height: 8),
-                    _buildBookingsChart(),
+                        // Bookings · Last 7 Days Section
+                        _buildSectionHeader('BOOKINGS · LAST 7 DAYS'),
+                        const SizedBox(height: 8),
+                        _buildBookingsChart(),
 
-                    const SizedBox(height: 24),
-                  ],
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Bottom Navigation Bar
+                _buildBottomNav(),
+              ],
+            ),
+
+            // Scrim behind the "More" popup, dismisses on tap
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !_showMoreMenu,
+                child: AnimatedOpacity(
+                  opacity: _showMoreMenu ? 1 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _showMoreMenu = false),
+                    child: Container(color: Colors.black.withValues(alpha: 0.35)),
+                  ),
                 ),
               ),
             ),
 
-            // Bottom Navigation Bar
-            _buildBottomNav(),
+            // "More" popup — pops out from the footer
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: bottomNavHeight,
+              child: IgnorePointer(
+                ignoring: !_showMoreMenu,
+                child: AnimatedSlide(
+                  offset: _showMoreMenu ? Offset.zero : const Offset(0, 1),
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  child: AnimatedOpacity(
+                    opacity: _showMoreMenu ? 1 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: _buildMoreMenuPanel(),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -755,6 +808,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     ];
 
     return Container(
+      height: bottomNavHeight,
       decoration: const BoxDecoration(
         color: bottomNavBg,
         borderRadius: BorderRadius.only(
@@ -767,18 +821,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(items.length, (index) {
           final item = items[index];
-          final isSelected = _currentNavIndex == index;
+          final isSelected = !_showMoreMenu && _currentNavIndex == index;
           final color = isSelected ? activeGold : Colors.white;
 
           return GestureDetector(
             onTap: () {
-              setState(() => _currentNavIndex = index);
               if (index == 4) {
-                // More tab
-                _handleLogout();
-              } else if (index == 1) {
-                // Users tab — show the Select User picker first
-                _showSelectUserSheet();
+                // More tab — pop out the extra options panel above the footer
+                setState(() => _showMoreMenu = true);
+              } else {
+                setState(() => _currentNavIndex = index);
+                if (index == 1) {
+                  // Users tab — show the Select User picker first
+                  _showSelectUserSheet();
+                } else if (index == 2) {
+                  // Bookings tab
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
+                  );
+                } else if (index == 3) {
+                  // Finance tab
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
+                  );
+                }
               }
             },
             behavior: HitTestBehavior.opaque,
@@ -807,6 +875,147 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+
+  // ── "More" popup (Figma node 698:1456) ──────────────────────────────────
+  // Pops out from directly above the footer, showing extra nav destinations
+  // in a 2x4 grid. Dashboard/Users/Bookings/Finance mirror the footer tabs;
+  // Review/Pricing/Support/Content are additional admin sections.
+  void _closeMoreMenu() => setState(() => _showMoreMenu = false);
+
+  void _handleMoreMenuTap(int? navIndex, {String? comingSoonLabel}) {
+    _closeMoreMenu();
+    if (navIndex != null) {
+      setState(() => _currentNavIndex = navIndex);
+      if (navIndex == 1) {
+        _showSelectUserSheet();
+      } else if (navIndex == 2) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
+        );
+      } else if (navIndex == 3) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
+        );
+      }
+    } else if (comingSoonLabel == 'Review') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminReviewModerationScreen()),
+      );
+    } else if (comingSoonLabel == 'Pricing') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminPricingScreen()),
+      );
+    } else if (comingSoonLabel == 'Support') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminSupportHubScreen()),
+      );
+    } else if (comingSoonLabel == 'Content') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminContentTaxonomyScreen()),
+      );
+    } else if (comingSoonLabel != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$comingSoonLabel coming soon'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Widget _buildMoreMenuPanel() {
+    final items = <Map<String, dynamic>>[
+      {'label': 'Dashboard', 'icon': Icons.home_rounded, 'navIndex': 0},
+      {'label': 'Users', 'icon': Icons.people_alt_outlined, 'navIndex': 1},
+      {'label': 'Bookings', 'icon': Icons.event_available_outlined, 'navIndex': 2},
+      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined, 'navIndex': 3},
+      {'label': 'Review', 'icon': Icons.rate_review_outlined, 'navIndex': null},
+      {'label': 'Pricing', 'icon': Icons.sell_outlined, 'navIndex': null},
+      {'label': 'Support', 'icon': Icons.support_agent_outlined, 'navIndex': null},
+      {'label': 'Content', 'icon': Icons.auto_awesome_outlined, 'navIndex': null},
+    ];
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(20),
+        topRight: Radius.circular(20),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          color: moreMenuBg.withValues(alpha: 0.96),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: _closeMoreMenu,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFFB5ADA2), size: 22),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: items.sublist(0, 4).map((item) => _buildMoreMenuItem(item)).toList(),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: items.sublist(4, 8).map((item) => _buildMoreMenuItem(item)).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreMenuItem(Map<String, dynamic> item) {
+    final int? navIndex = item['navIndex'] as int?;
+    final bool isSelected = navIndex != null && navIndex == _currentNavIndex;
+    final color = isSelected ? activeGold : Colors.white;
+
+    return GestureDetector(
+      onTap: () => _handleMoreMenuTap(navIndex, comingSoonLabel: item['label'] as String),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 68,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: isSelected ? activeGold.withValues(alpha: 0.18) : moreMenuItemBg,
+                shape: BoxShape.circle,
+                border: isSelected ? Border.all(color: activeGold, width: 1.5) : null,
+              ),
+              child: Icon(item['icon'] as IconData, color: color, size: 22),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              item['label'] as String,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -946,11 +1155,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                         );
                       } else {
-                        // Patient side — to be implemented
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Patient user list coming soon'),
-                            duration: Duration(seconds: 2),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminPatientsScreen(),
                           ),
                         );
                       }

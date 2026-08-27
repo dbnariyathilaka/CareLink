@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
 import '../widgets/status_bar.dart';
+import 'admin_bookings_screen.dart';
 import 'admin_caregiver_profile_screen.dart';
+import 'admin_finance_screen.dart';
 
 enum CaregiverStatus { active, pending, suspended }
 
@@ -770,6 +772,18 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
               if (index == 0) {
                 // Navigate back to Admin Dashboard
                 Navigator.pop(context);
+              } else if (index == 2) {
+                // Bookings tab
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
+                );
+              } else if (index == 3) {
+                // Finance tab
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
+                );
               } else if (index == 4) {
                 // More tab -> pop back or logout
                 Navigator.pop(context);

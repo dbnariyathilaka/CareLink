@@ -66,6 +66,7 @@ class _AdminVerificationQueueScreenState
   static const Color bgColor = Color(0xFFF5EEDE);
   static const Color cardBg = Color(0xFFC4BBAC);
   static const Color cardBorder = Color(0xFF50432B);
+  static const Color expandedCardBorder = Color(0xFF334155);
   static const Color titleColor = Color(0xFF544730);
 
   static const Color filterActiveBg = Color(0xFF585247);
@@ -464,7 +465,7 @@ class _AdminVerificationQueueScreenState
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cardBorder, width: 1),
+        border: Border.all(color: expandedCardBorder, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

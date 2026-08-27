@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/status_bar.dart';
+import 'admin_bookings_screen.dart';
+import 'admin_finance_screen.dart';
 
 class AdminCaregiverProfileData {
   final String initials;
@@ -157,13 +159,13 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
                     const SizedBox(height: 18),
 
                     // ── Section 1: Personal details ───────────────────────
-                    _buildSectionTitle('PERSONAL DETAILS'),
+                    _buildSectionTitle('Personal details'),
                     const SizedBox(height: 8),
                     _buildPersonalDetailsCard(),
                     const SizedBox(height: 18),
 
                     // ── Section 2: Care Service Details ───────────────────
-                    _buildSectionTitle('CARE SERVICE DETAILS'),
+                    _buildSectionTitle('Care Service Details'),
                     const SizedBox(height: 8),
                     _buildCareServiceDetailsCard(),
                     const SizedBox(height: 18),
@@ -522,6 +524,16 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
             onTap: () {
               if (index == 0 || index == 1) {
                 Navigator.pop(context);
+              } else if (index == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
+                );
+              } else if (index == 3) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
+                );
               }
             },
             behavior: HitTestBehavior.opaque,
