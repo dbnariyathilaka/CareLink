@@ -2,11 +2,12 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/booking_service.dart';
 import '../services/patient_service.dart';
+import '../services/payment_service.dart';
 import '../services/user_directory_service.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
-import 'admin_bookings_screen.dart';
-import 'admin_finance_screen.dart';
 import 'admin_patient_profile_screen.dart';
 
 /// Deterministic avatar color pairing so each patient gets a stable (but not
@@ -29,8 +30,10 @@ const List<_AvatarColors> _avatarPalette = [
 
 /// Real patient row for the admin patients list — every field here traces to
 /// `patientProfiles/{uid}` (care fields) or `users/{uid}` (phone/joined date).
-/// There is no rating, account-status, dispute or NIC concept for patients
-/// anywhere in the schema, so none of those are modelled here.
+/// There is no rating or NIC concept for patients anywhere in the schema, so
+/// neither is modelled here. Bookings/cancellations/disputes counts and the
+/// suspend flag are fetched/derived separately (see the state class below),
+/// not stored on this row.
 class AdminPatientData {
   final String uid;
   final String initials;
@@ -185,15 +188,24 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
   static const Color idColor = Color(0xFF625846);
   static const Color spotlightNameColor = Color(0xFF5C5445);
   static const Color spotlightSubtitleColor = Color(0xFF7C6F5D);
-  static const Color infoLabelColor = Color(0xFF625846);
-  static const Color infoValueColor = Color(0xFF403522);
   static const Color btnViewProfileBg = Color(0xFF59341E);
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color navGold = Color(0xFFFBBC05);
+  static const Color btnSuspendBorder = Color(0xFF59341E);
+  static const Color statsTileBg = Color(0xFF44331C);
+  static const Color statsValueGold = Color(0xFFFBBC05);
 
   final TextEditingController _searchController = TextEditingController();
   String? _expandedPatientId;
   bool _hasSetDefaultExpand = false;
+
+  // Session-local only (never written to Firestore — there is no
+  // suspension field anywhere in the patient schema to persist to), same
+  // honest pattern as the caregivers list's Suspend action.
+  final Set<String> _locallySuspended = {};
+
+  // Lazily fetched only for the currently-expanded card (never one query
+  // per row) — see _loadExtraStats.
+  final Map<String, ({int bookings, int cancellations, int disputes})> _extraStats = {};
+  final Set<String> _extraStatsLoading = {};
   bool _loading = true;
 
   StreamSubscription<List<Map<String, dynamic>>>? _patientsSub;
@@ -232,6 +244,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
         if (!_hasSetDefaultExpand && list.isNotEmpty) {
           _expandedPatientId = list.first.uid;
           _hasSetDefaultExpand = true;
+          _loadExtraStats(list.first.uid);
         }
       });
     });
@@ -259,6 +272,77 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
     setState(() {
       _expandedPatientId = _expandedPatientId == uid ? null : uid;
     });
+    if (_expandedPatientId == uid) _loadExtraStats(uid);
+  }
+
+  /// Fetched lazily, one patient at a time, only for the card the admin
+  /// actually expands — never one query per row (an N+1 query storm). Real
+  /// counts: bookings/cancellations from BookingService, disputed-payments
+  /// count from PaymentService (near-always 0 today since billing isn't
+  /// live, but a real Firestore count, not a fabricated number).
+  Future<void> _loadExtraStats(String uid) async {
+    if (_extraStats.containsKey(uid) || _extraStatsLoading.contains(uid)) return;
+    _extraStatsLoading.add(uid);
+    final counts = await BookingService.countBookingsForPatient(uid);
+    final disputes = await PaymentService.countDisputesForPatient(uid);
+    if (!mounted) return;
+    setState(() {
+      _extraStats[uid] = (bookings: counts.active, cancellations: counts.cancelled, disputes: disputes);
+      _extraStatsLoading.remove(uid);
+    });
+  }
+
+  void _toggleSuspendStatus(AdminPatientData p) {
+    final isCurrentlySuspended = _locallySuspended.contains(p.uid);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C251D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          isCurrentlySuspended ? 'Reactivate Patient?' : 'Suspend Patient?',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        content: Text(
+          isCurrentlySuspended
+              ? 'Are you sure you want to reactivate ${p.name}? They will be able to book caregivers again.'
+              : 'Are you sure you want to suspend ${p.name}? They will not be able to create new booking requests.',
+          style: const TextStyle(color: Color(0xFFC4BBAC), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isCurrentlySuspended ? Colors.green : const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              setState(() {
+                if (isCurrentlySuspended) {
+                  _locallySuspended.remove(p.uid);
+                } else {
+                  _locallySuspended.add(p.uid);
+                }
+              });
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${p.name} has been ${isCurrentlySuspended ? 'reactivated' : 'suspended'}.'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: Text(
+              isCurrentlySuspended ? 'Reactivate' : 'Suspend',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openProfile(AdminPatientData p) {
@@ -371,7 +455,16 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
                             fontSize: 13,
                             color: searchHintColor,
                           ),
+                          filled: false,
                           border: InputBorder.none,
+                          // The app's ambient ThemeData (AppTheme.darkTheme)
+                          // defines filled:true with a dark fillColor and a
+                          // bright focusedBorder — without repeating
+                          // InputBorder.none for these two states, Flutter
+                          // falls back to those theme defaults, painting a
+                          // dark box behind this light search bar.
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           isDense: true,
                           contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
@@ -427,7 +520,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
             ),
 
             // ── Bottom Navigation Bar (Matching Admin Dashboard) ────────────
-            _buildBottomNav(),
+            const AdminBottomNav(active: AdminNavTab.users),
           ],
         ),
       ),
@@ -447,6 +540,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
           ),
           padding: const EdgeInsets.all(14),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 52,
@@ -499,6 +593,8 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              _buildStatusBadge(p.uid),
             ],
           ),
         ),
@@ -519,6 +615,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 40,
@@ -562,33 +659,77 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                _buildStatusBadge(p.uid),
               ],
             ),
             const SizedBox(height: 10),
-            _buildInfoRow('Conditions', p.conditions),
-            const SizedBox(height: 6),
-            _buildInfoRow('Phone', p.phone),
+            // Bookings/Cancellations fetched from BookingService, Disputes
+            // from PaymentService — all lazily, just for this one expanded
+            // card (see _loadExtraStats).
+            Builder(builder: (_) {
+              final extra = _extraStats[p.uid];
+              return Row(
+                children: [
+                  Expanded(child: _buildStatTile(extra == null ? '…' : '${extra.bookings}', 'Bookings')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildStatTile(extra == null ? '…' : '${extra.cancellations}', 'Cancellations')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildStatTile(extra == null ? '…' : '${extra.disputes}', 'Disputes')),
+                ],
+              );
+            }),
             const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () => _openProfile(p),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: btnViewProfileBg,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'View profile',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _openProfile(p),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: btnViewProfileBg,
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'View profile',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                // Suspend / Reactivate (session-local only — see
+                // _locallySuspended doc comment above)
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _toggleSuspendStatus(p),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: btnSuspendBorder, width: 1),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _locallySuspended.contains(p.uid) ? 'Reactivate' : 'Suspend',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: btnSuspendBorder,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -596,97 +737,46 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 78,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: infoLabelColor,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11.5,
-              fontWeight: FontWeight.w500,
-              color: infoValueColor,
-            ),
-          ),
-        ),
-      ],
+  /// Only real distinguishing signal for a patient account is the
+  /// session-local suspend flag (see _locallySuspended doc comment above) —
+  /// there is no verification/approval workflow for patients, so unlike
+  /// caregivers there is no real 'pending' state to show.
+  Widget _buildStatusBadge(String uid) {
+    final isSuspended = _locallySuspended.contains(uid);
+    final label = isSuspended ? 'SUSPENDED' : 'ACTIVE';
+    final bg = isSuspended ? const Color.fromRGBO(239, 68, 68, 0.16) : const Color.fromRGBO(78, 172, 0, 0.16);
+    final fg = isSuspended ? const Color(0xFF822222) : const Color(0xFF255010);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Text(
+        label,
+        style: TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w700, color: fg),
+      ),
     );
   }
 
-  Widget _buildBottomNav() {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'More', 'icon': Icons.more_horiz_rounded},
-    ];
-
+  Widget _buildStatTile(String value, String label) {
     return Container(
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == 1; // Users tab is active
-          final color = isSelected ? navGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 0 || index == 4) {
-                Navigator.pop(context);
-              } else if (index == 2) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
-                );
-              } else if (index == 3) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-                );
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(item['icon'] as IconData, size: 22, color: color),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
+      decoration: BoxDecoration(color: statsTileBg, borderRadius: BorderRadius.circular(9)),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: statsValueGold,
             ),
-          );
-        }),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            label,
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w500, color: Colors.white),
+          ),
+        ],
       ),
     );
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
-import 'admin_bookings_screen.dart';
-import 'admin_finance_screen.dart';
 
 class AdminSupportHubScreen extends StatefulWidget {
   const AdminSupportHubScreen({super.key});
@@ -30,8 +29,6 @@ class _AdminSupportHubScreenState extends State<AdminSupportHubScreen> {
   static const Color audienceChipActiveText = Color(0xFFB26915);
   static const Color audienceChipInactiveBorder = Color(0xFF44331C);
 
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color navGold = Color(0xFFFBBC05);
 
   final TextEditingController _broadcastController = TextEditingController();
 
@@ -106,7 +103,7 @@ class _AdminSupportHubScreenState extends State<AdminSupportHubScreen> {
                 ),
               ),
             ),
-            _buildBottomNav(),
+            const AdminBottomNav(active: AdminNavTab.support),
           ],
         ),
       ),
@@ -202,7 +199,16 @@ class _AdminSupportHubScreenState extends State<AdminSupportHubScreen> {
             decoration: const InputDecoration(
               hintText: 'Write an announcement...',
               hintStyle: TextStyle(color: textareaTextColor),
+              filled: false,
               border: InputBorder.none,
+              // The app's ambient ThemeData (AppTheme.darkTheme) defines
+              // filled:true with a dark fillColor and a bright green
+              // focusedBorder — without repeating InputBorder.none for
+              // these two states, Flutter falls back to those theme
+              // defaults, painting a dark box with a green focus ring
+              // behind this light textarea.
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               isCollapsed: true,
               contentPadding: EdgeInsets.all(11),
             ),
@@ -264,62 +270,4 @@ class _AdminSupportHubScreenState extends State<AdminSupportHubScreen> {
     );
   }
 
-  // ── Bottom Navigation Bar (matching Admin Dashboard) ────────────────────
-  Widget _buildBottomNav() {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'Support', 'icon': Icons.support_agent_outlined},
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == 4; // More tab is active (Support lives under More)
-          final color = isSelected ? navGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 0 || index == 1 || index == 4) {
-                Navigator.pop(context);
-              } else if (index == 2) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminBookingsScreen()));
-              } else if (index == 3) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminFinanceScreen()));
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(item['icon'] as IconData, size: 22, color: color),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 }

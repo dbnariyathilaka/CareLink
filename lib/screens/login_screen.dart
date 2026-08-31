@@ -71,13 +71,62 @@ class _LoginScreenState extends State<LoginScreen>
     final inputEmail = _emailController.text.trim().toLowerCase();
     final inputPassword = _passwordController.text;
 
-    // Check for admin credentials
+    // Admin shortcut — this still has to establish a REAL Firebase Auth
+    // session (not just navigate straight to the dashboard the way this
+    // used to work), because every Firestore security rule requires
+    // request.auth to be non-null, and the admin screens now run real
+    // queries against those rules. Self-provisions the admin account +
+    // users/{uid}.role = 'admin' on first use if it doesn't exist yet, and
+    // re-asserts the role on every login so it can never drift.
     if (inputEmail == 'admin@gmail.com' && inputPassword == 'admin1234') {
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/admin-dashboard',
-        (route) => false,
-      );
+      setState(() => _isSubmitting = true);
+      try {
+        UserCredential credential;
+        try {
+          credential = await AuthService.signInWithEmail(email: inputEmail, password: inputPassword);
+        } on FirebaseAuthException catch (e) {
+          // Modern Firebase projects have email-enumeration protection on
+          // by default, which makes "no such account" return the same
+          // invalid-credential code as "wrong password" — not the older
+          // user-not-found — so both are treated as "try creating it" here.
+          // If the account genuinely exists with a different password,
+          // registerWithEmail below fails with email-already-in-use and
+          // that real error is what gets shown, not a silent misfire.
+          if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+            try {
+              credential = await AuthService.registerWithEmail(email: inputEmail, password: inputPassword);
+            } on FirebaseAuthException catch (registerError) {
+              if (registerError.code == 'email-already-in-use') {
+                throw FirebaseAuthException(
+                  code: 'wrong-password',
+                  message: 'This admin account already exists with a different password.',
+                );
+              }
+              rethrow;
+            }
+          } else {
+            rethrow;
+          }
+        }
+        final uid = credential.user!.uid;
+        await AuthService.saveUserProfile(uid: uid, name: 'Admin', email: inputEmail, role: 'admin');
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(context, '/admin-dashboard', (route) => false);
+      } on FirebaseAuthException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AuthService.messageForSignInError(e)), backgroundColor: Colors.red.shade700),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Admin login failed: $e'), backgroundColor: Colors.red.shade700),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSubmitting = false);
+      }
       return;
     }
 

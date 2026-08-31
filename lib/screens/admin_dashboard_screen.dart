@@ -1,19 +1,12 @@
-import 'dart:ui';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
 import '../services/review_service.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
 import 'admin_bookings_screen.dart';
-import 'admin_caregivers_screen.dart';
-import 'admin_content_taxonomy_screen.dart';
-import 'admin_finance_screen.dart';
-import 'admin_patients_screen.dart';
-import 'admin_pricing_screen.dart';
-import 'admin_review_moderation_screen.dart';
-import 'admin_support_hub_screen.dart';
 import 'admin_verification_queue_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -24,9 +17,6 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  int _currentNavIndex = 0;
-  bool _showMoreMenu = false;
-
   // Real dashboard stats — null while still loading.
   String _adminName = 'Admin';
   int? _activeCaregivers;
@@ -72,15 +62,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   static const Color chartBorder = Color(0xFF44331C);
   static const Color weekdayBarColor = Color(0xFF937441);
   static const Color weekendBarColor = Color(0xFFFFC76C);
-
-  // Bottom Nav
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color activeGold = Color(0xFFFBBC05);
-  static const double bottomNavHeight = 64;
-
-  // "More" popup
-  static const Color moreMenuBg = Color(0xFF2C251D);
-  static const Color moreMenuItemBg = Color(0xFF4A4032);
 
   @override
   void initState() {
@@ -222,15 +203,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // Opens Bookings pre-filtered to "Unfulfilled" and, once the admin comes
-  // back, makes sure the footer highlights Dashboard again (not Bookings).
+  // Opens Bookings pre-filtered to "Unfulfilled".
   void _openUnfulfilledBookings() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => const AdminBookingsScreen(initialFilter: BookingFilter.unfulfilled),
       ),
-    ).then((_) => setState(() => _currentNavIndex = 0));
+    );
   }
 
   @override
@@ -239,87 +219,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       backgroundColor: bgColor,
       body: SafeArea(
         top: false,
-        child: Stack(
+        child: Column(
           children: [
-            Column(
-              children: [
-                // Top Scrollable Content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header Section
-                        _buildHeader(),
+            // Top Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Section
+                    _buildHeader(),
 
-                        const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                        // Needs Attention Section
-                        _buildSectionHeader('NEEDS ATTENTION'),
-                        const SizedBox(height: 8),
-                        _buildNeedsAttention(),
+                    // Needs Attention Section
+                    _buildSectionHeader('NEEDS ATTENTION'),
+                    const SizedBox(height: 8),
+                    _buildNeedsAttention(),
 
-                        const SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
-                        // Operations Section
-                        _buildSectionHeader('OPERATIONS'),
-                        const SizedBox(height: 8),
-                        _buildOperationsGrid(),
+                    // Operations Section
+                    _buildSectionHeader('OPERATIONS'),
+                    const SizedBox(height: 8),
+                    _buildOperationsGrid(),
 
-                        const SizedBox(height: 22),
+                    const SizedBox(height: 22),
 
-                        // Bookings · Last 7 Days Section
-                        _buildSectionHeader('BOOKINGS · LAST 7 DAYS'),
-                        const SizedBox(height: 8),
-                        _buildBookingsChart(),
+                    // Bookings · Last 7 Days Section
+                    _buildSectionHeader('BOOKINGS · LAST 7 DAYS'),
+                    const SizedBox(height: 8),
+                    _buildBookingsChart(),
 
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Bottom Navigation Bar
-                _buildBottomNav(),
-              ],
-            ),
-
-            // Scrim behind the "More" popup, dismisses on tap
-            Positioned.fill(
-              child: IgnorePointer(
-                ignoring: !_showMoreMenu,
-                child: AnimatedOpacity(
-                  opacity: _showMoreMenu ? 1 : 0,
-                  duration: const Duration(milliseconds: 220),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _showMoreMenu = false),
-                    child: Container(color: Colors.black.withValues(alpha: 0.35)),
-                  ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
             ),
 
-            // "More" popup — replaces the footer while open, so the footer's
-            // own tabs never show through underneath it.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(
-                ignoring: !_showMoreMenu,
-                child: AnimatedSlide(
-                  offset: _showMoreMenu ? Offset.zero : const Offset(0, 1),
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOutCubic,
-                  child: AnimatedOpacity(
-                    opacity: _showMoreMenu ? 1 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: _buildMoreMenuPanel(),
-                  ),
-                ),
-              ),
-            ),
+            // Bottom Navigation Bar
+            const AdminBottomNav(active: AdminNavTab.dashboard),
           ],
         ),
       ),
@@ -769,475 +709,4 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildBottomNav() {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.home_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.event_available_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'More', 'icon': Icons.more_horiz_rounded},
-    ];
-
-    return Container(
-      height: bottomNavHeight,
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = !_showMoreMenu && _currentNavIndex == index;
-          final color = isSelected ? activeGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 4) {
-                // More tab — pop out the extra options panel above the footer
-                setState(() => _showMoreMenu = true);
-              } else {
-                setState(() => _currentNavIndex = index);
-                if (index == 1) {
-                  // Users tab — show the Select User picker first
-                  _showSelectUserSheet();
-                } else if (index == 2) {
-                  // Bookings tab — defaults to the Active section
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AdminBookingsScreen(initialFilter: BookingFilter.active),
-                    ),
-                  ).then((_) => setState(() => _currentNavIndex = 0));
-                } else if (index == 3) {
-                  // Finance tab
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-                  ).then((_) => setState(() => _currentNavIndex = 0));
-                }
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    item['icon'] as IconData,
-                    size: 22,
-                    color: color,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  // ── "More" popup (Figma node 698:1456) ──────────────────────────────────
-  // Pops out from directly above the footer, showing extra nav destinations
-  // in a 2x4 grid. Dashboard/Users/Bookings/Finance mirror the footer tabs;
-  // Review/Pricing/Support/Content are additional admin sections.
-  void _closeMoreMenu() => setState(() => _showMoreMenu = false);
-
-  void _handleMoreMenuTap(int? navIndex, {String? comingSoonLabel}) {
-    _closeMoreMenu();
-    if (navIndex != null) {
-      setState(() => _currentNavIndex = navIndex);
-      if (navIndex == 1) {
-        _showSelectUserSheet();
-      } else if (navIndex == 2) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const AdminBookingsScreen(initialFilter: BookingFilter.active),
-          ),
-        ).then((_) => setState(() => _currentNavIndex = 0));
-      } else if (navIndex == 3) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-        ).then((_) => setState(() => _currentNavIndex = 0));
-      }
-    } else if (comingSoonLabel == 'Review') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminReviewModerationScreen()),
-      );
-    } else if (comingSoonLabel == 'Pricing') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminPricingScreen()),
-      );
-    } else if (comingSoonLabel == 'Support') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminSupportHubScreen()),
-      );
-    } else if (comingSoonLabel == 'Content') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminContentTaxonomyScreen()),
-      );
-    } else if (comingSoonLabel != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$comingSoonLabel coming soon'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Widget _buildMoreMenuPanel() {
-    final items = <Map<String, dynamic>>[
-      {'label': 'Dashboard', 'icon': Icons.home_rounded, 'navIndex': 0},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined, 'navIndex': 1},
-      {'label': 'Bookings', 'icon': Icons.event_available_outlined, 'navIndex': 2},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined, 'navIndex': 3},
-      {'label': 'Review', 'icon': Icons.rate_review_outlined, 'navIndex': null},
-      {'label': 'Pricing', 'icon': Icons.sell_outlined, 'navIndex': null},
-      {'label': 'Support', 'icon': Icons.support_agent_outlined, 'navIndex': null},
-      {'label': 'Content', 'icon': Icons.auto_awesome_outlined, 'navIndex': null},
-    ];
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(20),
-        topRight: Radius.circular(20),
-      ),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          color: moreMenuBg.withValues(alpha: 0.96),
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: _closeMoreMenu,
-                behavior: HitTestBehavior.opaque,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 6),
-                  child: Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFFB5ADA2), size: 22),
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: items.sublist(0, 4).map((item) => _buildMoreMenuItem(item)).toList(),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: items.sublist(4, 8).map((item) => _buildMoreMenuItem(item)).toList(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMoreMenuItem(Map<String, dynamic> item) {
-    final int? navIndex = item['navIndex'] as int?;
-    final bool isSelected = navIndex != null && navIndex == _currentNavIndex;
-    final color = isSelected ? activeGold : Colors.white;
-
-    return GestureDetector(
-      onTap: () => _handleMoreMenuTap(navIndex, comingSoonLabel: item['label'] as String),
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 68,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: isSelected ? activeGold.withValues(alpha: 0.18) : moreMenuItemBg,
-                shape: BoxShape.circle,
-                border: isSelected ? Border.all(color: activeGold, width: 1.5) : null,
-              ),
-              child: Icon(item['icon'] as IconData, color: color, size: 22),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              item['label'] as String,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Select User popup (Figma node 683:706) ─────────────────────────────
-  // Shown first when admin taps "Users" — lets them pick Patient or Caregiver
-  // before drilling into the relevant user list.
-  void _showSelectUserSheet() {
-    String selected = 'patient'; // default selection
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.6),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5EEE8),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(26),
-                  topRight: Radius.circular(26),
-                  bottomLeft: Radius.circular(42),
-                  bottomRight: Radius.circular(42),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color.fromRGBO(0, 0, 0, 0.5),
-                    blurRadius: 25,
-                    offset: Offset(0, -20),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Drag handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF334155),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Woman avatar illustration — same asset used on the
-                  // "who needs care" sheet, matching Figma node 683:706.
-                  Image.asset(
-                    'assets/images/who_needs_care_avatar.png',
-                    width: 68,
-                    height: 68,
-                  ),
-                  const SizedBox(height: 14),
-                  // Title
-                  const Text(
-                    'Select User',
-                    style: TextStyle(
-                      fontFamily: 'Open Sans',
-                      color: Color(0xFF564732),
-                      fontSize: 21,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Subtitle
-                  const Text(
-                    'Select the user type who you want to find out',
-                    style: TextStyle(
-                      fontFamily: 'Open Sans',
-                      color: Color.fromRGBO(85, 73, 57, 0.63),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Patient option
-                  _buildUserTypeOption(
-                    label: 'patient',
-                    description: 'Person who use app for find a caregiver',
-                    icon: Icons.self_improvement_rounded,
-                    iconBg: const Color(0xFFD9BDB5),
-                    iconColor: const Color(0xFF41302B),
-                    cardBg: const Color(0xFFAB9089),
-                    borderColor: const Color(0xFF5A413A),
-                    labelColor: const Color(0xFF352D2A),
-                    descColor: const Color.fromRGBO(57, 42, 27, 0.43),
-                    radioColor: const Color(0xFF352D2A),
-                    isSelected: selected == 'patient',
-                    onTap: () => setSheetState(() => selected = 'patient'),
-                  ),
-                  const SizedBox(height: 12),
-                  // Caregiver option
-                  _buildUserTypeOption(
-                    label: 'Caregiver',
-                    description: 'Person who give service for patients',
-                    icon: Icons.family_restroom_rounded,
-                    iconBg: const Color.fromRGBO(133, 107, 74, 0.54),
-                    iconColor: const Color(0xFF4B381F),
-                    cardBg: const Color(0xFFB1A28F),
-                    borderColor: const Color(0xFF44392B),
-                    labelColor: const Color(0xFF4B381F),
-                    descColor: const Color.fromRGBO(58, 39, 14, 0.52),
-                    radioColor: const Color(0xFF4B381F),
-                    isSelected: selected == 'caregiver',
-                    onTap: () => setSheetState(() => selected = 'caregiver'),
-                  ),
-                  const SizedBox(height: 28),
-                  // Continue button
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      if (selected == 'caregiver') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminCaregiversScreen(),
-                          ),
-                        ).then((_) => setState(() => _currentNavIndex = 0));
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminPatientsScreen(),
-                          ),
-                        ).then((_) => setState(() => _currentNavIndex = 0));
-                      }
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF746553),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontFamily: 'Open Sans',
-                            color: Colors.white,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).then((_) => setState(() => _currentNavIndex = 0));
-  }
-
-  Widget _buildUserTypeOption({
-    required String label,
-    required String description,
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required Color cardBg,
-    required Color borderColor,
-    required Color labelColor,
-    required Color descColor,
-    required Color radioColor,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: 2),
-        ),
-        child: Row(
-          children: [
-            // Icon tile
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 26),
-            ),
-            const SizedBox(width: 14),
-            // Label + description
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontFamily: 'Open Sans',
-                      color: labelColor,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontFamily: 'Open Sans',
-                      color: descColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Radio indicator
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: radioColor, width: 1.5),
-                color: isSelected ? radioColor : Colors.transparent,
-              ),
-              child: isSelected
-                  ? const Icon(Icons.circle, color: Colors.white, size: 10)
-                  : null,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

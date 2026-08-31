@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
-import 'admin_bookings_screen.dart';
-import 'admin_finance_screen.dart';
 
 class AdminPricingScreen extends StatefulWidget {
   const AdminPricingScreen({super.key});
@@ -22,8 +21,6 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
   static const Color infoTextColor = Color(0xFF44331C);
   static const Color infoSubTextColor = Color(0xFF745A45);
 
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color navGold = Color(0xFFFBBC05);
 
   @override
   void initState() {
@@ -66,7 +63,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                 ),
               ),
             ),
-            _buildBottomNav(),
+            const AdminBottomNav(active: AdminNavTab.pricing),
           ],
         ),
       ),
@@ -146,68 +143,4 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     );
   }
 
-  // ── Bottom Navigation Bar (matching Admin Dashboard) ────────────────────
-  Widget _buildBottomNav() {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'Pricing', 'icon': Icons.sell_outlined},
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == 4; // More tab is active (Pricing lives under More)
-          final color = isSelected ? navGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 0 || index == 1 || index == 4) {
-                Navigator.pop(context);
-              } else if (index == 2) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
-                );
-              } else if (index == 3) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-                );
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(item['icon'] as IconData, size: 22, color: color),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 }

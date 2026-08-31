@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/booking_service.dart';
 import '../services/patient_service.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
-import 'admin_finance_screen.dart';
 
 enum BookingFilter { unfulfilled, active, upcoming, cancelled }
 
@@ -76,9 +76,6 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
   static const Color progressTrack = Color(0xFF44331C);
   static const Color progressFill = Color(0xFF82571E);
   static const Color progressLabel = Color(0xFF785618);
-
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color navGold = Color(0xFFFBBC05);
 
   // Decorative avatar palette — purely visual styling (not backed by any
   // Firestore field), rotated deterministically by booking id so cards
@@ -214,7 +211,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                               itemBuilder: (context, index) => _buildBookingCard(cards[index]),
                             ),
                 ),
-                _buildBottomNav(),
+                const AdminBottomNav(active: AdminNavTab.bookings),
               ],
             );
           },
@@ -608,63 +605,4 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
     );
   }
 
-  // ── Bottom Navigation Bar (matching Admin Dashboard) ────────────────────
-  Widget _buildBottomNav() {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'More', 'icon': Icons.more_horiz_rounded},
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == 2; // Bookings tab is active
-          final color = isSelected ? navGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 0 || index == 1 || index == 4) {
-                Navigator.pop(context);
-              } else if (index == 3) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-                );
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(item['icon'] as IconData, size: 22, color: color),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 }

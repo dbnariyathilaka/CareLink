@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
 import '../data/care_type_skill_map.dart';
 import '../services/caregiver_service.dart';
-import 'admin_bookings_screen.dart';
-import 'admin_finance_screen.dart';
 
 class ShiftType {
   final String id;
@@ -65,9 +64,6 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
   static const Color appContentIcon = Color(0xFFB26915);
 
   static const Color publishBtnBg = Color(0xFF44331C);
-
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color navGold = Color(0xFFFBBC05);
 
   // Sourced from the app's real canonical care-type list (careTypeSkillMap in
   // ../data/care_type_skill_map.dart) rather than a separate hardcoded list,
@@ -209,7 +205,7 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
                 ),
               ),
             ),
-            _buildBottomNav(),
+            const AdminBottomNav(active: AdminNavTab.content),
           ],
         ),
       ),
@@ -529,62 +525,4 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
     );
   }
 
-  // ── Bottom Navigation Bar (matching Admin Dashboard) ────────────────────
-  Widget _buildBottomNav() {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'Content', 'icon': Icons.auto_awesome_outlined},
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == 4; // More tab is active (Content lives under More)
-          final color = isSelected ? navGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 0 || index == 1 || index == 4) {
-                Navigator.pop(context);
-              } else if (index == 2) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminBookingsScreen()));
-              } else if (index == 3) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminFinanceScreen()));
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(item['icon'] as IconData, size: 22, color: color),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 }

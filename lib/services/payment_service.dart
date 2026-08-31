@@ -61,6 +61,36 @@ class PaymentService {
     });
   }
 
+  /// Real (currently near-always-zero, since billing isn't live yet) total
+  /// of completed payments for one caregiver — same computation the
+  /// caregiver's own Earnings screen uses, just summed here for one admin
+  /// list row instead of streamed for a detail screen.
+  static Future<double> sumCompletedEarningsForCaregiver(String caregiverId) async {
+    final snap = await _collection
+        .where('caregiverId', isEqualTo: caregiverId)
+        .where('status', isEqualTo: 'completed')
+        .get();
+    double total = 0;
+    for (final doc in snap.docs) {
+      final amount = doc.data()['amount'];
+      if (amount is num) total += amount.toDouble();
+    }
+    return total;
+  }
+
+  /// Real count of a patient's disputed payments — payments carry
+  /// `disputeStatus` once [submitDispute] is called. Almost always 0 today
+  /// since billing isn't live, but a real Firestore count, never a
+  /// fabricated number.
+  static Future<int> countDisputesForPatient(String patientUid) async {
+    final snap = await _collection
+        .where('patientUid', isEqualTo: patientUid)
+        .where('disputeStatus', isNotEqualTo: null)
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
   /// Real write — records a patient-raised dispute onto its payment
   /// document. There's no support-team resolution workflow behind this yet
   /// (no admin screen reads `disputeStatus` today), but the submission

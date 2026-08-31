@@ -2,17 +2,47 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/payment_service.dart';
 import '../services/review_service.dart';
 import '../services/user_directory_service.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
-import 'admin_bookings_screen.dart';
 import 'admin_caregiver_profile_screen.dart';
-import 'admin_finance_screen.dart';
 
 /// Sort options for the caregivers list — all backed by real, batch-fetched
 /// data (ratings/reviews from ReviewService, name from the profile itself).
 enum _CaregiverSort { none, highestRated, mostReviews, nameAz }
+
+/// Verification status shown as a badge/filter — there is no stored status
+/// field anywhere in the schema, so this is derived from the same real
+/// `documentReviews` data the verification queue writes (see
+/// CaregiverService.setDocumentReviewStatus): any submitted document with
+/// no decision yet, or a rejected decision, means 'pending'. 'suspended' is
+/// the existing session-local-only flag (see _locallySuspended below).
+enum _CgStatus { active, pending, suspended }
+
+/// Every individually-reviewable document key on a caregiver profile —
+/// mirrors AdminVerificationQueueScreen._documentsFor exactly so the
+/// pending/active split here always agrees with the real verification
+/// queue.
+List<String> _documentKeysFor(Map<String, dynamic> profile) {
+  final keys = <String>[];
+  final nic = (profile['nic'] as String?)?.trim();
+  if (nic != null && nic.isNotEmpty) keys.add('nic');
+  final police = (profile['policeClearanceUrl'] as String?) ?? '';
+  if (police.isNotEmpty) keys.add('policeClearance');
+  final certs = (profile['certificateUrls'] as List?) ?? const [];
+  for (var i = 0; i < certs.length; i++) {
+    keys.add('cert$i');
+  }
+  final other = (profile['otherDocumentUrls'] as List?) ?? const [];
+  for (var i = 0; i < other.length; i++) {
+    keys.add('other$i');
+  }
+  return keys;
+}
 
 /// One row in the admin caregivers list. Wraps the raw `caregiverProfiles`
 /// doc plus its joined `users` doc and rating summary — every getter below
@@ -101,8 +131,6 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
   static const Color statsValueGold = Color(0xFFFBBC05);
   static const Color btnViewProfileBg = Color(0xFF59341E);
   static const Color btnSuspendBorder = Color(0xFF59341E);
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color navGold = Color(0xFFFBBC05);
 
   // Deterministic per-caregiver avatar palette (picked by uid hash) so
   // colors stay stable across rebuilds without needing to store one.
@@ -131,12 +159,20 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _expandedCaregiverId;
   bool _autoExpandDone = false;
+  _CgStatus? _statusFilter;
 
   // Session-local only (never written to Firestore — there is no
-  // suspension/verification field anywhere in the schema to persist to).
-  // Purely flips the action button's own label; nothing is read back from
-  // real data to render it, so no fabricated status is ever displayed.
+  // suspension field anywhere in the schema to persist to). Flips the
+  // action button's label and the status badge above; the badge's other
+  // two states (active/pending) are still derived from real
+  // documentReviews data, so nothing here fabricates a status out of thin
+  // air — it just can't survive an app restart.
   final Set<String> _locallySuspended = {};
+
+  // Lazily fetched only for the currently-expanded card (never one query
+  // per row) — see _loadExtraStats.
+  final Map<String, ({int shifts, double earned})> _extraStats = {};
+  final Set<String> _extraStatsLoading = {};
 
   StreamSubscription<List<Map<String, dynamic>>>? _caregiversSub;
   List<AdminCaregiverData> _caregivers = [];
@@ -187,12 +223,29 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
     if (!_autoExpandDone && list.isNotEmpty) {
       _expandedCaregiverId = list.first.uid;
       _autoExpandDone = true;
+      _loadExtraStats(list.first.uid);
     }
 
     setState(() {
       _caregivers = list;
       _loading = false;
     });
+  }
+
+  /// Derived verification status — there is no stored status field, so this
+  /// reads the same real `documentReviews` data the verification queue
+  /// writes. A submitted document with no decision yet, or a rejected
+  /// decision, means 'pending'; suspension is the existing session-local
+  /// flag and always wins.
+  _CgStatus _statusFor(AdminCaregiverData cg) {
+    if (_locallySuspended.contains(cg.uid)) return _CgStatus.suspended;
+    final reviews = (cg.profile['documentReviews'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final keys = _documentKeysFor(cg.profile);
+    final allApproved = keys.every((k) {
+      final review = reviews[k] as Map<String, dynamic>?;
+      return review != null && review['status'] == 'approved';
+    });
+    return allApproved ? _CgStatus.active : _CgStatus.pending;
   }
 
   List<AdminCaregiverData> get _filteredCaregivers {
@@ -205,6 +258,10 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
           cg.city.toLowerCase().contains(query) ||
           cg.careType.toLowerCase().contains(query);
     }).toList();
+
+    if (_statusFilter != null) {
+      list = list.where((cg) => _statusFor(cg) == _statusFilter).toList();
+    }
 
     switch (_sort) {
       case _CaregiverSort.highestRated:
@@ -225,6 +282,23 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
   void _toggleExpand(String uid) {
     setState(() {
       _expandedCaregiverId = _expandedCaregiverId == uid ? null : uid;
+    });
+    if (_expandedCaregiverId == uid) _loadExtraStats(uid);
+  }
+
+  /// Fetched lazily, one caregiver at a time, only for the card the admin
+  /// actually expands — never one query per row (an N+1 query storm). Real
+  /// counts: completed jobs from BookingService, completed-payments total
+  /// from PaymentService (near-always 0 today since billing isn't live).
+  Future<void> _loadExtraStats(String uid) async {
+    if (_extraStats.containsKey(uid) || _extraStatsLoading.contains(uid)) return;
+    _extraStatsLoading.add(uid);
+    final shifts = await BookingService.countCompletedBookingsForCaregiver(uid);
+    final earned = await PaymentService.sumCompletedEarningsForCaregiver(uid);
+    if (!mounted) return;
+    setState(() {
+      _extraStats[uid] = (shifts: shifts, earned: earned);
+      _extraStatsLoading.remove(uid);
     });
   }
 
@@ -358,7 +432,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
       careType: cg.careTypes.isNotEmpty ? cg.careTypes.join(', ') : 'Not specified',
       skills: skills,
       education: (profile['educationalQualification'] as String?) ?? 'Not provided',
-      training: (profile['formalTraining'] as String?) ?? 'Not provided',
+      training: profile['formalTraining'] == true ? 'Yes' : 'No',
       languages: languages,
       bio: (profile['bio'] as String?) ?? '',
       certificates: certificateLabels,
@@ -379,6 +453,14 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
               padding: const EdgeInsets.fromLTRB(22, 12, 22, 10),
               child: Row(
                 children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    behavior: HitTestBehavior.opaque,
+                    child: const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Icon(Icons.arrow_back_rounded, color: titleColor, size: 24),
+                    ),
+                  ),
                   const Expanded(
                     child: Text(
                       'Caregivers',
@@ -450,7 +532,16 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                             fontSize: 13,
                             color: searchHintColor,
                           ),
+                          filled: false,
                           border: InputBorder.none,
+                          // The app's ambient ThemeData (AppTheme.darkTheme)
+                          // defines filled:true with a dark fillColor and a
+                          // bright focusedBorder — without repeating
+                          // InputBorder.none for these two states, Flutter
+                          // falls back to those theme defaults, painting a
+                          // dark box behind this light search bar.
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           isDense: true,
                           contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
@@ -470,19 +561,21 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
             ),
             const SizedBox(height: 10),
 
-            // ── Result count ────────────────────────────────────────────────
+            // ── Status filter tabs ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '${_caregivers.length} caregiver${_caregivers.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: cardSubtitleColor,
-                  ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('All ${_caregivers.length}', null),
+                    const SizedBox(width: 7),
+                    _buildFilterChip('Active', _CgStatus.active),
+                    const SizedBox(width: 7),
+                    _buildFilterChip('Pending', _CgStatus.pending),
+                    const SizedBox(width: 7),
+                    _buildFilterChip('Suspended', _CgStatus.suspended),
+                  ],
                 ),
               ),
             ),
@@ -524,7 +617,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
             ),
 
             // ── Bottom Navigation Bar (Matching Admin Dashboard) ────────────
-            _buildBottomNav(),
+            const AdminBottomNav(active: AdminNavTab.users),
           ],
         ),
       ),
@@ -606,20 +699,28 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                _buildStatusBadge(_statusFor(cg)),
               ],
             ),
 
             // Expanded section: Stats row + Action buttons
             if (isExpanded) ...[
               const SizedBox(height: 10),
-              // Real, batch-fetched stat tiles (no per-row Firestore query).
-              Row(
-                children: [
-                  Expanded(child: _buildStatTile('${cg.yearsExperience} yrs', 'Experience')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _buildStatTile('${cg.reviewCount}', 'Reviews')),
-                ],
-              ),
+              // Reviews is already batch-fetched; Shifts/Earned are fetched
+              // lazily just for this one expanded card — see _loadExtraStats.
+              Builder(builder: (_) {
+                final extra = _extraStats[cg.uid];
+                return Row(
+                  children: [
+                    Expanded(child: _buildStatTile(extra == null ? '…' : '${extra.shifts}', 'Shifts')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatTile('${cg.reviewCount}', 'Reviews')),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatTile(extra == null ? '…' : _formatEarned(extra.earned), 'Earned')),
+                  ],
+                );
+              }),
               const SizedBox(height: 10),
               // Action Buttons
               Row(
@@ -689,6 +790,55 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
     );
   }
 
+  Widget _buildFilterChip(String label, _CgStatus? status) {
+    final isSelected = _statusFilter == status;
+    return GestureDetector(
+      onTap: () => setState(() => _statusFilter = isSelected ? null : status),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF585247) : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFF585247), width: 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF585247),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(_CgStatus status) {
+    final (label, bg, fg) = switch (status) {
+      _CgStatus.active => ('ACTIVE', const Color.fromRGBO(78, 172, 0, 0.16), const Color(0xFF255010)),
+      _CgStatus.pending => ('PENDING', const Color.fromRGBO(245, 158, 11, 0.16), const Color(0xFF6D490E)),
+      _CgStatus.suspended => ('SUSPENDED', const Color.fromRGBO(239, 68, 68, 0.16), const Color(0xFF822222)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Text(
+        label,
+        style: TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w700, color: fg),
+      ),
+    );
+  }
+
+  /// Compact "412k"-style figure for the tight stat tile — real amount
+  /// (currently near-always 0, see PaymentService.sumCompletedEarningsForCaregiver),
+  /// just formatted to fit.
+  String _formatEarned(double amount) {
+    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(1)}M';
+    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(amount >= 100000 ? 0 : 1)}k';
+    return amount.round().toString();
+  }
+
   Widget _buildStatTile(String value, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -718,83 +868,6 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'More', 'icon': Icons.more_horiz_rounded},
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == 1; // Users tab is active
-          final color = isSelected ? navGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 0) {
-                // Navigate back to Admin Dashboard
-                Navigator.pop(context);
-              } else if (index == 2) {
-                // Bookings tab
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
-                );
-              } else if (index == 3) {
-                // Finance tab
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-                );
-              } else if (index == 4) {
-                // More tab -> pop back or logout
-                Navigator.pop(context);
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    item['icon'] as IconData,
-                    size: 22,
-                    color: color,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
       ),
     );
   }

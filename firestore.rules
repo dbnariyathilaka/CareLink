@@ -3,48 +3,78 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // users/{uid} — role + basic profile, keyed by Firebase Auth uid.
-    // Only the signed-in owner can read or write their own document.
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    // True only for a signed-in account whose OWN users/{uid} doc has
+    // role == 'admin' — the same role field the app's own login routing
+    // already relies on. Used below to grant the admin dashboard read
+    // access across other users' documents, and narrow write access for
+    // the one real admin-initiated write this app has (verification
+    // document review decisions).
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // caregiverProfiles/{uid} — any signed-in user can read (needed for
-    // patient search/profile view); only the owner can write their own.
-    match /caregiverProfiles/{uid} {
-      allow read: if request.auth != null;
+    // users/{uid} — role + basic profile, keyed by Firebase Auth uid.
+    // The owner can read/write their own document; admins can additionally
+    // read (not write) any user's doc — needed to join real names onto the
+    // admin caregivers/patients/bookings/verification-queue/review screens.
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
       allow write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // patientProfiles/{uid} — owner-only, same as users/{uid}.
+    // caregiverProfiles/{uid} — any signed-in user can read (needed for
+    // patient search/profile view); only the owner can write their own
+    // profile. Admins get one narrow exception: updating only the
+    // documentReviews field, which is how CaregiverService.
+    // setDocumentReviewStatus records a real approve/reject decision from
+    // the admin verification-queue screen — restricted via affectedKeys()
+    // so an admin write can never touch any other field on the profile.
+    match /caregiverProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['documentReviews']);
+    }
+
+    // patientProfiles/{uid} — owner-only for write; owner or admin for
+    // read (the admin patients screen and patient profile detail need to
+    // read other patients' docs).
     match /patientProfiles/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == uid;
 
       match /favorites/{caregiverUid} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
+      // familyMembers/{memberId} — also readable by admins: the admin
+      // patient-profile screen shows a patient's real care circle.
       match /familyMembers/{memberId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+        allow write: if request.auth != null && request.auth.uid == uid;
       }
 
       // activity/{activityId} — patient-facing activity feed entries
       // (PatientService.logActivity), e.g. "sent a care request",
       // "member joined the care circle". Owner-only, same as favorites
-      // and familyMembers above.
+      // above.
       match /activity/{activityId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
     }
 
     // bookingRequests/{bookingId} — created by a patient when they send a
-    // care request. Readable/updatable by the patient who owns it and the
-    // caregiver it's addressed to; the patientUid on create must match the
-    // caller so patients can only create bookings for themselves.
+    // care request. Readable/updatable by the patient who owns it, the
+    // caregiver it's addressed to, or an admin (the admin bookings screen
+    // and dashboard stats stream every booking, unfiltered); the
+    // patientUid on create must match the caller so patients can only
+    // create bookings for themselves.
     match /bookingRequests/{bookingId} {
       allow read: if request.auth != null &&
         (request.auth.uid == resource.data.patientUid ||
-         request.auth.uid == resource.data.caregiverId);
+         request.auth.uid == resource.data.caregiverId ||
+         isAdmin());
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.patientUid;
       allow update: if request.auth != null &&
@@ -59,21 +89,46 @@ service cloud.firestore {
     // cancelledBookings/{docId} — a reduced, immutable copy written right
     // before a bookingRequests doc is deleted on cancellation, so the
     // patient's "Cancelled" history survives the original being removed.
+    // Also readable by admins (same all-bookings streams as above).
     match /cancelledBookings/{docId} {
       allow read: if request.auth != null &&
-        request.auth.uid == resource.data.patientUid;
+        (request.auth.uid == resource.data.patientUid || isAdmin());
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.patientUid;
     }
 
     // reviews/{reviewId} — one document per patient review of a caregiver.
-    // Any signed-in user can read (shown on the caregiver's public profile);
-    // only the reviewing patient can create their own review, and reviews
-    // are immutable afterwards (no update/delete).
+    // Any signed-in user can read (shown on the caregiver's public profile,
+    // and streamed in full by the admin reviews screen); only the
+    // reviewing patient can create their own review, and reviews are
+    // immutable afterwards (no update/delete).
     match /reviews/{reviewId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.patientUid;
+    }
+
+    // payments/{paymentId} — billing hasn't been built yet, so nothing
+    // writes documents here today; these rules exist so the patient
+    // Payments screen and caregiver Earnings screens (which already query
+    // this collection for real, just against an empty one right now) don't
+    // hit permission-denied the moment a query runs. Readable by the
+    // patient or caregiver on the payment, or an admin. No create/delete
+    // from the client — a real billing backend will write status/amount
+    // via a server-side Cloud Function using the Admin SDK (which bypasses
+    // these rules), never the client directly, so a payment's "it was
+    // paid" status can't be forged from a modified app. The one real
+    // client write today is PaymentService.submitDispute, restricted here
+    // to just the dispute fields it actually sets.
+    match /payments/{paymentId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.patientUid ||
+         request.auth.uid == resource.data.caregiverId ||
+         isAdmin());
+      allow update: if request.auth != null &&
+        request.auth.uid == resource.data.patientUid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['disputeReason', 'disputeNote', 'disputeStatus', 'disputeSubmittedAt']);
     }
 
     // registeredEmails/{email} — minimal, PII-free existence index (doc ID
