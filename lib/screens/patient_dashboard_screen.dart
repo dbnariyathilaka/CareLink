@@ -13,6 +13,7 @@ import '../services/caregiver_service.dart';
 import '../services/matching_service.dart';
 import '../services/patient_service.dart';
 import '../services/profile_gate.dart';
+import '../widgets/patient_notification_badge.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 import 'emergency_screen.dart';
@@ -1070,9 +1071,9 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   // ── At a glance ───────────────────────────────────────────────────────
   Widget _buildAtAGlance() {
     final tiles = [
-      (Icons.people_outline_rounded, 'Caregivers near you', _caregiverCount),
-      (Icons.mail_outline_rounded, 'Requests pending', _pendingRequestsCount),
-      (Icons.check_circle_outline_rounded, 'Upcoming visit', _upcomingVisitsCount),
+      ('assets/images/glance_caregivers_icon.png', 'Caregivers near you', _caregiverCount),
+      ('assets/images/glance_requests_icon.png', 'Requests pending', _pendingRequestsCount),
+      ('assets/images/glance_upcoming_icon.png', 'Upcoming visit', _upcomingVisitsCount),
     ];
     return Column(
       children: tiles.map((t) {
@@ -1086,7 +1087,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
             ),
             child: Row(
               children: [
-                Icon(t.$1, color: const Color(0xFF3A332A), size: 30),
+                Image.asset(t.$1, width: 33, height: 33),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1344,7 +1345,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                 child: GestureDetector(
                   onTap: () => Navigator.pushNamed(
                     context,
-                    '/advanced-match-send-request',
+                    '/send-request',
+                    arguments: {if (uid != null) 'caregiverId': uid},
                   ),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1509,10 +1511,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
 
   Widget _buildBottomNav() {
     final items = [
-      (icon: Icons.home_rounded, label: 'Home', route: null as String?),
+      (icon: Icons.home_outlined, label: 'Home', route: null as String?),
       (icon: Icons.search_rounded, label: 'Search', route: '/search'),
       (icon: Icons.circle_outlined, label: 'Match', route: null as String?), // slot for FAB
-      (icon: Icons.calendar_month_outlined, label: 'Booking', route: '/my-bookings'),
+      (icon: Icons.calendar_today_outlined, label: 'Booking', route: '/my-bookings'),
       (icon: Icons.notifications_none_rounded, label: 'Notification', route: '/notifications'),
     ];
     return Container(
@@ -1555,7 +1557,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(item.icon, color: color, size: 25),
+                      index == 4
+                          ? PatientNotificationIconWithBadge(
+                              icon: Icon(item.icon, color: color, size: 25),
+                              badgeBorderColor: darkGreen,
+                            )
+                          : Icon(item.icon, color: color, size: 25),
                       const SizedBox(height: 4),
                       Text(
                         item.label,

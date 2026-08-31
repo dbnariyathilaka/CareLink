@@ -298,7 +298,10 @@ class _CaregiverDirectionsScreenState extends State<CaregiverDirectionsScreen> {
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.carematch',
+                  userAgentPackageName: 'com.example.flutter_application_1',
+                  errorTileCallback: (tile, error, stackTrace) {
+                    debugPrint('Map tile failed to load: $error');
+                  },
                 ),
                 if (_routePoints.length >= 2)
                   PolylineLayer(

@@ -356,7 +356,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
             onTap: () => Navigator.pushNamed(
               context,
               '/send-request',
-              arguments: {'caregiverId': uid},
+              arguments: {'caregiverId': uid, 'isEmergency': true},
             ),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),

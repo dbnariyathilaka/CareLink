@@ -3,20 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/notification_badge_service.dart';
 import '../services/patient_service.dart';
+import '../services/profile_gate.dart';
 import '../services/review_service.dart';
 import '../widgets/caregiver_bottom_nav.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Notifications Screen
-//  Figma node: 475-605
+//  Figma node: 475-605 (feed), 355-2246 (booking-request card)
 //  Figma mocks a rich feed (emergency requests, payments, a
-//  "reach-back" flow, instant Accept/Decline on booking requests)
-//  that has no backing data or actions anywhere in this codebase.
-//  There's no notifications collection at all, so this feed is
-//  computed live from real bookings + reviews instead of being
-//  fabricated or persisted:
+//  "reach-back" flow) that has no backing data anywhere in this
+//  codebase. There's no notifications collection at all, so this
+//  feed is computed live from real bookings + reviews instead of
+//  being fabricated or persisted:
 //   - new booking requests, cancellations and reviews (real events,
 //     real timestamps)
 //   - "shift starting/ending soon" (computed from the real
@@ -24,9 +25,9 @@ import '../widgets/status_bar.dart';
 //     on-duty detection)
 //   - a patient's pending extension request, with real Agree/
 //     Decline actions wired to BookingService.resolveExtension
-//  "New booking request" links to the real schedule screen rather
-//  than a fake instant Accept/Decline, since no caregiver-side
-//  accept flow exists.
+//  "New booking request" gets real instant Accept/Decline too,
+//  wired to the same BookingService.respondToRequest the caregiver
+//  bookings screen already uses.
 // ─────────────────────────────────────────────────────────────
 class CaregiverNotificationsScreen extends StatefulWidget {
   const CaregiverNotificationsScreen({super.key});
@@ -68,6 +69,11 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
     if (uid != null) {
       _bookingsStream = BookingService.streamBookingsForCaregiver(uid);
       _reviewsStream = ReviewService.streamReviewsForCaregiver(uid);
+      // Marks everything currently shown here as read, so the badge above
+      // the Notification icon (see CaregiverBottomNav) clears — real, not
+      // just a local flag, so it also clears on the caregiver's other
+      // devices.
+      NotificationBadgeService.markNotificationsViewed(uid);
     }
     _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
@@ -148,6 +154,24 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(accept ? 'Extension accepted.' : 'Extension declined.')),
+    );
+  }
+
+  // Same gate + call the caregiver bookings screen uses for its own
+  // Accept/Decline, so a caregiver can respond to a request straight from
+  // the notification instead of having to open the bookings screen first.
+  Future<void> _respondToBookingRequest(String bookingId, bool accept) async {
+    if (accept) {
+      final allowed = await ensureCaregiverProfileComplete(context);
+      if (!allowed) return;
+    }
+    await BookingService.respondToRequest(bookingId, accept: accept);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(accept ? 'Booking accepted' : 'Request declined'),
+        backgroundColor: accept ? Colors.green.shade700 : Colors.grey.shade800,
+      ),
     );
   }
 
@@ -430,8 +454,9 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
     );
   }
 
-  // ── New booking request ──────────────────────────────────
+  // ── New booking request (Figma node 355:2246) ─────────────
   Widget _bookingRequestCard(Map<String, dynamic> booking) {
+    final id = booking['id'] as String? ?? '';
     final careType = booking['careType'] as String? ?? 'care visit';
     final createdAt = booking['createdAt'];
     final time = createdAt is Timestamp ? createdAt.toDate() : DateTime.now();
@@ -441,7 +466,45 @@ class _CaregiverNotificationsScreenState extends State<CaregiverNotificationsScr
       title: 'New booking request',
       timeLabel: _relativeTime(time),
       subtitle: _nameSubtitle(booking['patientUid'] as String?, (name) => '$name · $careType'),
-      onTap: () => _openPatientProfile(booking),
+      actions: Row(
+        children: [
+          Material(
+            color: inboxAccent,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: id.isEmpty ? null : () => _respondToBookingRequest(id, true),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                child: Text(
+                  'Accept',
+                  style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: id.isEmpty ? null : () => _respondToBookingRequest(id, false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: inboxAccent),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Decline',
+                  style: TextStyle(fontFamily: 'Open Sans', color: inboxAccent, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

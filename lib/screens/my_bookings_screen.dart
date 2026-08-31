@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../widgets/patient_notification_badge.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -1135,7 +1136,12 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(item.icon, color: color, size: 25),
+                      index == 4
+                          ? PatientNotificationIconWithBadge(
+                              icon: Icon(item.icon, color: color, size: 25),
+                              badgeBorderColor: darkGreen,
+                            )
+                          : Icon(item.icon, color: color, size: 25),
                       const SizedBox(height: 4),
                       Text(
                         item.label,

@@ -206,7 +206,20 @@ class _TrackCaregiverScreenState extends State<TrackCaregiverScreen> {
                     children: [
                       TileLayer(
                         urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.carematch',
+                        // Must match the app's real applicationId — OSM's
+                        // free tile servers identify/throttle clients by
+                        // this header, and a made-up name here was sending
+                        // an inaccurate one on every request.
+                        userAgentPackageName: 'com.example.flutter_application_1',
+                        // A handful of tile requests failing (flaky
+                        // connection, OSM's free server under load) is
+                        // normal and not fatal — flutter_map just leaves
+                        // that tile blank and retries on the next pan/zoom.
+                        // Without this, each failure surfaced as a loud
+                        // uncaught exception.
+                        errorTileCallback: (tile, error, stackTrace) {
+                          debugPrint('Map tile failed to load: $error');
+                        },
                       ),
                       if (_routePoints.isNotEmpty)
                         PolylineLayer(

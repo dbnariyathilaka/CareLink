@@ -35,6 +35,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   String? _caregiverId;
   Map<String, dynamic>? _caregiver;
   bool _loadedArgs = false;
+  bool _isEmergency = false;
 
   @override
   void didChangeDependencies() {
@@ -47,6 +48,9 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
       CaregiverService.getCaregiverProfile(_caregiverId!).then((profile) {
         if (mounted) setState(() => _caregiver = profile);
       });
+    }
+    if (args is Map && args['isEmergency'] == true) {
+      _isEmergency = true;
     }
   }
 
@@ -523,6 +527,7 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                     if (_caregiver?['name'] != null)
                       'caregiverName': _caregiver!['name'],
                     'notes': _notesController.text.trim(),
+                    if (_isEmergency) 'isEmergency': true,
                   },
                 );
               },

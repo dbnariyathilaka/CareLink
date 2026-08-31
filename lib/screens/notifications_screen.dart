@@ -5,6 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/notification_badge_service.dart';
+import '../widgets/patient_notification_badge.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -17,9 +19,11 @@ import '../widgets/status_bar.dart';
 //  current clock (re-checked every 30s while this screen is open).
 //  "Payment completed" is built the same way but stays dormant — nothing
 //  writes `paymentStatus` yet since billing doesn't exist in this app; it's
-//  ready to activate once that field is real. Other types (declined/reached
-//  out) still have no producing backend and won't
-//  appear yet.
+//  ready to activate once that field is real. "Booking accepted" mentions
+//  payment and shows a "Pay here" button per the Figma design, but that
+//  button is dormant too (an honest "not available yet" message) for the
+//  same reason. Other types (declined/reached out) still have no producing
+//  backend and won't appear yet.
 // ─────────────────────────────────────────────────────────────
 
 enum _NotificationCategory { booking, reminder, system }
@@ -162,6 +166,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       _bookingsSub = BookingService.streamBookingsForPatient(uid).listen((docs) {
         if (mounted) setState(() => _bookings = docs);
       });
+      // Marks everything currently shown here as read, so the badge above
+      // the Notification icon in the bottom nav clears — real, not just a
+      // local flag, so it also clears on the patient's other devices.
+      NotificationBadgeService.markNotificationsViewed(uid);
     }
     // Re-evaluate time-based notifications even when no Firestore write
     // happens — e.g. crossing from "starting soon" to "on the way" purely
@@ -277,9 +285,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       // that isn't yet close enough to its shift start to become "starting
       // soon". No push backend exists, so this is derived the same way as
       // the other two states below: from real booking fields, re-evaluated
-      // live rather than a one-off pushed event. Billing was removed from
-      // this app, so the "Pay here" action from the Figma mock doesn't
-      // apply — "Message" takes its place instead of linking to nothing.
+      // live rather than a one-off pushed event. Billing doesn't exist in
+      // this app yet, so "Pay here" is dormant — same honest pattern as
+      // Receipt/Payment history on the payment-completed card below — it
+      // shows real, not a fake payment flow.
       if (now.isBefore(shiftStart.subtract(const Duration(minutes: 10)))) {
         final respondedAt = b['respondedAt'];
         final timeAgo = respondedAt is Timestamp ? _timeAgoFrom(respondedAt.toDate()) : 'just now';
@@ -287,8 +296,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           type: _NotificationType.bookingAccepted,
           title: 'Booking accepted',
           body: startTime != null
-              ? '$caregiverName accepted your request. Your booking is confirmed for $startTime${careType != null ? ' · $careType' : ''}.'
-              : '$caregiverName accepted your request. Your booking is confirmed.',
+              ? '$caregiverName accepted your request. Your booking is confirmed for $startTime${careType != null ? ' · $careType' : ''} — please complete the payment.'
+              : '$caregiverName accepted your request. Your booking is confirmed — please complete the payment.',
           timeAgo: timeAgo,
           caregiverName: caregiverName,
           visitLabel: careType,
@@ -300,16 +309,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               onTap: () => Navigator.pushNamed(context, '/my-bookings'),
             ),
             _NotificationAction(
-              'Message',
-              onTap: () => Navigator.pushNamed(
-                context,
-                '/chat',
-                arguments: {
-                  'caregiverId': caregiverId,
-                  'caregiverName': caregiverName,
-                  'bookingId': bookingId,
-                  'careType': careType,
-                },
+              'Pay here',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Payments aren\'t available yet.'), duration: Duration(seconds: 2)),
               ),
             ),
           ],
@@ -1108,7 +1110,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(item.icon, color: color, size: 25),
+                      index == 4
+                          ? PatientNotificationIconWithBadge(
+                              icon: Icon(item.icon, color: color, size: 25),
+                              badgeBorderColor: darkGreen,
+                            )
+                          : Icon(item.icon, color: color, size: 25),
                       const SizedBox(height: 4),
                       Text(
                         item.label,

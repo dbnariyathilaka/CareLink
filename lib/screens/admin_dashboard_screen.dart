@@ -137,7 +137,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             onPressed: () {
               Navigator.pop(ctx);
+              // Navigate away first so every still-mounted screen's
+              // Firestore listeners are disposed and cancelled before the
+              // auth token is revoked — signing out first left them all
+              // live to receive a simultaneous permission-denied error
+              // storm, which could block the main thread long enough to
+              // trip an ANR on logout.
               Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+              // Previously never called — the admin's Firebase Auth
+              // session stayed alive after "logging out" of the UI.
+              AuthService.signOut();
             },
             child: const Text('Logout'),
           ),

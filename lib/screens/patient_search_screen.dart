@@ -8,6 +8,7 @@ import '../services/patient_service.dart';
 import '../services/profile_gate.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
+import '../widgets/patient_notification_badge.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
@@ -730,7 +731,12 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(item.icon, color: color, size: 25),
+                      index == 4
+                          ? PatientNotificationIconWithBadge(
+                              icon: Icon(item.icon, color: color, size: 25),
+                              badgeBorderColor: darkGreen,
+                            )
+                          : Icon(item.icon, color: color, size: 25),
                       const SizedBox(height: 4),
                       Text(
                         item.label,

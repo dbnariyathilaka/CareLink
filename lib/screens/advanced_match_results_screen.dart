@@ -8,6 +8,7 @@ import '../services/matching_service.dart';
 import '../services/patient_service.dart';
 import '../services/profile_gate.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/patient_notification_badge.dart';
 import '../widgets/request_sent_dialog.dart';
 import '../widgets/restart_match_dialog.dart';
 import '../widgets/status_bar.dart';
@@ -860,7 +861,12 @@ class _AdvancedMatchResultsScreenState
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(item.icon, color: Colors.white, size: 25),
+                      index == 4
+                          ? PatientNotificationIconWithBadge(
+                              icon: Icon(item.icon, color: Colors.white, size: 25),
+                              badgeBorderColor: darkGreen,
+                            )
+                          : Icon(item.icon, color: Colors.white, size: 25),
                       const SizedBox(height: 4),
                       Text(
                         item.label,

@@ -273,7 +273,10 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       children: [
                         TileLayer(
                           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.example.carematch',
+                          userAgentPackageName: 'com.example.flutter_application_1',
+                          errorTileCallback: (tile, error, stackTrace) {
+                            debugPrint('Map tile failed to load: $error');
+                          },
                         ),
                       ],
                     ),

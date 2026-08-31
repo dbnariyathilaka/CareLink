@@ -509,13 +509,18 @@ class _CaregiverSettingsScreenState extends State<CaregiverSettingsScreen> {
                     child: GestureDetector(
                       onTap: () async {
                         Navigator.of(context).pop(); // dismiss dialog
+                        // Navigate away first so every still-mounted
+                        // screen's Firestore listeners are disposed and
+                        // cancelled before the auth token is revoked —
+                        // signing out first left them all live to receive
+                        // a simultaneous permission-denied error storm,
+                        // which could block the main thread long enough
+                        // to trip an ANR on logout.
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          '/welcome',
+                          (route) => false,
+                        );
                         await AuthService.signOut();
-                        if (context.mounted) {
-                          Navigator.of(context).pushNamedAndRemoveUntil(
-                            '/welcome',
-                            (route) => false,
-                          );
-                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),

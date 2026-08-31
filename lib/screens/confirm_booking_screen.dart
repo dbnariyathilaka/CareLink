@@ -476,6 +476,7 @@ class ConfirmBookingScreen extends StatelessWidget {
     required String location,
     double? locationLat,
     double? locationLng,
+    bool isEmergency = false,
   }) async {
     if (!await ensurePatientProfileComplete(context)) return false;
     if (!context.mounted) return false;
@@ -496,6 +497,7 @@ class ConfirmBookingScreen extends StatelessWidget {
       locationLat: locationLat,
       locationLng: locationLng,
       isAdvanced: isAdvanced,
+      isEmergency: isEmergency,
     );
     return true;
   }
@@ -552,6 +554,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                     location:      location,
                     locationLat:   args?['lat'] as double?,
                     locationLng:   args?['lng'] as double?,
+                    isEmergency:   args?['isEmergency'] as bool? ?? false,
                   );
                   if (!created) return;
                   if (!context.mounted) return;

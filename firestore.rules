@@ -37,11 +37,17 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['documentReviews']);
     }
 
-    // patientProfiles/{uid} — owner-only for write; owner or admin for
-    // read (the admin patients screen and patient profile detail need to
-    // read other patients' docs).
+    // patientProfiles/{uid} — owner-only for write; any signed-in user can
+    // read, same as caregiverProfiles above and for the same reason: a
+    // caregiver legitimately needs to read a patient's profile from many
+    // real screens (notifications, messages, chat, dashboard, reviews, the
+    // dedicated patient-profile screen) the moment there's a booking
+    // between them, and rules can't cheaply verify "this caregiver has an
+    // active booking with this patient" without a much bigger data-model
+    // change — so this mirrors the caregiverProfiles precedent instead of
+    // fabricating a narrower check that would just break those screens.
     match /patientProfiles/{uid} {
-      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
 
       match /favorites/{caregiverUid} {

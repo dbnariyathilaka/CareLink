@@ -32,6 +32,7 @@ class BookingService {
     double? locationLat,
     double? locationLng,
     bool isAdvanced = false,
+    bool isEmergency = false,
   }) async {
     await _collection.add({
       'patientUid': patientUid,
@@ -47,6 +48,7 @@ class BookingService {
       if (locationLat != null) 'locationLat': locationLat,
       if (locationLng != null) 'locationLng': locationLng,
       'isAdvanced': isAdvanced,
+      'isEmergency': isEmergency,
       'status': 'requested',
       'arrivalConfirmed': false,
       'createdAt': FieldValue.serverTimestamp(),

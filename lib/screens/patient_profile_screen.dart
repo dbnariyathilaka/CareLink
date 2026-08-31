@@ -7,6 +7,7 @@ import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/patient_notification_badge.dart';
 import '../widgets/remote_or_local_image.dart';
 import '../widgets/upload_picker_sheet.dart';
 import '../widgets/status_bar.dart';
@@ -1100,14 +1101,19 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
                       child: GestureDetector(
                         onTap: () async {
                           Navigator.pop(context); // dismiss dialog
+                          // Navigate away first so every still-mounted
+                          // screen's Firestore listeners are disposed and
+                          // cancelled before the auth token is revoked —
+                          // signing out first left them all live to receive
+                          // a simultaneous permission-denied error storm,
+                          // which could block the main thread long enough
+                          // to trip an ANR on logout.
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/welcome',
+                            (route) => false,
+                          );
                           await AuthService.signOut();
-                          if (context.mounted) {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              '/welcome',
-                              (route) => false,
-                            );
-                          }
                         },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1262,7 +1268,12 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(item.icon, color: Colors.white, size: 25),
+                  index == 4
+                      ? PatientNotificationIconWithBadge(
+                          icon: Icon(item.icon, color: Colors.white, size: 25),
+                          badgeBorderColor: darkGreen,
+                        )
+                      : Icon(item.icon, color: Colors.white, size: 25),
                   const SizedBox(height: 4),
                   Text(
                     item.label,

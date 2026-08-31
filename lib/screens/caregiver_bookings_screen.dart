@@ -4,10 +4,10 @@ import 'package:geolocator/geolocator.dart';
 import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
-import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
 import '../services/profile_gate.dart';
 import '../widgets/caregiver_bottom_nav.dart';
+import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ class CaregiverBookingsScreen extends StatefulWidget {
   State<CaregiverBookingsScreen> createState() => _CaregiverBookingsScreenState();
 }
 
-enum _Filter { all, newRequest, confirmed, missed }
+enum _Filter { all, emergency, newRequest, confirmed, missed }
 
 class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
   static const Color bg = Color(0xFFF5EEDE);
@@ -39,10 +39,12 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
   static const Color missedAmber = Color(0xFFF59E0B);
   static const Color onDutyRed = Color(0xFFEF4444);
 
+  static const Color emergencyRed = Color(0xFFDC2626);
+
   static const String _emptyBookingsGif = 'assets/images/empty_bookings.webp';
 
   Stream<List<Map<String, dynamic>>>? _bookingsStream;
-  final Map<String, String> _patientNames = {};
+  final Map<String, ({String name, String? photoUrl})> _patientInfo = {};
   String? _sharingBookingId;
   StreamSubscription<Position>? _positionSub;
   bool _requestingPermission = false;
@@ -78,14 +80,61 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
     } catch (_) {}
   }
 
-  Future<String> _resolvePatientName(String? patientUid) async {
-    if (patientUid == null || patientUid.isEmpty) return 'Patient';
-    if (_patientNames.containsKey(patientUid)) {
-      return _patientNames[patientUid]!;
-    }
-    final name = await PatientService.getPatientName(patientUid);
-    _patientNames[patientUid] = name;
-    return name;
+  // Real patient name + real profile photo (patientProfiles/{uid}.photoUrl,
+  // set when a patient uploads one in their own profile) — cached per uid
+  // so switching cards/rebuilds doesn't refire the read.
+  Future<({String name, String? photoUrl})> _resolvePatientInfo(String? patientUid) async {
+    const fallback = (name: 'Patient', photoUrl: null);
+    if (patientUid == null || patientUid.isEmpty) return fallback;
+    final cached = _patientInfo[patientUid];
+    if (cached != null) return cached;
+    final profile = await PatientService.getPatientProfile(patientUid);
+    final rawName = (profile?['name'] as String?)?.trim();
+    final rawAltName = (profile?['patientName'] as String?)?.trim();
+    final name = (rawName != null && rawName.isNotEmpty)
+        ? rawName
+        : (rawAltName != null && rawAltName.isNotEmpty)
+            ? rawAltName
+            : 'Patient';
+    final photoUrl = (profile?['photoUrl'] as String?)?.trim();
+    final result = (name: name, photoUrl: (photoUrl != null && photoUrl.isNotEmpty) ? photoUrl : null);
+    _patientInfo[patientUid] = result;
+    return result;
+  }
+
+  String _initialsOf(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  // Real photo when the patient has one, initials otherwise — never the
+  // full name text stretched into a small circle.
+  Widget _avatarCircle(
+    String? patientUid, {
+    required double size,
+    required Decoration fallbackDecoration,
+    required TextStyle initialsStyle,
+  }) {
+    return ClipOval(
+      child: FutureBuilder<({String name, String? photoUrl})>(
+        future: _resolvePatientInfo(patientUid),
+        builder: (context, snap) {
+          final info = snap.data;
+          if (info?.photoUrl != null) {
+            return RemoteOrLocalImage(source: info!.photoUrl!, width: size, height: size);
+          }
+          return Container(
+            width: size,
+            height: size,
+            decoration: fallbackDecoration,
+            alignment: Alignment.center,
+            child: Text(_initialsOf(info?.name ?? 'Patient'), style: initialsStyle),
+          );
+        },
+      ),
+    );
   }
 
   DateTime? _parseShiftStart(String? startDate, String? startTime) {
@@ -247,6 +296,8 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
     switch (filter) {
       case _Filter.all:
         return 'No bookings yet';
+      case _Filter.emergency:
+        return 'No emergency requests';
       case _Filter.newRequest:
         return 'No new requests';
       case _Filter.confirmed:
@@ -260,6 +311,8 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
     switch (filter) {
       case _Filter.all:
         return "You haven't received any care requests yet. When patients send requests or schedule care with you, your bookings will appear here.";
+      case _Filter.emergency:
+        return "You don't have any emergency requests right now.";
       case _Filter.newRequest:
         return "You don't have any new booking requests waiting for your response.";
       case _Filter.confirmed:
@@ -372,11 +425,11 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
             const Padding(
               padding: EdgeInsets.fromLTRB(22, 6, 22, 0),
               child: Text(
-                'My bookings',
+                'All requests',
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   color: titleDark,
-                  fontSize: 20,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -394,7 +447,8 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
   Widget _buildFilterChips() {
     final chips = [
       (filter: _Filter.all, label: 'All'),
-      (filter: _Filter.newRequest, label: 'New request'),
+      (filter: _Filter.emergency, label: 'Emergency'),
+      (filter: _Filter.newRequest, label: 'New'),
       (filter: _Filter.confirmed, label: 'Confirmed'),
       (filter: _Filter.missed, label: 'Missed'),
     ];
@@ -452,6 +506,8 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
           switch (_selectedFilter) {
             case _Filter.all:
               return true;
+            case _Filter.emergency:
+              return b['isEmergency'] == true;
             case _Filter.newRequest:
               return status == 'requested' && !missed;
             case _Filter.confirmed:
@@ -499,13 +555,131 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
     if (missed) return _missedCard(booking);
     if (status == 'declined') return _declinedCard(booking);
     if (status == 'confirmed') return onDuty ? _onDutyCard(booking) : _confirmedCard(booking);
+    if (booking['isEmergency'] == true) return _emergencyCard(booking);
     return _newRequestCard(booking);
   }
 
   Widget _nameText(String? patientUid, {required TextStyle style}) {
-    return FutureBuilder<String>(
-      future: _resolvePatientName(patientUid),
-      builder: (context, snap) => Text(snap.data ?? 'Patient', style: style),
+    return FutureBuilder<({String name, String? photoUrl})>(
+      future: _resolvePatientInfo(patientUid),
+      builder: (context, snap) => Text(snap.data?.name ?? 'Patient', style: style),
+    );
+  }
+
+  // ── Emergency request card (real Accept/Decline) — a booking flagged
+  // isEmergency: true, set when the request came from the Emergency
+  // screen's "Request" button (see BookingService.createBookingRequest).
+  Widget _emergencyCard(Map<String, dynamic> booking) {
+    final id = booking['id'] as String;
+    final patientUid = booking['patientUid'] as String?;
+    final distance = _distanceLabel(booking);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [emergencyRed, Color(0xFF991B1B)],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color.fromRGBO(255, 255, 255, 0.18),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.emergency_rounded, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text('Emergency', style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(color: const Color.fromRGBO(255, 255, 255, 0.25), borderRadius: BorderRadius.circular(999)),
+                          child: const Text('Urgent', style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    _nameText(
+                      patientUid,
+                      style: TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: const Color.fromRGBO(255, 255, 255, 0.9),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _respond(id, true),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 11),
+                      child: Text('Accept', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Open Sans', color: emergencyRed, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Material(
+                  color: const Color.fromRGBO(255, 255, 255, 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _respond(id, false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color.fromRGBO(255, 255, 255, 0.35)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Decline',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(255, 255, 255, 0.8), fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (distance != null) ...[
+            const SizedBox(height: 8),
+            Text(distance, style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(255, 255, 255, 0.75), fontSize: 10.5, fontWeight: FontWeight.w600)),
+          ],
+        ],
+      ),
     );
   }
 
@@ -530,15 +704,14 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
+              _avatarCircle(
+                patientUid,
+                size: 44,
+                fallbackDecoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF2D4668), Color(0xFF071E40)]),
                 ),
-                alignment: Alignment.center,
-                child: _nameText(patientUid, style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                initialsStyle: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -618,9 +791,10 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
     final isSharing = _sharingBookingId == id;
     // Figma nodes 774:636 (Paid) / 774:643 (Non paid) — billing doesn't
     // exist in this app yet, so no booking ever carries a `paymentStatus`
-    // field today; this line only renders once one actually does, rather
-    // than showing "Non paid" on every real card forever.
-    final paymentStatus = booking['paymentStatus'] as String?;
+    // field today. Absence of a recorded payment genuinely means "not
+    // paid", so that's shown as the honest default rather than hiding the
+    // indicator entirely.
+    final isPaid = booking['paymentStatus'] == 'paid';
 
     return Container(
       width: double.infinity,
@@ -631,15 +805,14 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
         children: [
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
+              _avatarCircle(
+                patientUid,
+                size: 44,
+                fallbackDecoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF22C55E), Color(0xFF16A34A)]),
                 ),
-                alignment: Alignment.center,
-                child: _nameText(patientUid, style: const TextStyle(fontFamily: 'Inter', color: Color(0xFF42413F), fontSize: 14, fontWeight: FontWeight.w700)),
+                initialsStyle: const TextStyle(fontFamily: 'Inter', color: Color(0xFF42413F), fontSize: 14, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -649,62 +822,62 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _nameText(patientUid, style: const TextStyle(fontFamily: 'Open Sans', color: Color(0xFF42413F), fontSize: 14, fontWeight: FontWeight.w700)),
+                          child: Text(
+                            careType,
+                            style: const TextStyle(fontFamily: 'Open Sans', color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: const Color.fromRGBO(34, 197, 94, 0.2), borderRadius: BorderRadius.circular(999)),
-                          child: const Text('Confirmed', style: TextStyle(fontFamily: 'Open Sans', color: confirmedGreen, fontSize: 10, fontWeight: FontWeight.w700)),
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(color: const Color.fromRGBO(34, 197, 94, 0.15), borderRadius: BorderRadius.circular(999)),
+                          child: const Text('Confirmed', style: TextStyle(fontFamily: 'Open Sans', color: confirmedGreen, fontSize: 12, fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      [careType, if (startDate != null) startDate, if (duration != null) duration].join(' · '),
-                      style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(0, 0, 0, 0.4), fontSize: 10, fontWeight: FontWeight.w600),
+                    const SizedBox(height: 2),
+                    _nameText(
+                      patientUid,
+                      style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(0, 0, 0, 0.26), fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          if (paymentStatus != null) ...[
-            const SizedBox(height: 10),
-            const Divider(height: 1, color: Color.fromRGBO(0, 0, 0, 0.1)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: paymentStatus == 'paid' ? confirmedGreen : const Color(0xFFBA4242),
-                    shape: BoxShape.circle,
-                  ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: isPaid ? confirmedGreen : const Color(0xFFBA4242),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  paymentStatus == 'paid' ? 'Paid' : 'Non paid',
-                  style: TextStyle(
-                    fontFamily: 'Open Sans',
-                    color: paymentStatus == 'paid' ? confirmedGreen : const Color(0xFFBA4242),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isPaid ? 'Paid' : 'Non paid',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: isPaid ? confirmedGreen : const Color(0xFFBA4242),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
-            ),
-          ],
-          if (distance != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.location_on_outlined, size: 14, color: Color.fromRGBO(0, 0, 0, 0.4)),
-                const SizedBox(width: 4),
-                Text(distance, style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(0, 0, 0, 0.4), fontSize: 11, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: Color.fromRGBO(0, 0, 0, 0.1)),
+          const SizedBox(height: 8),
+          Text(
+            [
+              if (startDate != null) 'Starts $startDate',
+              if (duration != null) duration,
+              if (distance != null) distance,
+            ].join(' · '),
+            style: const TextStyle(fontFamily: 'Inter', color: Color(0xFF424346), fontSize: 12, fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -766,16 +939,18 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
 
   // ── On duty card (live session active) ───────────────────
   Widget _onDutyCard(Map<String, dynamic> booking) {
-    final careType = booking['careType'] as String? ?? 'Care visit';
     final patientUid = booking['patientUid'] as String?;
+    final startTime = booking['startTime'] as String?;
+    final endTime = booking['endTime'] as String?;
+    final timeRange = (startTime != null && endTime != null) ? '$startTime–$endTime' : null;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
+        color: missedCardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: onDutyRed, width: 1.5),
+        border: Border.all(color: onDutyRed, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -783,18 +958,25 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
           Row(
             children: [
               Container(
-                width: 10,
-                height: 10,
+                width: 9,
+                height: 9,
                 decoration: const BoxDecoration(color: onDutyRed, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
-              const Text('ON DUTY NOW', style: TextStyle(fontFamily: 'Open Sans', color: onDutyRed, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              const Text('On duty', style: TextStyle(fontFamily: 'Open Sans', color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600)),
             ],
           ),
-          const SizedBox(height: 8),
-          _nameText(patientUid, style: const TextStyle(fontFamily: 'Open Sans', color: Color(0xFF1E293B), fontSize: 15, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text(careType, style: const TextStyle(fontFamily: 'Open Sans', color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 6),
+          FutureBuilder<({String name, String? photoUrl})>(
+            future: _resolvePatientInfo(patientUid),
+            builder: (context, snap) {
+              final name = snap.data?.name ?? 'Patient';
+              return Text(
+                ['Caring for $name', if (timeRange != null) timeRange].join(' · '),
+                style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(49, 49, 49, 0.79), fontSize: 12, fontWeight: FontWeight.w600),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -803,46 +985,33 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
   // ── Missed card ──────────────────────────────────────────
   Widget _missedCard(Map<String, dynamic> booking) {
     final careType = booking['careType'] as String? ?? 'Care visit';
-    final startDate = booking['startDate'] as String?;
-    final patientUid = booking['patientUid'] as String?;
+    final distance = _distanceLabel(booking);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: missedCardBg, borderRadius: BorderRadius.circular(14)),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(17, 19, 17, 17),
+      decoration: BoxDecoration(
+        color: missedCardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: missedAmber, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(shape: BoxShape.circle, color: Color.fromRGBO(245, 158, 11, 0.2)),
-            alignment: Alignment.center,
-            child: const Icon(Icons.schedule_rounded, color: missedAmber, size: 22),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(color: const Color.fromRGBO(245, 158, 11, 0.18), borderRadius: BorderRadius.circular(999)),
+            child: const Text('Missed', style: TextStyle(fontFamily: 'Open Sans', color: missedAmber, fontSize: 14, fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _nameText(patientUid, style: const TextStyle(fontFamily: 'Open Sans', color: Color(0xFF42413F), fontSize: 14, fontWeight: FontWeight.w700)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: const Color.fromRGBO(245, 158, 11, 0.2), borderRadius: BorderRadius.circular(999)),
-                      child: const Text('Missed', style: TextStyle(fontFamily: 'Open Sans', color: missedAmber, fontSize: 10, fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  [careType, if (startDate != null) 'Scheduled $startDate'].join(' · '),
-                  style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(0, 0, 0, 0.4), fontSize: 10, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
+          const SizedBox(height: 6),
+          const Text(
+            'Request expired while you were busy',
+            style: TextStyle(fontFamily: 'Open Sans', color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            [careType, if (distance != null) distance].join(' · '),
+            style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(49, 49, 49, 0.79), fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),

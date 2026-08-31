@@ -966,10 +966,13 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   Widget _buildLogoutButton(BuildContext context) {
     return GestureDetector(
       onTap: () async {
+        // Navigate away first so every still-mounted screen's Firestore
+        // listeners are disposed and cancelled before the auth token is
+        // revoked — signing out first left them all live to receive a
+        // simultaneous permission-denied error storm, which could block
+        // the main thread long enough to trip an ANR on logout.
+        Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
         await AuthService.signOut();
-        if (context.mounted) {
-          Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
-        }
       },
       child: Container(
         width: double.infinity,

@@ -141,6 +141,75 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     return day.isBefore(today);
   }
 
+  // The Part-time wheel picker stores a 12-hour hour (1-12) plus a separate
+  // AM/PM period, but TimeOfDay.hour is a 24-hour value — converting with
+  // TimeOfDay(hour: _ptHour, minute: _ptMinute) directly (as this screen
+  // used to) silently treated every PM selection as AM instead.
+  TimeOfDay get _partTimeStartResolved {
+    final hour24 = (_ptHour % 12) + (_ptPeriod == 'PM' ? 12 : 0);
+    return TimeOfDay(hour: hour24, minute: _ptMinute);
+  }
+
+  TimeOfDay _resolvedStartTime(String scheduleType) =>
+      scheduleType == 'Part-time' ? _partTimeStartResolved : _startTime;
+
+  // Minimum lead time before a shift can start — same rule for every
+  // schedule type. Past dates are already excluded from the calendar (see
+  // _isUnavailable); this additionally blocks a same-day start time that's
+  // less than 2 hours away.
+  static const Duration _minimumLeadTime = Duration(hours: 2);
+
+  bool _isBelowMinimumLeadTime(DateTime date, TimeOfDay time) {
+    final scheduledStart = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    return scheduledStart.isBefore(DateTime.now().add(_minimumLeadTime));
+  }
+
+  void _showLeadTimeWarning() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: darkCardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.access_time_filled_rounded, color: Color(0xFFF59E0B), size: 36),
+              const SizedBox(height: 14),
+              const Text(
+                'Start time too soon',
+                style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Care visits need to be scheduled at least 2 hours from now, so a caregiver has time to respond. Please pick a later time.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontFamily: 'Open Sans', color: darkTextSecondary, fontSize: 13, fontWeight: FontWeight.w500, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: _accent,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => Navigator.pop(ctx),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 13),
+                      child: Text('OK', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // End Date derived from duration selection
   DateTime get _endDate {
     final parts = _selectedDuration.split(' ');
@@ -249,6 +318,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     String? caregiverId;
     String? caregiverName;
     String? notes;
+    bool isEmergency = false;
 
     if (args is String) {
       scheduleType = args;
@@ -258,6 +328,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       caregiverId = args['caregiverId'] as String?;
       caregiverName = args['caregiverName'] as String?;
       notes = args['notes'] as String?;
+      isEmergency = args['isEmergency'] as bool? ?? false;
     }
 
     _isAdvanced = isAdvanced;
@@ -316,8 +387,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildBottomButton(
-                context, scheduleType, isAdvanced, caregiverId, caregiverName, notes),
+            child: _buildBottomButton(context, scheduleType, isAdvanced, caregiverId,
+                caregiverName, notes, isEmergency),
           ),
         ],
       ),
@@ -1670,7 +1741,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
 
   // ── Bottom Button ──
   Widget _buildBottomButton(BuildContext context, String scheduleType, bool isAdvanced,
-      String? caregiverId, String? caregiverName, String? notes) {
+      String? caregiverId, String? caregiverName, String? notes, bool isEmergency) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1699,6 +1770,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             child: InkWell(
               borderRadius: BorderRadius.circular(15),
               onTap: () {
+                final resolvedStart = _resolvedStartTime(scheduleType);
+                if (_isBelowMinimumLeadTime(_selectedDate, resolvedStart)) {
+                  _showLeadTimeWarning();
+                  return;
+                }
                 if (scheduleType == 'Flexible') {
                   final startMins = _startTime.hour * 60 + _startTime.minute;
                   final endMins = _endTime.hour * 60 + _endTime.minute;
@@ -1728,9 +1804,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     'isAdvanced': isAdvanced,
                     'schedule': scheduleType,
                     'startDate': _formatDate(_selectedDate),
-                    'startTime': _formatTime(scheduleType == 'Part-time'
-                        ? TimeOfDay(hour: _ptHour, minute: _ptMinute)
-                        : _startTime),
+                    'startTime': _formatTime(resolvedStart),
                     'endTime': _formatTime(_endTime),
                     'duration': scheduleType == 'Flexible' ? '1 day' : _selectedDuration,
                     'endDate': _formatDate(scheduleType == 'Flexible' ? _selectedDate : _endDate),
@@ -1738,6 +1812,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     if (caregiverId != null) 'caregiverId': caregiverId,
                     if (caregiverName != null) 'caregiverName': caregiverName,
                     if (notes != null && notes.isNotEmpty) 'notes': notes,
+                    if (isEmergency) 'isEmergency': true,
                   },
                 );
               },

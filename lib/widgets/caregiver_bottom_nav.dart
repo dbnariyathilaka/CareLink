@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
+import '../services/notification_badge_service.dart';
+
 enum CaregiverNavTab { home, booking, notification, schedule }
 
 class CaregiverBottomNav extends StatelessWidget {
@@ -47,6 +50,8 @@ class CaregiverBottomNav extends StatelessWidget {
       ),
     ];
 
+    final uid = AuthService.currentUser?.uid;
+
     return Container(
       decoration: const BoxDecoration(
         color: navBg,
@@ -64,6 +69,11 @@ class CaregiverBottomNav extends StatelessWidget {
             children: items.map((item) {
               final isSelected = activeTab == item.tab;
               final color = isSelected ? activeColor : inactiveColor;
+              final icon = Icon(
+                isSelected ? item.activeIcon : item.icon,
+                color: color,
+                size: 24,
+              );
               return Expanded(
                 child: GestureDetector(
                   onTap: () {
@@ -82,11 +92,9 @@ class CaregiverBottomNav extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        isSelected ? item.activeIcon : item.icon,
-                        color: color,
-                        size: 24,
-                      ),
+                      (item.tab == CaregiverNavTab.notification && uid != null)
+                          ? _NotificationIconWithBadge(uid: uid, icon: icon)
+                          : icon,
                       const SizedBox(height: 4),
                       Text(
                         item.label,
@@ -105,6 +113,54 @@ class CaregiverBottomNav extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Real unread count (see NotificationBadgeService) shown in red above the
+/// bell — never a fixed/fake number, and hidden entirely at 0.
+class _NotificationIconWithBadge extends StatelessWidget {
+  final String uid;
+  final Widget icon;
+  const _NotificationIconWithBadge({required this.uid, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: NotificationBadgeService.caregiverUnreadCount(uid),
+      builder: (context, snap) {
+        final count = snap.data ?? 0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            icon,
+            if (count > 0)
+              Positioned(
+                top: -4,
+                right: -8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  constraints: const BoxConstraints(minWidth: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFF1F3554), width: 1.5),
+                  ),
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
