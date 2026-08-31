@@ -1,23 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../services/booking_service.dart';
+import '../services/patient_service.dart';
+import '../services/user_directory_service.dart';
 import '../widgets/status_bar.dart';
 
-/// Data model for a patient profile (admin view)
+/// Data model for a patient profile (admin view). Only fields that are
+/// already known from the patients list are passed in here — anything that
+/// requires an extra Firestore round trip (care circle, booking counts,
+/// assigned caregiver, phone/email) is loaded lazily by this screen itself,
+/// once, for this one patient — never in a loop over the whole list.
 class AdminPatientProfileData {
+  final String patientUid;
   final String initials;
   final Color avatarColor;
   final Color avatarTextColor;
   final String name;
   final String demographics; // e.g. "72 · Female · Negombo"
-  final String patientId; // e.g. "ID PT-10428 · joined Nov 2025"
+  final String patientId; // e.g. "Internal ID a1b2c3d4 · joined Nov 2025"
   final String careType;
-  final String assignedCaregiver;
   final String conditions;
-  final List<CareCircleMember> careCircle;
-  final int bookings;
-  final int cancellations;
-  final int disputes;
 
   const AdminPatientProfileData({
+    required this.patientUid,
     required this.initials,
     required this.avatarColor,
     required this.avatarTextColor,
@@ -25,12 +31,7 @@ class AdminPatientProfileData {
     required this.demographics,
     required this.patientId,
     required this.careType,
-    required this.assignedCaregiver,
     required this.conditions,
-    required this.careCircle,
-    required this.bookings,
-    required this.cancellations,
-    required this.disputes,
   });
 }
 
@@ -48,13 +49,45 @@ class CareCircleMember {
     required this.name,
     required this.roleAndContact,
   });
+
+  factory CareCircleMember.fromDoc(Map<String, dynamic> doc) {
+    final name = (doc['name'] as String?)?.trim();
+    final relation = (doc['relation'] as String?)?.trim();
+    final role = (doc['role'] as String?)?.trim();
+    final isPrimary = doc['isPrimary'] == true;
+
+    final subtitleParts = <String>[
+      if (relation != null && relation.isNotEmpty) relation,
+      if (role != null && role.isNotEmpty) role,
+      if (isPrimary) 'Primary contact',
+    ];
+
+    final displayName = (name != null && name.isNotEmpty) ? name : 'Unnamed member';
+    final parts = displayName.trim().split(RegExp(r'\s+'));
+    final initials = parts.length == 1
+        ? parts[0].substring(0, 1).toUpperCase()
+        : (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+
+    return CareCircleMember(
+      initials: initials,
+      avatarBg: const Color(0xFF727953),
+      avatarText: const Color(0xFF313715),
+      name: displayName,
+      roleAndContact: subtitleParts.isEmpty ? 'No role specified' : subtitleParts.join(' · '),
+    );
+  }
 }
 
-class AdminPatientProfileScreen extends StatelessWidget {
+class AdminPatientProfileScreen extends StatefulWidget {
   final AdminPatientProfileData data;
 
   const AdminPatientProfileScreen({super.key, required this.data});
 
+  @override
+  State<AdminPatientProfileScreen> createState() => _AdminPatientProfileScreenState();
+}
+
+class _AdminPatientProfileScreenState extends State<AdminPatientProfileScreen> {
   // ── Color tokens matching Figma node 628:686 ──────────────────────────
   static const Color bgColor = Color(0xFFF5EEDE);
   static const Color cardBg = Color(0xFFC4BBAC);
@@ -70,6 +103,7 @@ class AdminPatientProfileScreen extends StatelessWidget {
   static const Color careTypeValue = Color(0xFFFFE6CA);
   static const Color caregiverValue = Color(0xFF28566A);
   static const Color conditionValue = Color(0xFFFFE6CA);
+  static const Color contactValue = Color(0xFF28566A);
 
   static const Color circleMemberName = Color(0xFF544730);
   static const Color circleMemberSub = Color(0xFFF3E9DE);
@@ -84,6 +118,93 @@ class AdminPatientProfileScreen extends StatelessWidget {
 
   static const Color manageLinkColor = Color(0xFF44606C);
   static const Color sectionHeaderColor = Colors.black;
+
+  StreamSubscription<List<Map<String, dynamic>>>? _careCircleSub;
+  List<CareCircleMember> _careCircle = [];
+  bool _careCircleLoading = true;
+
+  String? _phone;
+  String? _email;
+  bool _contactLoading = true;
+
+  String? _assignedCaregiver;
+  bool _assignedCaregiverLoading = true;
+
+  int? _bookings;
+  int? _cancellations;
+  bool _bookingCountsLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToCareCircle();
+    _loadContactInfo();
+    _loadAssignedCaregiver();
+    _loadBookingCounts();
+  }
+
+  @override
+  void dispose() {
+    _careCircleSub?.cancel();
+    super.dispose();
+  }
+
+  void _listenToCareCircle() {
+    _careCircleSub = PatientService.streamFamilyMembers(widget.data.patientUid).listen((docs) {
+      if (!mounted) return;
+      setState(() {
+        _careCircle = docs.map((d) => CareCircleMember.fromDoc(d)).toList();
+        _careCircleLoading = false;
+      });
+    }, onError: (_) {
+      if (!mounted) return;
+      setState(() => _careCircleLoading = false);
+    });
+  }
+
+  Future<void> _loadContactInfo() async {
+    try {
+      final user = await UserDirectoryService.getUser(widget.data.patientUid);
+      if (!mounted) return;
+      setState(() {
+        _phone = (user?['phone'] as String?)?.trim();
+        _email = (user?['email'] as String?)?.trim();
+        _contactLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _contactLoading = false);
+    }
+  }
+
+  Future<void> _loadAssignedCaregiver() async {
+    try {
+      final name = await BookingService.getLatestConfirmedCaregiverName(widget.data.patientUid);
+      if (!mounted) return;
+      setState(() {
+        _assignedCaregiver = name;
+        _assignedCaregiverLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _assignedCaregiverLoading = false);
+    }
+  }
+
+  Future<void> _loadBookingCounts() async {
+    try {
+      final counts = await BookingService.countBookingsForPatient(widget.data.patientUid);
+      if (!mounted) return;
+      setState(() {
+        _bookings = counts.active;
+        _cancellations = counts.cancelled;
+        _bookingCountsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _bookingCountsLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -166,23 +287,24 @@ class AdminPatientProfileScreen extends StatelessWidget {
         border: Border.all(color: cardBorder, width: 1.5),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Avatar
           Container(
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: data.avatarColor,
+              color: widget.data.avatarColor,
               borderRadius: BorderRadius.circular(26),
             ),
             child: Center(
               child: Text(
-                data.initials,
+                widget.data.initials,
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: data.avatarTextColor,
+                  color: widget.data.avatarTextColor,
                 ),
               ),
             ),
@@ -194,7 +316,7 @@ class AdminPatientProfileScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  data.name,
+                  widget.data.name,
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 16,
@@ -204,7 +326,7 @@ class AdminPatientProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  data.demographics,
+                  widget.data.demographics,
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11.5,
@@ -214,7 +336,7 @@ class AdminPatientProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  data.patientId,
+                  widget.data.patientId,
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -222,6 +344,29 @@ class AdminPatientProfileScreen extends StatelessWidget {
                     color: idColor,
                   ),
                 ),
+                if (!_contactLoading && ((_phone != null && _phone!.isNotEmpty) || (_email != null && _email!.isNotEmpty))) ...[
+                  const SizedBox(height: 4),
+                  if (_phone != null && _phone!.isNotEmpty)
+                    Text(
+                      _phone!,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: idColor,
+                      ),
+                    ),
+                  if (_email != null && _email!.isNotEmpty)
+                    Text(
+                      _email!,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: idColor,
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
@@ -249,6 +394,12 @@ class AdminPatientProfileScreen extends StatelessWidget {
 
   // ────────────────── Care Requirements Card ──────────────────
   Widget _buildCareRequirementsCard() {
+    final assignedCaregiverText = _assignedCaregiverLoading
+        ? 'Loading...'
+        : (_assignedCaregiver != null && _assignedCaregiver!.isNotEmpty)
+            ? _assignedCaregiver!
+            : 'Not yet assigned';
+
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
@@ -260,20 +411,40 @@ class AdminPatientProfileScreen extends StatelessWidget {
         children: [
           _buildRequirementRow(
             label: 'Care type',
-            value: data.careType,
+            value: widget.data.careType,
             valueColor: careTypeValue,
             hasDivider: true,
           ),
           _buildRequirementRow(
             label: 'Assigned caregiver',
-            value: data.assignedCaregiver,
+            value: assignedCaregiverText,
             valueColor: caregiverValue,
             hasDivider: true,
           ),
           _buildRequirementRow(
             label: 'Conditions',
-            value: data.conditions,
+            value: widget.data.conditions,
             valueColor: conditionValue,
+            hasDivider: true,
+          ),
+          _buildRequirementRow(
+            label: 'Phone',
+            value: _contactLoading
+                ? 'Loading...'
+                : (_phone != null && _phone!.isNotEmpty)
+                    ? _phone!
+                    : 'Not provided',
+            valueColor: contactValue,
+            hasDivider: true,
+          ),
+          _buildRequirementRow(
+            label: 'Email',
+            value: _contactLoading
+                ? 'Loading...'
+                : (_email != null && _email!.isNotEmpty)
+                    ? _email!
+                    : 'Not provided',
+            valueColor: contactValue,
             hasDivider: false,
           ),
         ],
@@ -336,7 +507,7 @@ class AdminPatientProfileScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'CARE CIRCLE · ${data.careCircle.length} MEMBERS',
+            'CARE CIRCLE · ${_careCircle.length} MEMBERS',
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 11,
@@ -364,6 +535,43 @@ class AdminPatientProfileScreen extends StatelessWidget {
 
   // ────────────────── Care Circle Card ──────────────────
   Widget _buildCareCircleCard() {
+    if (_careCircleLoading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 16),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: cardBorder, width: 1.5),
+        ),
+        alignment: Alignment.center,
+        child: const SizedBox(
+          height: 18,
+          width: 18,
+          child: CircularProgressIndicator(strokeWidth: 2, color: circleMemberName),
+        ),
+      );
+    }
+
+    if (_careCircle.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 16),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: cardBorder, width: 1.5),
+        ),
+        child: const Text(
+          'No care circle members added yet.',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: circleMemberName,
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
       decoration: BoxDecoration(
@@ -372,10 +580,10 @@ class AdminPatientProfileScreen extends StatelessWidget {
         border: Border.all(color: cardBorder, width: 1.5),
       ),
       child: Column(
-        children: data.careCircle.asMap().entries.map((entry) {
+        children: _careCircle.asMap().entries.map((entry) {
           final index = entry.key;
           final member = entry.value;
-          final isLast = index == data.careCircle.length - 1;
+          final isLast = index == _careCircle.length - 1;
           return Column(
             children: [
               _buildCareCircleMemberRow(member),
@@ -450,13 +658,17 @@ class AdminPatientProfileScreen extends StatelessWidget {
 
   // ────────────────── Account History Row ──────────────────
   Widget _buildAccountHistoryRow() {
+    final bookingsText = _bookingCountsLoading ? '—' : '${_bookings ?? 0}';
+    final cancellationsText = _bookingCountsLoading ? '—' : '${_cancellations ?? 0}';
+    final careCircleText = _careCircleLoading ? '—' : '${_careCircle.length}';
+
     return Row(
       children: [
-        Expanded(child: _buildStatCard(data.bookings.toString(), 'Bookings')),
+        Expanded(child: _buildStatCard(bookingsText, 'Bookings')),
         const SizedBox(width: 9),
-        Expanded(child: _buildStatCard(data.cancellations.toString(), 'Cancellations')),
+        Expanded(child: _buildStatCard(cancellationsText, 'Cancellations')),
         const SizedBox(width: 9),
-        Expanded(child: _buildStatCard(data.disputes.toString(), 'Disputes')),
+        Expanded(child: _buildStatCard(careCircleText, 'Care circle')),
       ],
     );
   }
@@ -576,7 +788,7 @@ class AdminPatientProfileScreen extends StatelessWidget {
           ),
         ),
         content: Text(
-          'Are you sure you want to deactivate ${data.name}\'s account? They will no longer be able to access the app.',
+          "Are you sure you want to deactivate ${widget.data.name}'s account? They will no longer be able to access the app.",
           style: const TextStyle(color: Color(0xFFD4CDC3), fontSize: 13),
         ),
         actions: [

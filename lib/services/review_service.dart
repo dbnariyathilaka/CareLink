@@ -79,4 +79,32 @@ class ReviewService {
       return docs;
     });
   }
+
+  /// Every review across every caregiver — used by the admin review screen.
+  /// There is no moderation-status field on these documents (nothing has
+  /// ever flagged/hidden a review), so this is the raw, unfiltered list.
+  static Stream<List<Map<String, dynamic>>> streamAllReviews() {
+    return _collection.snapshots().map((snap) {
+      final docs = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      docs.sort((a, b) {
+        final at = a['createdAt'];
+        final bt = b['createdAt'];
+        if (at is! Timestamp || bt is! Timestamp) return 0;
+        return bt.compareTo(at);
+      });
+      return docs;
+    });
+  }
+
+  /// Platform-wide average rating across every review — used by the admin
+  /// dashboard's "Avg rating" tile.
+  static Future<({double avg, int count})> fetchPlatformAverage() async {
+    final snap = await _collection.get();
+    if (snap.docs.isEmpty) return (avg: 0.0, count: 0);
+    var sum = 0;
+    for (final doc in snap.docs) {
+      sum += (doc.data()['rating'] as int?) ?? 0;
+    }
+    return (avg: sum / snap.docs.length, count: snap.docs.length);
+  }
 }

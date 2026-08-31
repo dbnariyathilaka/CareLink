@@ -1,46 +1,82 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
+import '../services/review_service.dart';
+import '../services/user_directory_service.dart';
 import '../widgets/status_bar.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_caregiver_profile_screen.dart';
 import 'admin_finance_screen.dart';
 
-enum CaregiverStatus { active, pending, suspended }
+/// Sort options for the caregivers list — all backed by real, batch-fetched
+/// data (ratings/reviews from ReviewService, name from the profile itself).
+enum _CaregiverSort { none, highestRated, mostReviews, nameAz }
 
+/// One row in the admin caregivers list. Wraps the raw `caregiverProfiles`
+/// doc plus its joined `users` doc and rating summary — every getter below
+/// traces straight back to a real field (see the class docs in
+/// caregiver_service.dart / user_directory_service.dart / review_service.dart
+/// for what's actually stored). Nothing here is fabricated.
 class AdminCaregiverData {
-  final String id;
-  final String initials;
+  final String uid;
+  final Map<String, dynamic> profile; // caregiverProfiles/{uid}
+  final Map<String, dynamic>? user; // users/{uid} — may be null if unresolved
+  final double rating;
+  final int reviewCount;
   final Color avatarBg;
   final Color avatarTextColor;
-  final String name;
-  final String careType;
-  final String location;
-  final double rating;
-  final String nic;
-  final String phone;
-  CaregiverStatus status;
-  final int shifts;
-  final int reviews;
-  final String earned;
 
   AdminCaregiverData({
-    required this.id,
-    required this.initials,
+    required this.uid,
+    required this.profile,
+    required this.user,
+    required this.rating,
+    required this.reviewCount,
     required this.avatarBg,
     required this.avatarTextColor,
-    required this.name,
-    required this.careType,
-    required this.location,
-    required this.rating,
-    required this.nic,
-    required this.phone,
-    required this.status,
-    required this.shifts,
-    required this.reviews,
-    required this.earned,
   });
 
-  String get subtitle => '$careType · $location · ${rating.toStringAsFixed(1)} ★';
+  String get name {
+    final n = user?['name'] as String?;
+    return (n != null && n.trim().isNotEmpty) ? n.trim() : 'Caregiver';
+  }
+
+  String get initials {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return 'CG';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  List<String> get careTypes {
+    final types = profile['careTypes'];
+    if (types is List) return types.map((e) => e.toString()).toList();
+    return const [];
+  }
+
+  String get careType => careTypes.isNotEmpty ? careTypes.first : 'Not specified';
+
+  String get city {
+    final c = profile['city'] as String?;
+    return (c != null && c.trim().isNotEmpty) ? c.trim() : 'Not specified';
+  }
+
+  String get nic {
+    final n = profile['nic'] as String?;
+    return (n != null && n.trim().isNotEmpty) ? n.trim() : 'Not provided';
+  }
+
+  String get phone {
+    final p = user?['phone'] as String?;
+    return (p != null && p.trim().isNotEmpty) ? p.trim() : 'Not provided';
+  }
+
+  int get yearsExperience => (profile['yearsExperience'] as num?)?.toInt() ?? 0;
+
+  String get subtitle =>
+      '$careType · $city · ${rating.toStringAsFixed(1)} ★ ($reviewCount)';
 }
 
 class AdminCaregiversScreen extends StatefulWidget {
@@ -57,8 +93,6 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
   static const Color searchBoxBg = Color(0xFFFFF3DF);
   static const Color searchBoxBorder = Color(0xFFD6BA8B);
   static const Color searchHintColor = Color.fromRGBO(96, 78, 47, 0.45);
-  static const Color filterChipActiveBg = Color(0xFF585247);
-  static const Color filterChipInactiveBorder = Color(0xFF585247);
   static const Color cardBg = Color(0xFFC4BBAC);
   static const Color cardBorder = Color(0xFF766B58);
   static const Color cardNameColor = Color(0xFF5C5445);
@@ -70,191 +104,132 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
   static const Color bottomNavBg = Color(0xFF3A3328);
   static const Color navGold = Color(0xFFFBBC05);
 
-  final TextEditingController _searchController = TextEditingController();
-  int _selectedFilterIndex = 0; // 0: All, 1: Active, 2: Pending, 3: Suspended
-  String? _expandedCaregiverId = 'cg_1'; // First card open by default like Figma
+  // Deterministic per-caregiver avatar palette (picked by uid hash) so
+  // colors stay stable across rebuilds without needing to store one.
+  static const List<Color> _avatarBgPalette = [
+    Color(0xFF727953),
+    Color(0xFF357F83),
+    Color(0xFFA28C66),
+    Color(0xFF354152),
+    Color(0xFF6ED5C9),
+    Color(0xFFD9BDB5),
+  ];
+  static const List<Color> _avatarFgPalette = [
+    Color(0xFF313715),
+    Colors.white,
+    Color(0xFF3B2404),
+    Color(0xFFCBD5E1),
+    Color(0xFF04302C),
+    Color(0xFF41302B),
+  ];
 
-  late List<AdminCaregiverData> _caregivers;
+  static const List<String> _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  final TextEditingController _searchController = TextEditingController();
+  String? _expandedCaregiverId;
+  bool _autoExpandDone = false;
+
+  // Session-local only (never written to Firestore — there is no
+  // suspension/verification field anywhere in the schema to persist to).
+  // Purely flips the action button's own label; nothing is read back from
+  // real data to render it, so no fabricated status is ever displayed.
+  final Set<String> _locallySuspended = {};
+
+  StreamSubscription<List<Map<String, dynamic>>>? _caregiversSub;
+  List<AdminCaregiverData> _caregivers = [];
+  bool _loading = true;
+  _CaregiverSort _sort = _CaregiverSort.none;
+
+  // Guards against a slower join from an older snapshot overwriting the
+  // result of a newer one.
+  int _fetchGen = 0;
 
   @override
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
-    _initCaregivers();
-    _loadFirestoreCaregivers();
+    _caregiversSub = CaregiverService.streamAllCaregivers().listen(_onCaregiversSnapshot);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _caregiversSub?.cancel();
     super.dispose();
   }
 
-  void _initCaregivers() {
-    _caregivers = [
-      AdminCaregiverData(
-        id: 'cg_1',
-        initials: 'AF',
-        avatarBg: const Color(0xFF727953),
-        avatarTextColor: const Color(0xFF313715),
-        name: 'Alice Fernando',
-        careType: 'Elder care',
-        location: 'Negombo',
-        rating: 4.8,
-        nic: '198578901234',
-        phone: '+94 77 123 4567',
-        status: CaregiverStatus.active,
-        shifts: 142,
-        reviews: 24,
-        earned: '412k',
-      ),
-      AdminCaregiverData(
-        id: 'cg_2',
-        initials: 'BK',
-        avatarBg: const Color(0xFF357F83),
-        avatarTextColor: Colors.white,
-        name: 'Brian Kumara',
-        careType: 'Post-surgery',
-        location: 'Negombo',
-        rating: 4.5,
-        nic: '199045671234',
-        phone: '+94 71 987 6543',
-        status: CaregiverStatus.pending,
-        shifts: 38,
-        reviews: 9,
-        earned: '105k',
-      ),
-      AdminCaregiverData(
-        id: 'cg_3',
-        initials: 'SP',
-        avatarBg: const Color(0xFFA28C66),
-        avatarTextColor: const Color(0xFF3B2404),
-        name: 'Sanduni Perera',
-        careType: 'Dementia care',
-        location: 'Ja-Ela',
-        rating: 4.9,
-        nic: '199267894561',
-        phone: '+94 76 345 6789',
-        status: CaregiverStatus.active,
-        shifts: 185,
-        reviews: 32,
-        earned: '540k',
-      ),
-      AdminCaregiverData(
-        id: 'cg_4',
-        initials: 'RJ',
-        avatarBg: const Color(0xFF354152),
-        avatarTextColor: const Color(0xFFCBD5E1),
-        name: 'Ruwan Jayasuriya',
-        careType: 'Mobility',
-        location: 'Seeduwa',
-        rating: 4.2,
-        nic: '198812345678',
-        phone: '+94 70 876 5432',
-        status: CaregiverStatus.suspended,
-        shifts: 64,
-        reviews: 11,
-        earned: '180k',
-      ),
-      AdminCaregiverData(
-        id: 'cg_5',
-        initials: 'NW',
-        avatarBg: const Color(0xFF6ED5C9),
-        avatarTextColor: const Color(0xFF04302C),
-        name: 'Nadeesha Wickrama',
-        careType: 'Elder care',
-        location: 'Katunayake',
-        rating: 4.9,
-        nic: '199489012345',
-        phone: '+94 78 567 8901',
-        status: CaregiverStatus.active,
-        shifts: 96,
-        reviews: 18,
-        earned: '290k',
-      ),
-    ];
-  }
+  Future<void> _onCaregiversSnapshot(List<Map<String, dynamic>> profiles) async {
+    final gen = ++_fetchGen;
+    final uids = profiles.map((p) => p['uid'] as String).toList();
 
-  Future<void> _loadFirestoreCaregivers() async {
-    try {
-      final dbCaregivers = await CaregiverService.searchCaregivers();
-      if (dbCaregivers.isNotEmpty && mounted) {
-        // Merge real caregivers if present
-        setState(() {
-          for (final cg in dbCaregivers) {
-            final uid = cg['uid'] as String? ?? '';
-            final name = cg['name'] as String? ?? 'Caregiver';
-            if (!_caregivers.any((c) => c.id == uid || c.name == name)) {
-              final initials = _getInitials(name);
-              _caregivers.add(
-                AdminCaregiverData(
-                  id: uid,
-                  initials: initials,
-                  avatarBg: const Color(0xFF727953),
-                  avatarTextColor: const Color(0xFF313715),
-                  name: name,
-                  careType: (cg['careTypes'] as List?)?.firstOrNull?.toString() ?? 'Elder care',
-                  location: cg['city'] as String? ?? 'Western Province',
-                  rating: (cg['rating'] as num?)?.toDouble() ?? 4.8,
-                  nic: cg['nic'] as String? ?? 'Verified',
-                  phone: cg['phone'] as String? ?? '+94 7X XXX XXXX',
-                  status: (cg['isVerified'] == true)
-                      ? CaregiverStatus.active
-                      : CaregiverStatus.pending,
-                  shifts: (cg['completedJobs'] as num?)?.toInt() ?? 12,
-                  reviews: (cg['reviewCount'] as num?)?.toInt() ?? 5,
-                  earned: '${((cg['totalEarnings'] as num?)?.toInt() ?? 45)}k',
-                ),
-              );
-            }
-          }
-        });
-      }
-    } catch (_) {}
-  }
+    final users = await UserDirectoryService.getUsers(uids);
+    final ratings = await ReviewService.fetchRatingsFor(uids);
+    if (!mounted || gen != _fetchGen) return; // a newer snapshot has since arrived
 
-  String _getInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'CG';
-    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
-    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+    final list = profiles.map((profile) {
+      final uid = profile['uid'] as String;
+      final rating = ratings[uid];
+      final colorIndex = uid.hashCode.abs() % _avatarBgPalette.length;
+      return AdminCaregiverData(
+        uid: uid,
+        profile: profile,
+        user: users[uid],
+        rating: rating?.avg ?? 0.0,
+        reviewCount: rating?.count ?? 0,
+        avatarBg: _avatarBgPalette[colorIndex],
+        avatarTextColor: _avatarFgPalette[colorIndex],
+      );
+    }).toList();
+
+    if (!_autoExpandDone && list.isNotEmpty) {
+      _expandedCaregiverId = list.first.uid;
+      _autoExpandDone = true;
+    }
+
+    setState(() {
+      _caregivers = list;
+      _loading = false;
+    });
   }
 
   List<AdminCaregiverData> get _filteredCaregivers {
     final query = _searchController.text.trim().toLowerCase();
-    return _caregivers.where((cg) {
-      // Filter tab check
-      if (_selectedFilterIndex == 1 && cg.status != CaregiverStatus.active) return false;
-      if (_selectedFilterIndex == 2 && cg.status != CaregiverStatus.pending) return false;
-      if (_selectedFilterIndex == 3 && cg.status != CaregiverStatus.suspended) return false;
-
-      // Search query check
-      if (query.isNotEmpty) {
-        final matchesName = cg.name.toLowerCase().contains(query);
-        final matchesNic = cg.nic.toLowerCase().contains(query);
-        final matchesPhone = cg.phone.toLowerCase().contains(query);
-        final matchesLocation = cg.location.toLowerCase().contains(query);
-        final matchesCareType = cg.careType.toLowerCase().contains(query);
-        if (!matchesName && !matchesNic && !matchesPhone && !matchesLocation && !matchesCareType) {
-          return false;
-        }
-      }
-      return true;
+    var list = _caregivers.where((cg) {
+      if (query.isEmpty) return true;
+      return cg.name.toLowerCase().contains(query) ||
+          cg.nic.toLowerCase().contains(query) ||
+          cg.phone.toLowerCase().contains(query) ||
+          cg.city.toLowerCase().contains(query) ||
+          cg.careType.toLowerCase().contains(query);
     }).toList();
+
+    switch (_sort) {
+      case _CaregiverSort.highestRated:
+        list.sort((a, b) => b.rating.compareTo(a.rating));
+        break;
+      case _CaregiverSort.mostReviews:
+        list.sort((a, b) => b.reviewCount.compareTo(a.reviewCount));
+        break;
+      case _CaregiverSort.nameAz:
+        list.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case _CaregiverSort.none:
+        break;
+    }
+    return list;
   }
 
-  void _toggleExpand(String id) {
+  void _toggleExpand(String uid) {
     setState(() {
-      if (_expandedCaregiverId == id) {
-        _expandedCaregiverId = null;
-      } else {
-        _expandedCaregiverId = id;
-      }
+      _expandedCaregiverId = _expandedCaregiverId == uid ? null : uid;
     });
   }
 
   void _toggleSuspendStatus(AdminCaregiverData cg) {
-    final isCurrentlySuspended = cg.status == CaregiverStatus.suspended;
+    final isCurrentlySuspended = _locallySuspended.contains(cg.uid);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -286,7 +261,11 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
             ),
             onPressed: () {
               setState(() {
-                cg.status = isCurrentlySuspended ? CaregiverStatus.active : CaregiverStatus.suspended;
+                if (isCurrentlySuspended) {
+                  _locallySuspended.remove(cg.uid);
+                } else {
+                  _locallySuspended.add(cg.uid);
+                }
               });
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -306,6 +285,86 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
     );
   }
 
+  String _formatMonthYear(DateTime d) => '${_months[d.month - 1]} ${d.year}';
+
+  /// Builds a filename/label for a certificate/document URL — falls back to
+  /// a generic label rather than ever inventing a plausible-looking filename.
+  String _labelForUrl(String url, String fallback) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isEmpty) return fallback;
+      var last = Uri.decodeComponent(uri.pathSegments.last);
+      if (last.contains('/')) last = last.substring(last.lastIndexOf('/') + 1);
+      return last.isNotEmpty ? last : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  /// Fixes the previous mock-data builder: every value below is traced to a
+  /// real field on `caregiverProfiles/{uid}` or the joined `users/{uid}` doc
+  /// (already fetched for the list — see [_onCaregiversSnapshot]) rather
+  /// than fabricated. Fields with no schema backing (age, a caregiver "ID
+  /// PT-xxxx" code) are simply left out.
+  AdminCaregiverProfileData _buildProfileData(AdminCaregiverData cg) {
+    final profile = cg.profile;
+    final user = cg.user;
+
+    final gender = (profile['gender'] as String?)?.trim();
+    final demographicsParts = <String>[
+      if (gender != null && gender.isNotEmpty) gender,
+      cg.city,
+    ];
+    final demographics = demographicsParts.isNotEmpty ? demographicsParts.join(' · ') : 'Not specified';
+
+    String? joinedLabel;
+    final createdAt = user?['createdAt'];
+    if (createdAt is Timestamp) {
+      joinedLabel = 'Joined ${_formatMonthYear(createdAt.toDate())}';
+    }
+
+    final skills = (profile['skills'] as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+    final languages =
+        (profile['languagesSpoken'] as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+
+    final certUrls =
+        (profile['certificateUrls'] as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+    final policeClearance = profile['policeClearanceUrl'] as String?;
+    final otherDocs =
+        (profile['otherDocumentUrls'] as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+
+    final certificateLabels = <String>[
+      for (var i = 0; i < certUrls.length; i++) _labelForUrl(certUrls[i], 'Certificate ${i + 1}'),
+      if (policeClearance != null && policeClearance.isNotEmpty)
+        _labelForUrl(policeClearance, 'Police clearance'),
+      for (var i = 0; i < otherDocs.length; i++) _labelForUrl(otherDocs[i], 'Other document ${i + 1}'),
+    ];
+
+    return AdminCaregiverProfileData(
+      uid: cg.uid,
+      initials: cg.initials,
+      avatarBg: cg.avatarBg,
+      avatarTextColor: cg.avatarTextColor,
+      name: cg.name,
+      demographics: demographics,
+      joinedLabel: joinedLabel,
+      phone: cg.phone,
+      location: cg.city,
+      nic: cg.nic,
+      email: (user?['email'] as String?)?.trim().isNotEmpty == true
+          ? (user!['email'] as String).trim()
+          : 'Not provided',
+      experience: '${cg.yearsExperience} ${cg.yearsExperience == 1 ? 'year' : 'years'}',
+      careType: cg.careTypes.isNotEmpty ? cg.careTypes.join(', ') : 'Not specified',
+      skills: skills,
+      education: (profile['educationalQualification'] as String?) ?? 'Not provided',
+      training: (profile['formalTraining'] as String?) ?? 'Not provided',
+      languages: languages,
+      bio: (profile['bio'] as String?) ?? '',
+      certificates: certificateLabels,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final displayList = _filteredCaregivers;
@@ -313,7 +372,6 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
             // ── Top Header Bar ──────────────────────────────────────────────
@@ -348,13 +406,13 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 14),
-                  // Filter / sort action
+                  // Sort action
                   IconButton(
                     icon: const Icon(Icons.tune_rounded, color: titleColor, size: 24),
                     onPressed: () {
-                      _showFilterSortMenu();
+                      _showSortMenu();
                     },
-                    tooltip: 'Filter',
+                    tooltip: 'Sort',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -412,54 +470,57 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
             ),
             const SizedBox(height: 10),
 
-            // ── Filter Chips Row ────────────────────────────────────────────
+            // ── Result count ────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: Row(
-                children: [
-                  _buildFilterChip(0, 'All ${_caregivers.length}'),
-                  const SizedBox(width: 7),
-                  _buildFilterChip(1, 'Active'),
-                  const SizedBox(width: 7),
-                  _buildFilterChip(2, 'Pending'),
-                  const SizedBox(width: 7),
-                  _buildFilterChip(3, 'Suspended'),
-                ],
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${_caregivers.length} caregiver${_caregivers.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: cardSubtitleColor,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
             // ── Caregivers List ─────────────────────────────────────────────
             Expanded(
-              child: displayList.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.search_off_rounded, size: 48, color: titleColor.withValues(alpha: 0.5)),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'No caregivers found',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: titleColor,
-                            ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: titleColor))
+                  : displayList.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.search_off_rounded, size: 48, color: titleColor.withValues(alpha: 0.5)),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'No caregivers found',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: titleColor,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
-                      itemCount: displayList.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final cg = displayList[index];
-                        final isExpanded = _expandedCaregiverId == cg.id;
-                        return _buildCaregiverCard(cg, isExpanded);
-                      },
-                    ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
+                          itemCount: displayList.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final cg = displayList[index];
+                            final isExpanded = _expandedCaregiverId == cg.uid;
+                            return _buildCaregiverCard(cg, isExpanded);
+                          },
+                        ),
             ),
 
             // ── Bottom Navigation Bar (Matching Admin Dashboard) ────────────
@@ -470,37 +531,9 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
     );
   }
 
-  Widget _buildFilterChip(int index, String label) {
-    final isSelected = _selectedFilterIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedFilterIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? filterChipActiveBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isSelected ? filterChipActiveBg : filterChipInactiveBorder,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : filterChipInactiveBorder,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildCaregiverCard(AdminCaregiverData cg, bool isExpanded) {
     return GestureDetector(
-      onTap: () => _toggleExpand(cg.id),
+      onTap: () => _toggleExpand(cg.uid),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
@@ -512,8 +545,9 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Avatar + Info + Badge
+            // Top Row: Avatar + Info
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Avatar
                 Container(
@@ -535,7 +569,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                   ),
                 ),
                 const SizedBox(width: 11),
-                // Name & Subtitle
+                // Name & Subtitle & NIC
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,25 +593,31 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                           color: cardSubtitleColor,
                         ),
                       ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'NIC: ${cg.nic}',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
+                          color: cardSubtitleColor,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                // Status Badge
-                _buildStatusBadge(cg.status),
               ],
             ),
 
             // Expanded section: Stats row + Action buttons
             if (isExpanded) ...[
               const SizedBox(height: 10),
-              // 3 Dark Stat Tiles
+              // Real, batch-fetched stat tiles (no per-row Firestore query).
               Row(
                 children: [
-                  Expanded(child: _buildStatTile('${cg.shifts}', 'Shifts')),
+                  Expanded(child: _buildStatTile('${cg.yearsExperience} yrs', 'Experience')),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildStatTile('${cg.reviews}', 'Reviews')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _buildStatTile(cg.earned, 'Earned')),
+                  Expanded(child: _buildStatTile('${cg.reviewCount}', 'Reviews')),
                 ],
               ),
               const SizedBox(height: 10),
@@ -588,27 +628,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        final profileData = AdminCaregiverProfileData(
-                          initials: cg.initials,
-                          avatarBg: cg.avatarBg,
-                          avatarTextColor: cg.avatarTextColor,
-                          name: cg.name,
-                          demographics: '46 · Female · ${cg.location}',
-                          caregiverId: 'ID PT-10428 · joined Nov 2025',
-                          phone: cg.phone,
-                          location: '${cg.location}, Western Province',
-                          nic: cg.nic,
-                          email: '${cg.name.toLowerCase().replaceAll(' ', '')}@gmail.com',
-                          experience: '5 years',
-                          careType: cg.careType,
-                          skills: const ['Mobility assistance', 'Medication management', 'Dementia care'],
-                          education: 'Diploma',
-                          training: 'Not set',
-                          languages: const ['Sinhala', 'English'],
-                          bio: 'Compassionate ${cg.careType.toLowerCase()} nurse with 5 years supporting families across ${cg.location} and Western Province. I specialise in dementia and post-surgery recovery.',
-                          certificates: const ['Caregiving Diploma.pdf', 'First Aid Certificate.pdf'],
-                        );
-
+                        final profileData = _buildProfileData(cg);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -636,7 +656,8 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Suspend / Reactivate Button
+                  // Suspend / Reactivate Button (session-local only — see
+                  // _locallySuspended doc comment above)
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _toggleSuspendStatus(cg),
@@ -648,7 +669,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          cg.status == CaregiverStatus.suspended ? 'Reactivate' : 'Suspend',
+                          _locallySuspended.contains(cg.uid) ? 'Reactivate' : 'Suspend',
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 11,
@@ -663,47 +684,6 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(CaregiverStatus status) {
-    Color bg;
-    Color textColor;
-    String text;
-
-    switch (status) {
-      case CaregiverStatus.active:
-        bg = const Color.fromRGBO(78, 172, 0, 0.16);
-        textColor = const Color(0xFF255010);
-        text = 'ACTIVE';
-        break;
-      case CaregiverStatus.pending:
-        bg = const Color.fromRGBO(245, 158, 11, 0.16);
-        textColor = const Color(0xFF6D490E);
-        text = 'PENDING';
-        break;
-      case CaregiverStatus.suspended:
-        bg = const Color.fromRGBO(239, 68, 68, 0.16);
-        textColor = const Color(0xFF822222);
-        text = 'SUSPENDED';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          color: textColor,
         ),
       ),
     );
@@ -819,7 +799,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
     );
   }
 
-  void _showFilterSortMenu() {
+  void _showSortMenu() {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF2C251D),
@@ -846,19 +826,15 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
               leading: const Icon(Icons.star_rounded, color: statsValueGold),
               title: const Text('Highest Rated', style: TextStyle(color: Colors.white)),
               onTap: () {
-                setState(() {
-                  _caregivers.sort((a, b) => b.rating.compareTo(a.rating));
-                });
+                setState(() => _sort = _CaregiverSort.highestRated);
                 Navigator.pop(ctx);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.work_history_rounded, color: Colors.lightBlueAccent),
-              title: const Text('Most Shifts Completed', style: TextStyle(color: Colors.white)),
+              leading: const Icon(Icons.reviews_rounded, color: Colors.lightBlueAccent),
+              title: const Text('Most Reviews', style: TextStyle(color: Colors.white)),
               onTap: () {
-                setState(() {
-                  _caregivers.sort((a, b) => b.shifts.compareTo(a.shifts));
-                });
+                setState(() => _sort = _CaregiverSort.mostReviews);
                 Navigator.pop(ctx);
               },
             ),
@@ -866,9 +842,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
               leading: const Icon(Icons.sort_by_alpha_rounded, color: Colors.greenAccent),
               title: const Text('Name (A - Z)', style: TextStyle(color: Colors.white)),
               onTap: () {
-                setState(() {
-                  _caregivers.sort((a, b) => a.name.compareTo(b.name));
-                });
+                setState(() => _sort = _CaregiverSort.nameAz);
                 Navigator.pop(ctx);
               },
             ),

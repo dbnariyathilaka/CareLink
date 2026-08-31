@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
@@ -8,12 +9,17 @@ import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Notifications Screen  (Patient)
-//  Figma node: 249-1064 · "Caregiver on the way" node 393-163
+//  Figma node: 249-1064 · "Caregiver on the way" node 393-163 ·
+//  "Booking accepted" node 757-768 · "Payment completed" node 757-769
 //  No push/FCM backend exists, so notifications aren't pushed events —
-//  "Shift starting soon" and "Caregiver is on the way" are derived live
-//  from each real booking's start time vs. the current clock (re-checked
-//  every 30s while this screen is open). Other types (accepted/declined/
-//  reached out) still have no producing backend and won't appear yet.
+//  "Booking accepted", "Shift starting soon", and "Caregiver is on the way"
+//  are all derived live from each real booking's status/start time vs. the
+//  current clock (re-checked every 30s while this screen is open).
+//  "Payment completed" is built the same way but stays dormant — nothing
+//  writes `paymentStatus` yet since billing doesn't exist in this app; it's
+//  ready to activate once that field is real. Other types (declined/reached
+//  out) still have no producing backend and won't
+//  appear yet.
 // ─────────────────────────────────────────────────────────────
 
 enum _NotificationCategory { booking, reminder, system }
@@ -27,6 +33,7 @@ enum _NotificationType {
   caregiverReachedOut,
   requestDeclined,
   caregiverOnTheWay,
+  paymentCompleted,
 }
 
 class _NotificationAction {
@@ -93,6 +100,9 @@ const Map<_NotificationType, _NotificationStyle> _notificationStyles = {
   ),
   _NotificationType.caregiverOnTheWay: _NotificationStyle(
     Icons.directions_walk_rounded, Color(0xFFEA4335), _NotificationCategory.booking,
+  ),
+  _NotificationType.paymentCompleted: _NotificationStyle(
+    Icons.check_circle_rounded, Color(0xFF22C55E), _NotificationCategory.booking,
   ),
 };
 
@@ -202,22 +212,110 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   // 'upcoming'/'ongoing' (nothing in this codebase ever writes those to
   // Firestore). Gating on the wrong strings here would silently never match
   // any booking, accepted or not.
+  String _timeAgoFrom(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
   List<_AppNotification> _deriveNotifications(List<Map<String, dynamic>> bookings) {
     final now = DateTime.now();
     final result = <_AppNotification>[];
     for (final b in bookings) {
+      // Payment completion (Figma node 757:769) — dormant until a real
+      // billing feature exists. No screen in this app ever writes
+      // `paymentStatus` today, so this never fires yet; it's built now
+      // using the exact field name proposed for the future billing schema
+      // (unpaid/pending/paid/refunded) so it activates automatically, with
+      // no changes needed here, the moment that feature lands. "Receipt"
+      // and "Payment history" have no real screens yet either — they show
+      // a placeholder message rather than crashing on a missing route.
+      if (b['paymentStatus'] == 'paid') {
+        final caregiverName = (b['caregiverName'] as String?) ?? 'Your caregiver';
+        final paidAt = b['paidAt'];
+        final timeAgo = paidAt is Timestamp ? _timeAgoFrom(paidAt.toDate()) : 'just now';
+        result.add(_AppNotification(
+          type: _NotificationType.paymentCompleted,
+          title: 'Booking confirmed',
+          body: 'You have made payment successfully for your booking with $caregiverName.',
+          timeAgo: timeAgo,
+          caregiverName: caregiverName,
+          bookingId: b['id'] as String?,
+          actions: [
+            _NotificationAction(
+              'Receipt',
+              isPrimary: true,
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Receipts aren\'t available yet.'), duration: Duration(seconds: 2)),
+              ),
+            ),
+            _NotificationAction(
+              'Payment history',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Payment history isn\'t available yet.'), duration: Duration(seconds: 2)),
+              ),
+            ),
+          ],
+        ));
+      }
+
       final status = b['status'] as String?;
       if (status != 'confirmed') continue;
       if (b['arrivalConfirmed'] == true) continue;
       final shiftStart = _parseShiftStart(b['startDate'] as String?, b['startTime'] as String?);
       if (shiftStart == null) continue;
-      if (now.isBefore(shiftStart.subtract(const Duration(minutes: 10)))) continue;
 
       final caregiverName = (b['caregiverName'] as String?) ?? 'Your caregiver';
       final careType = b['careType'] as String?;
       final bookingId = b['id'] as String?;
       final caregiverId = b['caregiverId'] as String?;
       final startTime = b['startTime'] as String?;
+
+      // Real acceptance moment (Figma node 757:768) — a confirmed booking
+      // that isn't yet close enough to its shift start to become "starting
+      // soon". No push backend exists, so this is derived the same way as
+      // the other two states below: from real booking fields, re-evaluated
+      // live rather than a one-off pushed event. Billing was removed from
+      // this app, so the "Pay here" action from the Figma mock doesn't
+      // apply — "Message" takes its place instead of linking to nothing.
+      if (now.isBefore(shiftStart.subtract(const Duration(minutes: 10)))) {
+        final respondedAt = b['respondedAt'];
+        final timeAgo = respondedAt is Timestamp ? _timeAgoFrom(respondedAt.toDate()) : 'just now';
+        result.add(_AppNotification(
+          type: _NotificationType.bookingAccepted,
+          title: 'Booking accepted',
+          body: startTime != null
+              ? '$caregiverName accepted your request. Your booking is confirmed for $startTime${careType != null ? ' · $careType' : ''}.'
+              : '$caregiverName accepted your request. Your booking is confirmed.',
+          timeAgo: timeAgo,
+          caregiverName: caregiverName,
+          visitLabel: careType,
+          bookingId: bookingId,
+          actions: [
+            _NotificationAction(
+              'View booking',
+              isPrimary: true,
+              onTap: () => Navigator.pushNamed(context, '/my-bookings'),
+            ),
+            _NotificationAction(
+              'Message',
+              onTap: () => Navigator.pushNamed(
+                context,
+                '/chat',
+                arguments: {
+                  'caregiverId': caregiverId,
+                  'caregiverName': caregiverName,
+                  'bookingId': bookingId,
+                  'careType': careType,
+                },
+              ),
+            ),
+          ],
+        ));
+        continue;
+      }
 
       final actions = [
         _NotificationAction(

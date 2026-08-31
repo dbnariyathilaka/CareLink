@@ -23,6 +23,8 @@ class _Booking {
   final bool isActiveNow;
   final int? ratingStars;
   final String? requestSentAgo;
+  final String? startDate;
+  final String? startTime;
   final VoidCallback? onMessage;
   final VoidCallback? onRebook;
   final VoidCallback? onCancel;
@@ -35,6 +37,8 @@ class _Booking {
     this.isActiveNow = false,
     this.ratingStars,
     this.requestSentAgo,
+    this.startDate,
+    this.startTime,
     this.onMessage,
     this.onRebook,
     this.onCancel,
@@ -160,6 +164,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
       subtitle: doc['careType'] as String? ?? '',
       status: status,
       requestSentAgo: sentAgo,
+      startDate: doc['startDate'] as String?,
+      startTime: doc['startTime'] as String?,
       onCancel: cancellable ? () => _showRequestDetailsDialog(doc) : null,
     );
   }
@@ -937,7 +943,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         );
 
       case _BookingStatus.requested:
-      case _BookingStatus.upcoming:
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -948,6 +953,43 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                 color: Color(0xFF6E6F72),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+            GestureDetector(
+              onTap: b.onCancel,
+              child: const Text(
+                'Cancel request',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Color(0xFFBA4242),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+
+      // Figma nodes 769:632 / 769:599 show two "Upcoming" sub-states split
+      // by payment ("Payment Due" / "Paid") — billing doesn't exist in this
+      // app, so there's no real field to distinguish them. Unified into one
+      // real state instead: the actual confirmed visit date/time.
+      case _BookingStatus.upcoming:
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                (b.startDate != null && b.startTime != null)
+                    ? 'Visit on ${b.startDate} · ${b.startTime}'
+                    : 'Confirmed',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Color(0xFF6E6F72),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             GestureDetector(

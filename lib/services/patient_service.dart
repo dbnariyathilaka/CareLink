@@ -40,6 +40,18 @@ class PatientService {
     return fallback;
   }
 
+  /// Every patient profile, live — used by the admin patients list.
+  static Stream<List<Map<String, dynamic>>> streamAllPatients() {
+    return _collection.snapshots().map(
+          (snap) => snap.docs.map((d) => {'uid': d.id, ...d.data()}).toList(),
+        );
+  }
+
+  static Future<int> countAll() async {
+    final snap = await _collection.count().get();
+    return snap.count ?? 0;
+  }
+
   static Future<void> toggleFavorite({
     required String patientUid,
     required String caregiverUid,

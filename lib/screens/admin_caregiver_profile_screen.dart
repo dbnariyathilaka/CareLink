@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
+import '../services/booking_service.dart';
 import '../widgets/status_bar.dart';
-import 'admin_bookings_screen.dart';
-import 'admin_finance_screen.dart';
 
+/// Everything this screen displays about one caregiver, already resolved to
+/// real Firestore fields by the caller (admin_caregivers_screen.dart) — see
+/// that file's `_buildProfileData` for exactly which `caregiverProfiles` /
+/// `users` fields back each value. Nothing here is fabricated: a value that
+/// doesn't exist in the schema is either omitted (e.g. age, a caregiver
+/// "code") or passed through honestly as "Not provided"/empty.
 class AdminCaregiverProfileData {
+  final String uid;
   final String initials;
   final Color avatarBg;
   final Color avatarTextColor;
   final String name;
-  final String demographics; // e.g. "46 · Female · Negombo"
-  final String caregiverId; // e.g. "ID PT-10428 · joined Nov 2025"
+  final String demographics; // e.g. "Female · Negombo" — no age field exists in the schema
+  final String? joinedLabel; // e.g. "Joined Nov 2025", derived from users/{uid}.createdAt; null if unknown
   final String phone;
   final String location;
   final String nic;
@@ -24,12 +30,13 @@ class AdminCaregiverProfileData {
   final List<String> certificates;
 
   const AdminCaregiverProfileData({
+    required this.uid,
     required this.initials,
     required this.avatarBg,
     required this.avatarTextColor,
     required this.name,
     required this.demographics,
-    required this.caregiverId,
+    this.joinedLabel,
     required this.phone,
     required this.location,
     required this.nic,
@@ -43,33 +50,9 @@ class AdminCaregiverProfileData {
     required this.bio,
     required this.certificates,
   });
-
-  factory AdminCaregiverProfileData.defaultAlice() {
-    return const AdminCaregiverProfileData(
-      initials: 'NA',
-      avatarBg: Color(0xFFFAE48B),
-      avatarTextColor: Color(0xFF2E1065),
-      name: 'Alice Fernando',
-      demographics: '46 · Female · Negombo',
-      caregiverId: 'ID PT-10428 · joined Nov 2025',
-      phone: '077 123 4567',
-      location: 'Negombo, Western Province',
-      nic: '200352903280',
-      email: 'alice@gmail.com',
-      experience: '5 years',
-      careType: 'Part-time',
-      skills: ['Mobility assistance', 'Medication management', 'Dementia care'],
-      education: 'Diploma',
-      training: 'Not set',
-      languages: ['Sinhala', 'English'],
-      bio:
-          'Compassionate elder-care nurse with 5 years supporting families across the Western Province. I specialise in dementia and post-surgery recovery.',
-      certificates: ['Caregiving Diploma.pdf', 'First Aid Certificate.pdf'],
-    );
-  }
 }
 
-class AdminCaregiverProfileScreen extends StatelessWidget {
+class AdminCaregiverProfileScreen extends StatefulWidget {
   final AdminCaregiverProfileData data;
 
   const AdminCaregiverProfileScreen({
@@ -77,6 +60,11 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
     required this.data,
   });
 
+  @override
+  State<AdminCaregiverProfileScreen> createState() => _AdminCaregiverProfileScreenState();
+}
+
+class _AdminCaregiverProfileScreenState extends State<AdminCaregiverProfileScreen> {
   // ── Color tokens matching Figma node 695:915 ──────────────────────────
   static const Color bgColor = Color(0xFFF5EEDE);
   static const Color titleColor = Color(0xFF544730);
@@ -95,8 +83,29 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
   static const Color certBorder = Color(0xFF443423);
   static const Color certIconGold = Color(0xFF96730E);
   static const Color certTextColor = Color(0xFF44331C);
-  static const Color bottomNavBg = Color(0xFF3A3328);
-  static const Color navGold = Color(0xFFFBBC05);
+
+  AdminCaregiverProfileData get data => widget.data;
+
+  // Derived, best-effort "completed jobs" count — see [_loadCompletedJobs].
+  int? _completedJobs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCompletedJobs();
+  }
+
+  /// Fetched lazily here — one caregiver at a time, only when this detail
+  /// screen is opened — never on the caregivers list screen, which would
+  /// otherwise fire one query per row (an N+1 query storm). There's no
+  /// stored "completed" status anywhere in the schema (bookingRequests only
+  /// tracks requested/confirmed/declined/cancelled), so this is a derived
+  /// count of confirmed bookings whose scheduled end has already passed —
+  /// a real, but best-effort, number.
+  Future<void> _loadCompletedJobs() async {
+    final count = await BookingService.countCompletedBookingsForCaregiver(data.uid);
+    if (mounted) setState(() => _completedJobs = count);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +114,6 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
             // ── Top App Bar ───────────────────────────────────────────────
@@ -197,9 +205,6 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-
-            // ── Bottom Navigation Bar ─────────────────────────────────────
-            _buildBottomNav(context),
           ],
         ),
       ),
@@ -258,15 +263,16 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
                     color: Color(0xFF88795F),
                   ),
                 ),
-                Text(
-                  data.caregiverId,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF625846),
+                if (data.joinedLabel != null)
+                  Text(
+                    data.joinedLabel!,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF625846),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -331,7 +337,12 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
         children: [
           _buildDetailRow('Experience', data.experience, hasDivider: true),
           _buildDetailRow('Care type', data.careType, hasDivider: true),
-          _buildDetailRow('NIC', data.nic, hasDivider: false),
+          _buildDetailRow(
+            // Derived, not a stored field — see _loadCompletedJobs above.
+            'Completed jobs (est.)',
+            _completedJobs == null ? 'Loading…' : '$_completedJobs',
+            hasDivider: false,
+          ),
         ],
       ),
     );
@@ -375,6 +386,17 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
   }
 
   Widget _buildSkillsChips() {
+    if (data.skills.isEmpty) {
+      return const Text(
+        'No skills listed.',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: rowLabelColor,
+        ),
+      );
+    }
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -422,7 +444,9 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Speaks ${data.languages.join(', ')}',
+            data.languages.isEmpty
+                ? 'No languages listed'
+                : 'Speaks ${data.languages.join(', ')}',
             style: const TextStyle(
               fontFamily: 'Open Sans',
               fontSize: 13,
@@ -436,6 +460,7 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
   }
 
   Widget _buildBioCard() {
+    final bioText = data.bio.trim().isNotEmpty ? data.bio : 'No bio provided.';
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -444,7 +469,7 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(13),
       child: Text(
-        data.bio,
+        bioText,
         style: const TextStyle(
           fontFamily: 'Open Sans',
           fontSize: 13,
@@ -457,6 +482,26 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
   }
 
   Widget _buildCertifications() {
+    if (data.certificates.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 15.5, vertical: 13.5),
+        decoration: BoxDecoration(
+          color: certBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: certBorder, width: 1.5),
+        ),
+        child: const Text(
+          'No certificates or documents uploaded.',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: certTextColor,
+          ),
+        ),
+      );
+    }
     return Column(
       children: data.certificates.map((cert) {
         return Padding(
@@ -492,77 +537,6 @@ class AdminCaregiverProfileScreen extends StatelessWidget {
           ),
         );
       }).toList(),
-    );
-  }
-
-  Widget _buildBottomNav(BuildContext context) {
-    final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
-      {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
-      {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'More', 'icon': Icons.more_horiz_rounded},
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: bottomNavBg,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final item = items[index];
-          final isSelected = index == 1; // Users is active
-          final color = isSelected ? navGold : Colors.white;
-
-          return GestureDetector(
-            onTap: () {
-              if (index == 0 || index == 1) {
-                Navigator.pop(context);
-              } else if (index == 2) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
-                );
-              } else if (index == 3) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-                );
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    item['icon'] as IconData,
-                    size: 22,
-                    color: color,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 10,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
     );
   }
 

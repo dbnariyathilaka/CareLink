@@ -616,6 +616,11 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
     final patientUid = booking['patientUid'] as String?;
     final distance = _distanceLabel(booking);
     final isSharing = _sharingBookingId == id;
+    // Figma nodes 774:636 (Paid) / 774:643 (Non paid) — billing doesn't
+    // exist in this app yet, so no booking ever carries a `paymentStatus`
+    // field today; this line only renders once one actually does, rather
+    // than showing "Non paid" on every real card forever.
+    final paymentStatus = booking['paymentStatus'] as String?;
 
     return Container(
       width: double.infinity,
@@ -663,6 +668,33 @@ class _CaregiverBookingsScreenState extends State<CaregiverBookingsScreen> {
               ),
             ],
           ),
+          if (paymentStatus != null) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1, color: Color.fromRGBO(0, 0, 0, 0.1)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: paymentStatus == 'paid' ? confirmedGreen : const Color(0xFFBA4242),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  paymentStatus == 'paid' ? 'Paid' : 'Non paid',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    color: paymentStatus == 'paid' ? confirmedGreen : const Color(0xFFBA4242),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (distance != null) ...[
             const SizedBox(height: 8),
             Row(

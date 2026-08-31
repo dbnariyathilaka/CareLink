@@ -87,6 +87,7 @@ class _CaregiverEditProfileScreenState
   String? _nameError;
   String? _emailError;
   String? _phoneError;
+  String? _extraPhonesError;
   String? _nicError;
   String? _refPhoneError;
   String? _cityError;
@@ -123,11 +124,17 @@ class _CaregiverEditProfileScreenState
     _cityController.text = (merged['city'] as String?)?.trim() ?? '';
     _bioController.text = (merged['bio'] as String?)?.trim() ?? '';
 
-    // Phones
-    final String rawPhone = (merged['phone'] as String?) ?? AppState.registeredPhone.value;
-    final String cleanPhone = rawPhone.replaceAll('+94', '').trim();
+    // Phones — prefer the real multi-number list if present, falling back
+    // to the single legacy `phone` field for profiles saved before this
+    // list existed.
+    final phoneList = (merged['phoneNumbers'] as List?)?.cast<String>();
+    final rawPhones = (phoneList != null && phoneList.isNotEmpty)
+        ? phoneList
+        : [(merged['phone'] as String?) ?? AppState.registeredPhone.value];
     _phoneControllers.clear();
-    _phoneControllers.add(NoUnderlineTextEditingController(text: cleanPhone));
+    for (final raw in rawPhones) {
+      _phoneControllers.add(NoUnderlineTextEditingController(text: raw.replaceAll('+94', '').trim()));
+    }
 
     // Ref phone
     final String rawRef = (merged['referencePhone'] as String?) ?? '';
@@ -223,12 +230,23 @@ class _CaregiverEditProfileScreenState
     return null;
   }
 
+  /// Extra phone numbers beyond the first are optional — only validated
+  /// (must be 9 digits) if the caregiver actually typed something into them.
+  bool _extraPhonesValid() {
+    for (var i = 1; i < _phoneControllers.length; i++) {
+      final v = _phoneControllers[i].text.trim();
+      if (v.isNotEmpty && !RegExp(r'^\d{9}$').hasMatch(v)) return false;
+    }
+    return true;
+  }
+
   bool _runValidation() {
     final nameErr = _validateName(_nameController.text);
     final emailErr = _validateEmail(_emailController.text);
     final phoneErr = _phoneControllers.isNotEmpty
         ? _validatePhone(_phoneControllers[0].text)
         : 'Phone number is required';
+    final extraPhonesErr = _extraPhonesValid() ? null : 'Additional phone numbers must be exactly 9 digits';
     final nicErr = _validateNic(_nicController.text);
     final refPhoneErr = _validateRefPhone(_refPhoneController.text);
     final cityErr = _validateCity(_cityController.text);
@@ -240,6 +258,7 @@ class _CaregiverEditProfileScreenState
       _nameError = nameErr;
       _emailError = emailErr;
       _phoneError = phoneErr;
+      _extraPhonesError = extraPhonesErr;
       _nicError = nicErr;
       _refPhoneError = refPhoneErr;
       _cityError = cityErr;
@@ -251,6 +270,7 @@ class _CaregiverEditProfileScreenState
     return nameErr == null &&
         emailErr == null &&
         phoneErr == null &&
+        extraPhonesErr == null &&
         nicErr == null &&
         refPhoneErr == null &&
         cityErr == null &&
@@ -275,9 +295,12 @@ class _CaregiverEditProfileScreenState
 
     setState(() => _saving = true);
     try {
-      final firstPhoneDigits =
-          _phoneControllers.isNotEmpty ? _phoneControllers[0].text.trim() : '';
-      final fullPhone = firstPhoneDigits.isNotEmpty ? '+94$firstPhoneDigits' : '';
+      final allPhones = _phoneControllers
+          .map((c) => c.text.trim())
+          .where((digits) => digits.isNotEmpty)
+          .map((digits) => '+94$digits')
+          .toList();
+      final fullPhone = allPhones.isNotEmpty ? allPhones.first : '';
 
       final refDigits = _refPhoneController.text.trim();
       final fullRefPhone = refDigits.isNotEmpty ? '+94$refDigits' : '';
@@ -297,6 +320,9 @@ class _CaregiverEditProfileScreenState
         'languagesSpoken': _selectedLanguages.toList(),
         'bio': _bioController.text.trim(),
         'certificateUrls': _certificateUrls,
+        // Real multi-number list — 'phone' below stays the single primary
+        // number for every other screen that only ever reads that field.
+        'phoneNumbers': allPhones,
       };
 
       if (fullPhone.isNotEmpty) {
@@ -524,7 +550,7 @@ class _CaregiverEditProfileScreenState
                           ),
                           const SizedBox(height: 18),
 
-                          _buildLabel('Primary phone number'),
+                          _buildLabel('Phone numbers'),
                           const SizedBox(height: 8),
                           Column(
                             children: [
@@ -534,16 +560,56 @@ class _CaregiverEditProfileScreenState
                                   _phoneControllers[i],
                                   canDelete: i > 0,
                                   errorText: i == 0 ? _phoneError : null,
-                                  onDelete: () => setState(
-                                      () => _phoneControllers.removeAt(i)),
+                                  onDelete: () => setState(() {
+                                    _phoneControllers[i].dispose();
+                                    _phoneControllers.removeAt(i);
+                                    _extraPhonesError = null;
+                                  }),
                                   onChanged: (val) {
                                     if (i == 0 && _phoneError != null) {
                                       setState(() => _phoneError = null);
+                                    }
+                                    if (i > 0 && _extraPhonesError != null) {
+                                      setState(() => _extraPhonesError = null);
                                     }
                                   },
                                 ),
                               ],
                             ],
+                          ),
+                          if (_extraPhonesError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, left: 4),
+                              child: Text(
+                                _extraPhonesError!,
+                                style: const TextStyle(
+                                  fontFamily: 'Open Sans',
+                                  color: Colors.redAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 10),
+                          GestureDetector(
+                            onTap: () => setState(
+                                () => _phoneControllers.add(NoUnderlineTextEditingController())),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add_circle_outline_rounded, color: _addPhoneIcon, size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Add another phone number',
+                                  style: TextStyle(
+                                    fontFamily: 'Open Sans',
+                                    color: _addPhoneText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 18),
 
@@ -695,6 +761,8 @@ class _CaregiverEditProfileScreenState
                                     ),
                             ),
                           ),
+                          const SizedBox(height: 20),
+                          _buildVerificationRow(),
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -1310,14 +1378,61 @@ class _CaregiverEditProfileScreenState
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: _fieldBorder),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Open Sans',
-            color: isSelected ? Colors.white : _fieldText,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              const Icon(Icons.check_rounded, color: Colors.white, size: 14),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                color: isSelected ? Colors.white : _fieldText,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── "Verification" summary sheet — no admin verification-status field
+  // exists anywhere in the schema (see the admin verification-queue work
+  // earlier), so this shows the caregiver's real submitted documents with
+  // a neutral "awaiting review" framing rather than a fabricated verdict.
+  Widget _buildVerificationRow() {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/caregiver-verification-status'),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: _fieldBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _fieldBorder),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.verified_user_outlined, color: _saveBg, size: 18),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Verification',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: _fieldText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: _fieldText, size: 20),
+          ],
         ),
       ),
     );

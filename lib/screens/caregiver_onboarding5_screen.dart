@@ -6,7 +6,7 @@ import '../widgets/upload_picker_sheet.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver Onboarding — Step 5 of 6
+//  Caregiver Onboarding — Step 5 of 7
 //  Figma node: 436-466 · "Police clearance certificate"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding5Screen extends StatefulWidget {
@@ -148,7 +148,7 @@ class _CaregiverOnboarding5ScreenState
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                   const Text(
-                    'Step 5 of 6',
+                    'Step 5 of 7',
                     style: TextStyle(
                       fontFamily: 'Open Sans',
                       color: stepLabel,
@@ -161,7 +161,7 @@ class _CaregiverOnboarding5ScreenState
 
               const SizedBox(height: 16),
 
-              _buildProgressBar(currentStep: 5, totalSteps: 6),
+              _buildProgressBar(currentStep: 5, totalSteps: 7),
 
               const SizedBox(height: 24),
 

@@ -1,8 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
-import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/payment_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/caregiver_bottom_nav.dart';
 import '../widgets/remote_or_local_image.dart';
@@ -54,7 +55,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   bool _loading = true;
   Map<String, dynamic>? _profile;
-  Stream<List<Map<String, dynamic>>>? _bookingsStream;
+  Stream<List<Map<String, dynamic>>>? _paymentsStream;
 
   @override
   void initState() {
@@ -70,7 +71,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
       return;
     }
 
-    _bookingsStream = BookingService.streamBookingsForCaregiver(user.uid);
+    _paymentsStream = PaymentService.streamPaymentsForCaregiver(user.uid);
 
     final cgProfile = await CaregiverService.getCaregiverProfile(user.uid);
     final userDoc = await AuthService.getUserProfile(user.uid);
@@ -156,9 +157,9 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                       child: CircularProgressIndicator(color: chipPrimaryBg),
                     )
                   : StreamBuilder<List<Map<String, dynamic>>>(
-                      stream: _bookingsStream,
+                      stream: _paymentsStream,
                       builder: (context, snapshot) {
-                        final bookings = snapshot.data ?? const [];
+                        final payments = snapshot.data ?? const [];
                         return SingleChildScrollView(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
@@ -175,7 +176,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                                   Navigator.pushNamed(context, '/caregiver-earnings');
                                 }),
                                 const SizedBox(height: 10),
-                                _buildEarningsCard(bookings),
+                                _buildEarningsCard(payments),
                                 const SizedBox(height: 20),
                                 _buildSectionTitle('Contact'),
                                 const SizedBox(height: 10),
@@ -349,30 +350,10 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.verified_rounded, color: Color(0xFF22C55E), size: 13),
-                        SizedBox(width: 4),
-                        Text(
-                          'Identity verified',
-                          style: TextStyle(
-                            fontFamily: 'Open Sans',
-                            color: Color(0xFF22C55E),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  // No verification-status field exists anywhere in the
+                  // schema (see the admin verification-queue work), so an
+                  // "Identity verified" badge was removed here rather than
+                  // shown unconditionally regardless of real status.
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -494,28 +475,30 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
   }
 
   // ── Earnings card ────────────────────────────────────────
-  Widget _buildEarningsCard(List<Map<String, dynamic>> bookings) {
+  // Real sums from the `payments` collection — there's no billing feature
+  // yet, so this collection is empty today and both figures honestly show
+  // LKR 0 rather than a guessed flat rate per booking.
+  Widget _buildEarningsCard(List<Map<String, dynamic>> payments) {
     final now = DateTime.now();
-    int monthCount = 0;
-    int totalCount = 0;
-    for (final b in bookings) {
-      if (b['status'] == 'cancelled') continue;
-      totalCount++;
-      final startStr = b['startDate'] as String?;
-      if (startStr != null) {
-        final start = _parseDate(startStr);
-        if (start != null && start.year == now.year && start.month == now.month) {
-          monthCount++;
+    double monthEarned = 0;
+    double totalEarned = 0;
+    for (final p in payments) {
+      if (p['status'] != 'completed') continue;
+      final amount = (p['amount'] as num?)?.toDouble() ?? 0;
+      totalEarned += amount;
+      final createdAt = p['createdAt'];
+      if (createdAt is Timestamp) {
+        final dt = createdAt.toDate();
+        if (dt.year == now.year && dt.month == now.month) {
+          monthEarned += amount;
         }
       }
     }
 
-    final monthEarned = monthCount * 5000;
-    final totalEarned = totalCount * 5000;
-
-    String formatCurrency(int amount) {
-      if (amount == 0) return 'LKR 0';
-      final str = amount.toString();
+    String formatCurrency(double amount) {
+      final rounded = amount.round();
+      if (rounded == 0) return 'LKR 0';
+      final str = rounded.toString();
       final reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
       final formatted = str.replaceAllMapped(reg, (m) => '${m[1]},');
       return 'LKR $formatted';
@@ -592,21 +575,6 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
         ],
       ),
     );
-  }
-
-  DateTime? _parseDate(String? dateStr) {
-    if (dateStr == null) return null;
-    const months = {
-      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
-      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
-    };
-    final parts = dateStr.trim().split(RegExp(r'\s+'));
-    if (parts.length != 3) return null;
-    final day = int.tryParse(parts[0]);
-    final month = months[parts[1]];
-    final year = int.tryParse(parts[2]);
-    if (day == null || month == null || year == null) return null;
-    return DateTime(year, month, day);
   }
 
   // ── Contact card ────────────────────────────────────────────

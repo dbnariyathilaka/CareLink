@@ -8,7 +8,7 @@ import '../widgets/upload_picker_sheet.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver Onboarding — Step 4 of 6
+//  Caregiver Onboarding — Step 4 of 7
 //  Figma node: 434-426 · "Profile photo"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding4Screen extends StatefulWidget {
@@ -113,7 +113,7 @@ class _CaregiverOnboarding4ScreenState
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                   const Text(
-                    'Step 4 of 6',
+                    'Step 4 of 7',
                     style: TextStyle(
                       fontFamily: 'Open Sans',
                       color: stepLabel,
@@ -126,7 +126,7 @@ class _CaregiverOnboarding4ScreenState
 
               const SizedBox(height: 16),
 
-              _buildProgressBar(currentStep: 4, totalSteps: 6),
+              _buildProgressBar(currentStep: 4, totalSteps: 7),
 
               const SizedBox(height: 24),
 

@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 
 import '../app_state.dart';
+import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
@@ -143,9 +144,49 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     AppState.hydratePatientPhoto(profile?['photoUrl'] as String?);
   }
 
+  // "Caregivers near you" — real caregivers within 10km of the patient's
+  // registered city, via the same city-coordinate + haversine approach
+  // MatchingService already uses for proximity scoring (there's no exact
+  // GPS stored for either side, only registered city). Also checks the
+  // caregiver's `isAvailable` flag — no real presence/online system exists
+  // anywhere in this app, so this currently never excludes anyone (the
+  // field is never actually written), but keeps the filter honest and
+  // ready if a real online toggle is added later.
   Future<void> _loadCaregiverCount() async {
+    final uid = AuthService.currentUser?.uid;
+    final profile = uid != null ? await PatientService.getPatientProfile(uid) : null;
+    final patientCityName = (profile?['city'] as String?)?.split(',').first.trim();
+    final patientCity =
+        (patientCityName != null && patientCityName.isNotEmpty) ? cityCoords(patientCityName) : null;
+
     final results = await CaregiverService.searchCaregivers();
-    if (mounted) setState(() => _caregiverCount = results.length);
+
+    if (patientCity == null) {
+      // Patient's location can't be resolved to a known city — showing the
+      // full unfiltered count would misrepresent "near you", so this is
+      // left at 0 rather than a misleading number.
+      if (mounted) setState(() => _caregiverCount = 0);
+      return;
+    }
+
+    final patientLat = double.parse(patientCity['lat']!);
+    final patientLng = double.parse(patientCity['lng']!);
+
+    final nearby = results.where((c) {
+      final isAvailable = c['isAvailable'] as bool? ?? true;
+      if (!isAvailable) return false;
+      final caregiverCity = cityCoords((c['city'] as String?) ?? '');
+      if (caregiverCity == null) return false;
+      final distanceKm = haversineKm(
+        patientLat,
+        patientLng,
+        double.parse(caregiverCity['lat']!),
+        double.parse(caregiverCity['lng']!),
+      );
+      return distanceKm <= 10.0;
+    }).length;
+
+    if (mounted) setState(() => _caregiverCount = nearby);
   }
 
   Future<void> _loadTopMatches() async {
@@ -517,7 +558,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
         ),
         child: Row(
           children: [
-            const Icon(Icons.campaign_rounded, color: Colors.white, size: 32),
+            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 32),
             const SizedBox(width: 14),
             const Expanded(
               child: Column(

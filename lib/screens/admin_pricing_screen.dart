@@ -3,19 +3,6 @@ import '../widgets/status_bar.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_finance_screen.dart';
 
-class AlgorithmWeight {
-  final String label;
-  double percent; // 0-100
-  AlgorithmWeight({required this.label, required this.percent});
-}
-
-class ConfigRow {
-  final String label;
-  final String value;
-  final Color valueColor;
-  const ConfigRow({required this.label, required this.value, required this.valueColor});
-}
-
 class AdminPricingScreen extends StatefulWidget {
   const AdminPricingScreen({super.key});
 
@@ -32,42 +19,11 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
   static const Color cardBg = Color(0xFFC4BBAC);
   static const Color cardBorder = Color(0xFF493D2A);
 
-  static const Color sliderLabelColor = Color(0xFF745A45);
-  static const Color sliderValueColor = Color(0xFF666666);
-  static const Color sliderTrackInactive = Color(0x80517146);
-  static const Color sliderTrackActive = Color(0xFF376A3D);
-  static const Color sliderThumb = Color(0xFFBEF2C3);
-
-  static const Color rowDivider = Color(0x4D334155);
-  static const Color rowLabelColor = Color(0xFF745A45);
-  static const Color rowValueLight = Color(0xFFFFEFD7);
-  static const Color rowValueOrange = Color(0xFFBC6522);
-
-  static const Color saveBtnBg = Color(0xFF44331C);
+  static const Color infoTextColor = Color(0xFF44331C);
+  static const Color infoSubTextColor = Color(0xFF745A45);
 
   static const Color bottomNavBg = Color(0xFF3A3328);
   static const Color navGold = Color(0xFFFBBC05);
-
-  final List<AlgorithmWeight> _weights = [
-    AlgorithmWeight(label: 'Care specialisation', percent: 40),
-    AlgorithmWeight(label: 'Proximity', percent: 25),
-    AlgorithmWeight(label: 'Rating & feedback', percent: 20),
-    AlgorithmWeight(label: 'Availability', percent: 15),
-  ];
-
-  static const List<ConfigRow> _matchingSettings = [
-    ConfigRow(label: 'Default search radius', value: '15 km', valueColor: rowValueLight),
-    ConfigRow(label: 'Minimum caregiver rating', value: '4.0 ★', valueColor: rowValueLight),
-    ConfigRow(label: 'Request expiry window', value: '6 hours', valueColor: rowValueLight),
-  ];
-
-  static const List<ConfigRow> _ratesAndFees = [
-    ConfigRow(label: 'Platform fee', value: '12.5%', valueColor: rowValueLight),
-    ConfigRow(label: 'Minimum hourly rate', value: 'LKR 650', valueColor: rowValueLight),
-    ConfigRow(label: 'Emergency surcharge', value: '+25%', valueColor: rowValueOrange),
-    ConfigRow(label: 'Night rate (10 PM–6 AM)', value: '+15%', valueColor: rowValueOrange),
-    ConfigRow(label: 'Public holiday rate', value: '+30%', valueColor: rowValueOrange),
-  ];
 
   @override
   void initState() {
@@ -75,29 +31,11 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     setStatusBarStyle(Brightness.dark);
   }
 
-  void _saveConfiguration() {
-    final total = _weights.fold<double>(0, (sum, w) => sum + w.percent);
-    if ((total - 100).abs() > 0.5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Algorithm weights add up to ${total.round()}% — adjust to total 100% before saving.'),
-          backgroundColor: const Color(0xFFEF4444),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Matching & pricing configuration saved.'), duration: Duration(seconds: 2)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
@@ -107,17 +45,23 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionLabel('ALGORITHM WEIGHTS'),
+                    _buildSectionLabel('MATCHING ALGORITHM'),
                     const SizedBox(height: 9),
-                    _buildWeightsCard(),
+                    _buildInfoCard(
+                      icon: Icons.balance_rounded,
+                      title: 'Equal weighting — no per-criterion configuration',
+                      body:
+                          'Matching currently uses equal weighting across whichever criteria are active for a match — skill match, proximity, availability, and gender preference — with weights automatically redistributed when a caregiver has no data for a criterion. There is no "rating" criterion, and there are no adjustable per-criterion percentages today.',
+                    ),
                     const SizedBox(height: 16),
-                    _buildConfigCard(_matchingSettings),
-                    const SizedBox(height: 16),
-                    _buildSectionLabel('RATES & FEES'),
+                    _buildSectionLabel('MATCHING & PRICING SETTINGS'),
                     const SizedBox(height: 9),
-                    _buildConfigCard(_ratesAndFees),
-                    const SizedBox(height: 16),
-                    _buildSaveButton(),
+                    _buildInfoCard(
+                      icon: Icons.tune_rounded,
+                      title: 'Not yet connected to real behavior',
+                      body:
+                          'Search radius, minimum rating, request-expiry window, platform fee, minimum hourly rate, and surcharges are not backed by a configuration system in this app yet. There is nothing here to edit or save.',
+                    ),
                   ],
                 ),
               ),
@@ -168,113 +112,36 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
     );
   }
 
-  // ── Algorithm weights card ──────────────────────────────────────────────
-  Widget _buildWeightsCard() {
+  // ── Static info panel (replaces the fake weight sliders / config rows) ──
+  Widget _buildInfoCard({required IconData icon, required String title, required String body}) {
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(13),
         border: Border.all(color: cardBorder, width: 1),
       ),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        children: List.generate(_weights.length, (i) {
-          final w = _weights[i];
-          return Padding(
-            padding: EdgeInsets.only(bottom: i == _weights.length - 1 ? 0 : 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      w.label,
-                      style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: sliderLabelColor),
-                    ),
-                    Text(
-                      '${w.percent.round()}%',
-                      style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: sliderValueColor),
-                    ),
-                  ],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: infoTextColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700, color: infoTextColor),
                 ),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 5,
-                    activeTrackColor: sliderTrackActive,
-                    inactiveTrackColor: sliderTrackInactive,
-                    thumbColor: sliderThumb,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.5),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-                  ),
-                  child: Slider(
-                    value: w.percent,
-                    min: 0,
-                    max: 100,
-                    divisions: 100,
-                    onChanged: (v) => setState(() => w.percent = v),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  // ── Generic label/value config card ─────────────────────────────────────
-  Widget _buildConfigCard(List<ConfigRow> rows) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: cardBorder, width: 1),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 13),
-      child: Column(
-        children: rows.asMap().entries.map((e) {
-          final isLast = e.key == rows.length - 1;
-          return Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              border: isLast ? null : const Border(bottom: BorderSide(color: rowDivider, width: 1)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  e.value.label,
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: rowLabelColor),
-                ),
-                Text(
-                  e.value.value,
-                  style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w700, color: e.value.valueColor),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildSaveButton() {
-    return Material(
-      color: saveBtnBg,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: _saveConfiguration,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 15),
-          child: Center(
-            child: Text(
-              'Save configuration',
-              style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFFF8FAFC)),
-            ),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: 10),
+          Text(
+            body,
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w500, color: infoSubTextColor, height: 1.45),
+          ),
+        ],
       ),
     );
   }
@@ -286,7 +153,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
       {'label': 'Users', 'icon': Icons.people_alt_outlined},
       {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
       {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'More', 'icon': Icons.more_horiz_rounded},
+      {'label': 'Pricing', 'icon': Icons.sell_outlined},
     ];
 
     return Container(

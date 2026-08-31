@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/status_bar.dart';
+import '../data/care_type_skill_map.dart';
+import '../services/caregiver_service.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_finance_screen.dart';
 
@@ -67,11 +69,10 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
   static const Color bottomNavBg = Color(0xFF3A3328);
   static const Color navGold = Color(0xFFFBBC05);
 
-  final List<String> _careTypes = [
-    'Elder care', 'Pediatric', 'Post-surgery', 'Physical disability',
-    'Mental health', 'Dementia', 'Mobility Assistance', 'Medication management',
-    'Wound Care', 'Rehabilitation',
-  ];
+  // Sourced from the app's real canonical care-type list (careTypeSkillMap in
+  // ../data/care_type_skill_map.dart) rather than a separate hardcoded list,
+  // so this stays in sync with the taxonomy MatchingService actually uses.
+  final List<String> _careTypes = List<String>.from(careTypeSkillMap.keys);
 
   final List<ShiftType> _shifts = [
     ShiftType(id: 'day', icon: Icons.wb_sunny_rounded, timeRange: '8:00 AM – 5:00 PM', label: 'Day shift'),
@@ -84,17 +85,11 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
     'Punctual', 'Very caring', 'Good communicator', 'Patient and gentle', 'Handle medication well',
   ];
 
-  static const List<TagUsageStat> _tagUsage = [
-    TagUsageStat(label: 'Elder care', count: 214),
-    TagUsageStat(label: 'Dementia care', count: 88),
-    TagUsageStat(label: 'Sign language', count: 3, isLow: true),
-  ];
-
   static const List<AppContentItem> _appContent = [
-    AppContentItem(icon: Icons.help_outline_rounded, title: 'Help centre & FAQs', subtitle: '28 articles · updated 3d ago'),
-    AppContentItem(icon: Icons.description_outlined, title: 'Terms of service', subtitle: 'v4.1 · published 12 Jul 2026'),
-    AppContentItem(icon: Icons.lock_outline_rounded, title: 'Privacy policy', subtitle: 'v3.0 · published 2 Mar 2026'),
-    AppContentItem(icon: Icons.flag_outlined, title: 'Onboarding guide', subtitle: '6 steps · caregiver & patient'),
+    AppContentItem(icon: Icons.help_outline_rounded, title: 'Help centre & FAQs', subtitle: 'Static reference content — not backed by a live CMS'),
+    AppContentItem(icon: Icons.description_outlined, title: 'Terms of service', subtitle: 'Static reference content — not backed by a live CMS'),
+    AppContentItem(icon: Icons.lock_outline_rounded, title: 'Privacy policy', subtitle: 'Static reference content — not backed by a live CMS'),
+    AppContentItem(icon: Icons.flag_outlined, title: 'Onboarding guide', subtitle: 'Static reference content — not backed by a live CMS'),
   ];
 
   @override
@@ -155,7 +150,10 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
 
   void _publishChanges() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Content & taxonomy changes published.'), duration: Duration(seconds: 2)),
+      const SnackBar(
+        content: Text('Not saved — this screen isn\'t connected to persistence yet.'),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
@@ -164,7 +162,6 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
             _buildHeader(),
@@ -201,7 +198,7 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
                     const SizedBox(height: 20),
                     _buildSectionLabel('TAG USAGE'),
                     const SizedBox(height: 9),
-                    _buildTagUsageCard(),
+                    _buildTagUsageSection(),
                     const SizedBox(height: 20),
                     _buildSectionLabel('APP CONTENT'),
                     const SizedBox(height: 9),
@@ -392,8 +389,40 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
     );
   }
 
-  // ── Tag usage card ──────────────────────────────────────────────────────
-  Widget _buildTagUsageCard() {
+  // ── Tag usage: real counts from live caregiver profiles ─────────────────
+  //
+  // caregiverProfiles.careTypes actually stores employment type ('Part-time'
+  // / 'Full-time'), not a specialisation tag — so it can't tell us how many
+  // caregivers cover "Elder care" etc. The real specialisation data lives in
+  // caregiverProfiles.skills (see MatchingService's skill-match criterion),
+  // so usage per care type is computed by intersecting each caregiver's
+  // skills with the skill set careTypeSkillMap maps that care type to.
+  Widget _buildTagUsageSection() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: CaregiverService.streamAllCaregivers(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final caregivers = snapshot.data!;
+        final stats = _careTypes.map((careType) {
+          final requiredSkills = careTypeSkillMap[careType] ?? const <String>{};
+          final count = caregivers.where((c) {
+            final skills = (c['skills'] as List?)?.cast<String>().toSet() ?? const <String>{};
+            return skills.intersection(requiredSkills).isNotEmpty;
+          }).length;
+          return TagUsageStat(label: careType, count: count, isLow: count > 0 && count < 5);
+        }).toList()
+          ..sort((a, b) => b.count.compareTo(a.count));
+        return _buildTagUsageCard(stats);
+      },
+    );
+  }
+
+  Widget _buildTagUsageCard(List<TagUsageStat> tagUsage) {
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
@@ -402,8 +431,8 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
       ),
       padding: const EdgeInsets.symmetric(horizontal: 13),
       child: Column(
-        children: _tagUsage.asMap().entries.map((e) {
-          final isLast = e.key == _tagUsage.length - 1;
+        children: tagUsage.asMap().entries.map((e) {
+          final isLast = e.key == tagUsage.length - 1;
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 11),
             decoration: BoxDecoration(border: isLast ? null : const Border(bottom: BorderSide(color: rowDivider, width: 1))),
@@ -507,7 +536,7 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
       {'label': 'Users', 'icon': Icons.people_alt_outlined},
       {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
       {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
-      {'label': 'More', 'icon': Icons.more_horiz_rounded},
+      {'label': 'Content', 'icon': Icons.auto_awesome_outlined},
     ];
 
     return Container(

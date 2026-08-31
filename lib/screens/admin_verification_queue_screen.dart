@@ -1,50 +1,41 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../widgets/status_bar.dart';
+import '../services/caregiver_service.dart';
+import '../services/user_directory_service.dart';
 
 // ── Data models ──────────────────────────────────────────────────────────────
 
-enum DocStatus { matched, review, expired }
+/// One real submitted document, individually addressable so it can carry
+/// its own real approve/reject decision (`caregiverProfiles.documentReviews`,
+/// see CaregiverService.setDocumentReviewStatus).
+class DocumentEntry {
+  final String key; // 'nic' | 'policeClearance' | 'cert0'... | 'other0'...
+  final String label;
+  final Map<String, dynamic>? review; // null = still in review
 
-enum AuditAction { approved, rejected }
-
-enum QueueFilter { pending, approved, rejected }
-
-class VerificationDocument {
-  final String name;
-  final DocStatus status;
-  const VerificationDocument({required this.name, required this.status});
+  const DocumentEntry({required this.key, required this.label, this.review});
 }
 
+/// A caregiver with at least one verification document actually submitted,
+/// built live from real `caregiverProfiles` fields (nic, certificateUrls,
+/// policeClearanceUrl, otherDocumentUrls) joined to `users` for the display
+/// name.
 class VerificationEntry {
+  final String uid;
+  final String name;
   final String initials;
   final Color avatarBg;
-  final Color avatarText;
-  final String name;
-  final String submittedLabel; // e.g. "Submitted 2h ago · 4 documents"
-  final List<VerificationDocument> documents;
-  final String? warningMessage;
+  final List<DocumentEntry> documents;
   bool isExpanded;
 
   VerificationEntry({
+    required this.uid,
+    required this.name,
     required this.initials,
     required this.avatarBg,
-    required this.avatarText,
-    required this.name,
-    required this.submittedLabel,
     required this.documents,
-    this.warningMessage,
     this.isExpanded = false,
-  });
-}
-
-class AuditTrailEntry {
-  final AuditAction action;
-  final String description;
-  final String timestamp;
-  const AuditTrailEntry({
-    required this.action,
-    required this.description,
-    required this.timestamp,
   });
 }
 
@@ -60,8 +51,6 @@ class AdminVerificationQueueScreen extends StatefulWidget {
 
 class _AdminVerificationQueueScreenState
     extends State<AdminVerificationQueueScreen> {
-  QueueFilter _activeFilter = QueueFilter.pending;
-
   // ── Color tokens ──────────────────────────────────────────────────────────
   static const Color bgColor = Color(0xFFF5EEDE);
   static const Color cardBg = Color(0xFFC4BBAC);
@@ -69,91 +58,26 @@ class _AdminVerificationQueueScreenState
   static const Color expandedCardBorder = Color(0xFF334155);
   static const Color titleColor = Color(0xFF544730);
 
-  static const Color filterActiveBg = Color(0xFF585247);
-  static const Color filterActiveFg = Color(0xFFF8FAFC);
-  static const Color filterInactiveBorder = Color(0xFF585247);
-  static const Color filterInactiveFg = Color(0xFF585247);
-
   static const Color docRowBg = Color(0xFF73513F);
   static const Color docNameColor = Color(0xFFCBD5E1);
-  static const Color statusMatched = Color(0xFF34A853);
-  static const Color statusReview = Color(0xFFB26915);
-  static const Color statusExpired = Color(0xFFEF4444);
-
-  static const Color warningBg = Color(0x14EF4444);   // 8%
-  static const Color warningBorder = Color(0x40EF4444); // 25%
-  static const Color warningText = Color(0xFFEA4335);
-
-  static const Color approveBtnBg = Color(0xFF795D3D);
-  static const Color approveBtnFg = Color(0xFFFFF1E2);
-  static const Color rejectBtnBorder = Color(0xFF92512E);
-  static const Color rejectBtnFg = Color(0xFF944E29);
-  static const Color commentBtnBorder = Color(0xFF585247);
+  static const Color docStatusColor = Color(0xFFB26915);
 
   static const Color collapsedName = Color(0xFF585247);
   static const Color collapsedSub = Color(0xFFFCE8C3);
 
-  static const Color auditLabel = Color(0xFF585247);
-  static const Color auditTimestamp = Color(0xFFFCE8C3);
+  static const Color emptyStateColor = Color(0xFF655443);
   static const Color sectionHeaderColor = Colors.black;
 
-  // ── Sample data ───────────────────────────────────────────────────────────
-  final List<VerificationEntry> _entries = [
-    VerificationEntry(
-      initials: 'BK',
-      avatarBg: const Color(0xFF6D6B3B),
-      avatarText: Colors.white,
-      name: 'Brian Kumara',
-      submittedLabel: 'Submitted 2h ago · 4 documents',
-      documents: const [
-        VerificationDocument(name: 'NIC — 923456789V', status: DocStatus.matched),
-        VerificationDocument(name: 'Police clearance.pdf', status: DocStatus.review),
-        VerificationDocument(name: 'Caregiving diploma.pdf', status: DocStatus.review),
-        VerificationDocument(name: 'CPR / First-aid cert.pdf', status: DocStatus.expired),
-      ],
-      warningMessage:
-          'First-aid certificate expired 12 Jun 2026.\nCaregiver cannot accept jobs until renewed.',
-      isExpanded: true,
-    ),
-    VerificationEntry(
-      initials: 'PJ',
-      avatarBg: const Color(0xFF313131),
-      avatarText: const Color(0xFFFFBE4D),
-      name: 'Priya Jayasuriya',
-      submittedLabel: 'Submitted 5h ago · 3 documents',
-      documents: const [
-        VerificationDocument(name: 'NIC — 876543210V', status: DocStatus.review),
-        VerificationDocument(name: 'Nursing certificate.pdf', status: DocStatus.review),
-        VerificationDocument(name: 'First-aid cert.pdf', status: DocStatus.review),
-      ],
-      isExpanded: false,
-    ),
-    VerificationEntry(
-      initials: 'SR',
-      avatarBg: const Color(0xFF4A3728),
-      avatarText: const Color(0xFFFFD9A8),
-      name: 'Saman Ranaweera',
-      submittedLabel: 'Submitted 8h ago · 2 documents',
-      documents: const [
-        VerificationDocument(name: 'NIC — 654321098V', status: DocStatus.review),
-        VerificationDocument(name: 'Police clearance.pdf', status: DocStatus.review),
-      ],
-      isExpanded: false,
-    ),
+  static const List<Color> _avatarPalette = [
+    Color(0xFF6D6B3B),
+    Color(0xFF313131),
+    Color(0xFF4A3728),
+    Color(0xFF735726),
+    Color(0xFFA28C66),
+    Color(0xFF493D2A),
   ];
 
-  final List<AuditTrailEntry> _auditTrail = const [
-    AuditTrailEntry(
-      action: AuditAction.approved,
-      description: 'Sanduni D. approved NIC for A. Fernando',
-      timestamp: '21 Aug 2026 · 4:12 PM',
-    ),
-    AuditTrailEntry(
-      action: AuditAction.rejected,
-      description: 'Tharaka M. rejected blurred diploma scan',
-      timestamp: '20 Aug 2026 · 11:38 AM',
-    ),
-  ];
+  final Set<String> _expandedUids = {};
 
   @override
   void initState() {
@@ -163,183 +87,59 @@ class _AdminVerificationQueueScreenState
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  String _docStatusLabel(DocStatus s) {
-    switch (s) {
-      case DocStatus.matched: return 'MATCHED';
-      case DocStatus.review:  return 'REVIEW';
-      case DocStatus.expired: return 'EXPIRED';
+  Color _avatarColorFor(String uid) =>
+      _avatarPalette[uid.hashCode.abs() % _avatarPalette.length];
+
+  String _initialsFor(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  String _labelForUrl(String url, String fallback) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isEmpty) return fallback;
+      var last = Uri.decodeComponent(uri.pathSegments.last);
+      if (last.contains('/')) last = last.substring(last.lastIndexOf('/') + 1);
+      return last.isNotEmpty ? last : fallback;
+    } catch (_) {
+      return fallback;
     }
   }
 
-  Color _docStatusColor(DocStatus s) {
-    switch (s) {
-      case DocStatus.matched: return statusMatched;
-      case DocStatus.review:  return statusReview;
-      case DocStatus.expired: return statusExpired;
+  /// Every individually-reviewable document on a caregiver's profile, with
+  /// its real review decision attached if one exists (see
+  /// CaregiverService.setDocumentReviewStatus). Keys match exactly what the
+  /// caregiver's own verification-status screen reads.
+  List<DocumentEntry> _documentsFor(Map<String, dynamic> caregiver) {
+    final reviews = (caregiver['documentReviews'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final docs = <DocumentEntry>[];
+
+    final nic = (caregiver['nic'] as String?)?.trim();
+    if (nic != null && nic.isNotEmpty) {
+      docs.add(DocumentEntry(key: 'nic', label: 'NIC — $nic', review: reviews['nic'] as Map<String, dynamic>?));
     }
-  }
-
-  IconData _docIcon(DocStatus s) {
-    switch (s) {
-      case DocStatus.matched: return Icons.badge_outlined;
-      case DocStatus.review:  return Icons.shield_outlined;
-      case DocStatus.expired: return Icons.workspace_premium_outlined;
+    final police = (caregiver['policeClearanceUrl'] as String?) ?? '';
+    if (police.isNotEmpty) {
+      docs.add(DocumentEntry(
+        key: 'policeClearance',
+        label: _labelForUrl(police, 'Police clearance certificate'),
+        review: reviews['policeClearance'] as Map<String, dynamic>?,
+      ));
     }
-  }
-
-  void _approveEntry(int index) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${_entries[index].name} approved ✓'),
-        backgroundColor: statusMatched,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _rejectEntry(int index) {
-    _showRejectDialog(index);
-  }
-
-  void _showRejectDialog(int index) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2C251D),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Reject Documents',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Reason for rejecting ${_entries[index].name}\'s submission:',
-              style: const TextStyle(color: Color(0xFFD4CDC3), fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              maxLines: 3,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Enter reason...',
-                hintStyle: const TextStyle(color: Color(0xFF6B5E4A)),
-                filled: true,
-                fillColor: const Color(0xFF3B3329),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: rejectBtnBorder,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${_entries[index].name}\'s submission rejected'),
-                  backgroundColor: statusExpired,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            child: const Text('Confirm Reject'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCommentSheet(int index) {
-    final controller = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF2C251D),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20, right: 20, top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Add comment for ${_entries[index].name}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              maxLines: 4,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Type your comment...',
-                hintStyle: const TextStyle(color: Color(0xFF6B5E4A)),
-                filled: true,
-                fillColor: const Color(0xFF3B3329),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: approveBtnBg,
-                  foregroundColor: approveBtnFg,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Comment added'),
-                      backgroundColor: Color(0xFF585247),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Send comment',
-                  style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    final certs = (caregiver['certificateUrls'] as List?)?.cast<String>() ?? const [];
+    for (var i = 0; i < certs.length; i++) {
+      final key = 'cert$i';
+      docs.add(DocumentEntry(key: key, label: _labelForUrl(certs[i], 'Certificate ${i + 1}'), review: reviews[key] as Map<String, dynamic>?));
+    }
+    final other = (caregiver['otherDocumentUrls'] as List?)?.cast<String>() ?? const [];
+    for (var i = 0; i < other.length; i++) {
+      final key = 'other$i';
+      docs.add(DocumentEntry(key: key, label: _labelForUrl(other[i], 'Other document ${i + 1}'), review: reviews[key] as Map<String, dynamic>?));
+    }
+    return docs;
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -353,25 +153,20 @@ class _AdminVerificationQueueScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            _buildFilterBar(),
-            const SizedBox(height: 4),
+            const SizedBox(height: 10),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(22, 4, 22, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ..._entries.asMap().entries.map((e) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 11),
-                        child: e.value.isExpanded
-                            ? _buildExpandedCard(e.key, e.value)
-                            : _buildCollapsedCard(e.key, e.value),
-                      );
-                    }),
+                    _buildSectionLabel('SUBMITTED DOCUMENTS'),
+                    const SizedBox(height: 9),
+                    _buildQueueSection(),
+                    const SizedBox(height: 20),
                     _buildSectionLabel('AUDIT TRAIL'),
                     const SizedBox(height: 8),
-                    _buildAuditTrailCard(),
+                    _buildAuditTrailSection(),
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -406,60 +201,95 @@ class _AdminVerificationQueueScreenState
               ),
             ),
           ),
-          Icon(Icons.history_rounded, color: titleColor.withValues(alpha: 0.7), size: 22),
         ],
       ),
     );
   }
 
-  // ── Filter bar ────────────────────────────────────────────────────────────
+  // ── Live queue: caregivers with at least one submitted document ─────────
 
-  Widget _buildFilterBar() {
-    final filters = [
-      (QueueFilter.pending, 'Pending 12'),
-      (QueueFilter.approved, 'Approved'),
-      (QueueFilter.rejected, 'Rejected'),
-    ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
-      child: Row(
-        children: filters.map((f) {
-          final isActive = _activeFilter == f.$1;
-          return Padding(
-            padding: const EdgeInsets.only(right: 7),
-            child: GestureDetector(
-              onTap: () => setState(() => _activeFilter = f.$1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isActive ? filterActiveBg : Colors.transparent,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: isActive ? Colors.transparent : filterInactiveBorder,
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  f.$2,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? filterActiveFg : filterInactiveFg,
-                  ),
-                ),
-              ),
-            ),
+  Widget _buildQueueSection() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: CaregiverService.streamAllCaregivers(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
           );
-        }).toList(),
+        }
+        final withDocs = snapshot.data!.where((c) {
+          return _documentsFor(c).isNotEmpty;
+        }).toList();
+
+        if (withDocs.isEmpty) {
+          return _buildInfoCard(
+            icon: Icons.folder_off_outlined,
+            message: 'No caregivers have submitted verification documents yet.',
+          );
+        }
+
+        final uids = withDocs.map((c) => c['uid'] as String).toList();
+        return FutureBuilder<Map<String, Map<String, dynamic>>>(
+          future: UserDirectoryService.getUsers(uids),
+          builder: (context, userSnapshot) {
+            final users = userSnapshot.data ?? const {};
+            final entries = withDocs.map((c) {
+              final uid = c['uid'] as String;
+              final name = (users[uid]?['name'] as String?)?.trim();
+              final displayName = (name == null || name.isEmpty) ? 'Unnamed caregiver' : name;
+              return VerificationEntry(
+                uid: uid,
+                name: displayName,
+                initials: _initialsFor(displayName),
+                avatarBg: _avatarColorFor(uid),
+                documents: _documentsFor(c),
+                isExpanded: _expandedUids.contains(uid),
+              );
+            }).toList();
+
+            return Column(
+              children: entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 11),
+                  child: entry.isExpanded
+                      ? _buildExpandedCard(entry)
+                      : _buildCollapsedCard(entry),
+                );
+              }).toList(),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoCard({required IconData icon, required String message}) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: cardBorder, width: 1),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          Icon(icon, size: 26, color: titleColor),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: emptyStateColor),
+          ),
+        ],
       ),
     );
   }
 
-  // ── Expanded card (Brian Kumara style) ────────────────────────────────────
+  // ── Expanded card ─────────────────────────────────────────────────────────
 
-  Widget _buildExpandedCard(int index, VerificationEntry entry) {
+  Widget _buildExpandedCard(VerificationEntry entry) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -470,36 +300,30 @@ class _AdminVerificationQueueScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar + name row
-          _buildCardHeader(index, entry),
+          _buildCardHeader(entry),
           const SizedBox(height: 11),
-
-          // Document rows
           Column(
             children: entry.documents.map((doc) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 7),
-                child: _buildDocumentRow(doc),
+                child: _buildDocumentRow(entry.uid, doc),
               );
             }).toList(),
           ),
-
-          // Warning banner
-          if (entry.warningMessage != null) ...[
-            _buildWarningBanner(entry.warningMessage!),
-            const SizedBox(height: 11),
-          ],
-
-          // Action buttons
-          _buildActionButtons(index),
         ],
       ),
     );
   }
 
-  Widget _buildCardHeader(int index, VerificationEntry entry) {
+  Widget _buildCardHeader(VerificationEntry entry) {
     return GestureDetector(
-      onTap: () => setState(() => entry.isExpanded = !entry.isExpanded),
+      onTap: () => setState(() {
+        if (_expandedUids.contains(entry.uid)) {
+          _expandedUids.remove(entry.uid);
+        } else {
+          _expandedUids.add(entry.uid);
+        }
+      }),
       child: Row(
         children: [
           Container(
@@ -512,11 +336,11 @@ class _AdminVerificationQueueScreenState
             child: Center(
               child: Text(
                 entry.initials,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: entry.avatarText,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -536,7 +360,7 @@ class _AdminVerificationQueueScreenState
                   ),
                 ),
                 Text(
-                  entry.submittedLabel,
+                  '${entry.documents.length} document${entry.documents.length == 1 ? '' : 's'} submitted',
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -547,70 +371,87 @@ class _AdminVerificationQueueScreenState
               ],
             ),
           ),
+          const Icon(Icons.expand_less_rounded, color: collapsedName, size: 20),
         ],
       ),
     );
   }
 
-  Widget _buildDocumentRow(VerificationDocument doc) {
+  Widget _buildDocumentRow(String uid, DocumentEntry doc) {
+    final status = doc.review?['status'] as String?; // null | 'approved' | 'rejected'
+    final note = doc.review?['note'] as String?;
+    final (statusLabel, statusColor) = switch (status) {
+      'approved' => ('APPROVED', const Color(0xFF4ADE80)),
+      'rejected' => ('REJECTED', const Color(0xFFEF4444)),
+      _ => ('AWAITING REVIEW', docStatusColor),
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
       decoration: BoxDecoration(
         color: docRowBg,
         borderRadius: BorderRadius.circular(9),
       ),
-      child: Row(
-        children: [
-          Icon(_docIcon(doc.status), size: 17, color: docNameColor),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              doc.name,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: docNameColor,
-              ),
-            ),
-          ),
-          Text(
-            _docStatusLabel(doc.status),
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: _docStatusColor(doc.status),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWarningBanner(String message) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-      decoration: BoxDecoration(
-        color: warningBg,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: warningBorder, width: 1),
-      ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, size: 16, color: warningText),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: warningText,
-                height: 1.4,
+          Row(
+            children: [
+              const Icon(Icons.description_outlined, size: 17, color: docNameColor),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  doc.label,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: docNameColor,
+                  ),
+                ),
               ),
+              Text(
+                statusLabel,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+          if (status == 'rejected' && note != null && note.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 26),
+              child: Text(
+                note,
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w400, color: docNameColor),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 26),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => CaregiverService.setDocumentReviewStatus(uid: uid, docKey: doc.key, status: 'approved'),
+                  child: const Text(
+                    'Approve',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4ADE80)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: () => _showRejectDialog(uid, doc),
+                  child: const Text(
+                    'Reject',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFEF4444)),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -618,98 +459,11 @@ class _AdminVerificationQueueScreenState
     );
   }
 
-  Widget _buildActionButtons(int index) {
-    return Row(
-      children: [
-        // Approve
-        Expanded(
-          flex: 3,
-          child: Material(
-            color: approveBtnBg,
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () => _approveEntry(index),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 11),
-                child: Center(
-                  child: Text(
-                    'Approve',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: approveBtnFg,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // Reject
-        Expanded(
-          flex: 3,
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () => _rejectEntry(index),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: rejectBtnBorder, width: 1),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Reject',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: rejectBtnFg,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // Comment
-        Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            onTap: () => _showCommentSheet(index),
-            child: Container(
-              width: 46,
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: commentBtnBorder, width: 1),
-              ),
-              child: const Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 18,
-                color: commentBtnBorder,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // ── Collapsed card ────────────────────────────────────────────────────────
 
-  // ── Collapsed card (Priya Jayasuriya style) ───────────────────────────────
-
-  Widget _buildCollapsedCard(int index, VerificationEntry entry) {
+  Widget _buildCollapsedCard(VerificationEntry entry) {
     return GestureDetector(
-      onTap: () => setState(() => entry.isExpanded = true),
+      onTap: () => setState(() => _expandedUids.add(entry.uid)),
       child: Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
@@ -729,11 +483,11 @@ class _AdminVerificationQueueScreenState
               child: Center(
                 child: Text(
                   entry.initials,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: entry.avatarText,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -753,7 +507,7 @@ class _AdminVerificationQueueScreenState
                     ),
                   ),
                   Text(
-                    entry.submittedLabel,
+                    '${entry.documents.length} document${entry.documents.length == 1 ? '' : 's'} submitted',
                     style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 11,
@@ -786,76 +540,152 @@ class _AdminVerificationQueueScreenState
     );
   }
 
-  // ── Audit trail ───────────────────────────────────────────────────────────
+  // ── Audit trail (honest empty state — no audit-log collection exists) ───
 
-  Widget _buildAuditTrailCard() {
-    return Container(
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: cardBorder, width: 1),
-      ),
-      child: Column(
-        children: _auditTrail.asMap().entries.map((e) {
-          final entry = e.value;
-          final isLast = e.key == _auditTrail.length - 1;
-          return Column(
-            children: [
-              _buildAuditRow(entry),
-              if (!isLast) const SizedBox(height: 10),
-            ],
+  /// Real review history, derived from every caregiver's `documentReviews`
+  /// map — no separate audit-log collection needed since each decision
+  /// already carries its own `decidedAt`.
+  Widget _buildAuditTrailSection() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: CaregiverService.streamAllCaregivers(),
+      builder: (context, snapshot) {
+        final caregivers = snapshot.data ?? const [];
+        final records = <({String uid, String docKey, String status, String? note, Timestamp? decidedAt})>[];
+        for (final c in caregivers) {
+          final reviews = (c['documentReviews'] as Map?)?.cast<String, dynamic>() ?? const {};
+          for (final entry in reviews.entries) {
+            final v = (entry.value as Map?)?.cast<String, dynamic>();
+            if (v == null) continue;
+            records.add((
+              uid: c['uid'] as String,
+              docKey: entry.key,
+              status: (v['status'] as String?) ?? '',
+              note: v['note'] as String?,
+              decidedAt: v['decidedAt'] as Timestamp?,
+            ));
+          }
+        }
+
+        if (records.isEmpty) {
+          return _buildInfoCard(
+            icon: Icons.history_rounded,
+            message: 'No verification review history recorded yet.',
           );
-        }).toList(),
+        }
+
+        records.sort((a, b) {
+          if (a.decidedAt == null || b.decidedAt == null) return 0;
+          return b.decidedAt!.compareTo(a.decidedAt!);
+        });
+
+        final uids = records.map((r) => r.uid).toSet().toList();
+        return FutureBuilder<Map<String, Map<String, dynamic>>>(
+          future: UserDirectoryService.getUsers(uids),
+          builder: (context, userSnap) {
+            final users = userSnap.data ?? const {};
+            return Column(
+              children: records.take(20).map((r) {
+                final name = (users[r.uid]?['name'] as String?)?.trim();
+                final displayName = (name == null || name.isEmpty) ? 'Unnamed caregiver' : name;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildAuditRow(displayName, r.docKey, r.status, r.note, r.decidedAt),
+                );
+              }).toList(),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAuditRow(String name, String docKey, String status, String? note, Timestamp? decidedAt) {
+    final color = status == 'approved' ? const Color(0xFF4ADE80) : const Color(0xFFEF4444);
+    final verb = status == 'approved' ? 'approved' : 'rejected';
+    final dateLabel = decidedAt != null ? _formatDate(decidedAt.toDate()) : '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: cardBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: cardBorder, width: 1)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(status == 'approved' ? Icons.check_circle_rounded : Icons.cancel_rounded, color: color, size: 15),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '$name — $docKey $verb',
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: titleColor),
+                ),
+              ),
+              if (dateLabel.isNotEmpty)
+                Text(dateLabel, style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: emptyStateColor)),
+            ],
+          ),
+          if (note != null && note.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 21),
+              child: Text(note, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: emptyStateColor)),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildAuditRow(AuditTrailEntry entry) {
-    final isApproved = entry.action == AuditAction.approved;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          margin: const EdgeInsets.only(top: 2),
-          child: Icon(
-            isApproved
-                ? Icons.check_circle_outline_rounded
-                : Icons.cancel_outlined,
-            size: 16,
-            color: isApproved ? statusMatched : statusExpired,
+  String _formatDate(DateTime dt) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  // ── Reject flow — real write via CaregiverService.setDocumentReviewStatus,
+  // shown to the caregiver on their own verification-status screen. ───────
+  void _showRejectDialog(String uid, DocumentEntry doc) {
+    final controller = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C251D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Reject "${doc.label}"?',
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: const InputDecoration(
+            hintText: 'Reason (shown to the caregiver) — optional but recommended',
+            hintStyle: TextStyle(color: Color(0xFFB5ADA2), fontSize: 12),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF4A4032))),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFFBBC05))),
           ),
         ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                entry.description,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: auditLabel,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                entry.timestamp,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: auditTimestamp,
-                ),
-              ),
-            ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
-        ),
-      ],
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              CaregiverService.setDocumentReviewStatus(
+                uid: uid,
+                docKey: doc.key,
+                status: 'rejected',
+                note: controller.text.trim(),
+              );
+            },
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
     );
   }
 }

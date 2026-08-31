@@ -6,7 +6,7 @@ import '../widgets/status_bar.dart';
 
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver Onboarding — Step 3 of 6
+//  Caregiver Onboarding — Step 3 of 7
 //  Figma node: 426-362 · "Location & bio"
 //  "Areas covered" is computed for real from sriLankanCities lat/lng via
 //  haversineKm — not a hardcoded list — so it reflects whatever city and
@@ -325,7 +325,7 @@ class _CaregiverOnboarding3ScreenState
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                   const Text(
-                    'Step 3 of 6',
+                    'Step 3 of 7',
                     style: TextStyle(
                       fontFamily: 'Open Sans',
                       color: stepLabel,
@@ -338,7 +338,7 @@ class _CaregiverOnboarding3ScreenState
 
               const SizedBox(height: 16),
 
-              _buildProgressBar(currentStep: 3, totalSteps: 6),
+              _buildProgressBar(currentStep: 3, totalSteps: 7),
 
               const SizedBox(height: 24),
 

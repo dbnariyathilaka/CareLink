@@ -4,7 +4,7 @@ import 'certificate_upload_dialog.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver Onboarding — Step 2 of 6
+//  Caregiver Onboarding — Step 2 of 7
 //  Figma node: 425-215 · "Education & languages" + "Your skills"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding2Screen extends StatefulWidget {
@@ -90,7 +90,7 @@ class _CaregiverOnboarding2ScreenState
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                   const Text(
-                    'Step 2 of 6',
+                    'Step 2 of 7',
                     style: TextStyle(
                       fontFamily: 'Open Sans',
                       color: fieldLabel,
@@ -103,7 +103,7 @@ class _CaregiverOnboarding2ScreenState
 
               const SizedBox(height: 16),
 
-              _buildProgressBar(currentStep: 2, totalSteps: 6),
+              _buildProgressBar(currentStep: 2, totalSteps: 7),
 
               const SizedBox(height: 24),
 

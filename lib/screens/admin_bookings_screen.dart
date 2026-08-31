@@ -1,9 +1,16 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/booking_service.dart';
+import '../services/patient_service.dart';
 import '../widgets/status_bar.dart';
 import 'admin_finance_screen.dart';
 
 enum BookingFilter { unfulfilled, active, upcoming, cancelled }
 
+/// View-model for one booking card — built from a real `bookingRequests` /
+/// `cancelledBookings` document (see [_AdminBookingsScreenState._buildCardData]),
+/// never from static/mock data.
 class AdminBookingData {
   final String id;
   final BookingFilter status;
@@ -12,9 +19,9 @@ class AdminBookingData {
   final Color avatarTextColor;
   final String title;
   final String subtitle;
-  final String? waitingLabel; // e.g. "18 min" (unfulfilled)
-  final int? progressPercent; // e.g. 64 (active / on-duty)
-  final String? penaltyNote; // (cancelled)
+  final String? waitingLabel; // real elapsed wait, derived from createdAt (unfulfilled)
+  final int? progressPercent; // real on-duty progress, derived from schedule (active)
+  final String? cancelledLabel; // real cancellation time, derived from cancelledAt (cancelled)
 
   const AdminBookingData({
     required this.id,
@@ -26,12 +33,14 @@ class AdminBookingData {
     required this.subtitle,
     this.waitingLabel,
     this.progressPercent,
-    this.penaltyNote,
+    this.cancelledLabel,
   });
 }
 
 class AdminBookingsScreen extends StatefulWidget {
-  const AdminBookingsScreen({super.key});
+  const AdminBookingsScreen({super.key, this.initialFilter = BookingFilter.active});
+
+  final BookingFilter initialFilter;
 
   @override
   State<AdminBookingsScreen> createState() => _AdminBookingsScreenState();
@@ -68,148 +77,91 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
   static const Color progressFill = Color(0xFF82571E);
   static const Color progressLabel = Color(0xFF785618);
 
-  static const Color penaltyBannerBg = Color(0xFF412800);
-  static const Color applyPenaltyBtnBg = Color(0xFFAC703F);
-  static const Color applyPenaltyBtnFg = Color(0xFF37200D);
-  static const Color waiveBtnBorder = Color(0xFFAC703F);
-
   static const Color bottomNavBg = Color(0xFF3A3328);
   static const Color navGold = Color(0xFFFBBC05);
 
-  BookingFilter _activeFilter = BookingFilter.unfulfilled;
-
-  final List<AdminBookingData> _bookings = const [
-    AdminBookingData(
-      id: 'bk_1',
-      status: BookingFilter.unfulfilled,
-      initials: '',
-      avatarBg: Colors.transparent,
-      avatarTextColor: Colors.transparent,
-      title: 'Kamal Perera · Post-surgery',
-      subtitle: 'Today 7:00 PM – 9:00 PM · Nugegoda · 3 caregivers declined',
-      waitingLabel: '18 min',
-    ),
-    AdminBookingData(
-      id: 'bk_2',
-      status: BookingFilter.unfulfilled,
-      initials: '',
-      avatarBg: Colors.transparent,
-      avatarTextColor: Colors.transparent,
-      title: 'Mala Herath · Dementia care',
-      subtitle: 'Tomorrow 8:00 AM – 12:00 PM · Ja-Ela · 1 caregiver declined',
-      waitingLabel: '42 min',
-    ),
-    AdminBookingData(
-      id: 'bk_3',
-      status: BookingFilter.active,
-      initials: 'AF',
-      avatarBg: Color(0xFF784B26),
-      avatarTextColor: Color(0xFFFBBC05),
-      title: 'Alice Fernando → Nipuni A.',
-      subtitle: 'Elder care · 8:00 AM – 6:00 PM',
-      progressPercent: 64,
-    ),
-    AdminBookingData(
-      id: 'bk_4',
-      status: BookingFilter.active,
-      initials: 'BK',
-      avatarBg: Color(0xFF357F83),
-      avatarTextColor: Colors.white,
-      title: 'Brian Kumara → Kamal P.',
-      subtitle: 'Post-surgery · 9:00 AM – 5:00 PM',
-      progressPercent: 30,
-    ),
-    AdminBookingData(
-      id: 'bk_5',
-      status: BookingFilter.upcoming,
-      initials: 'SP',
-      avatarBg: Color(0xFF784B26),
-      avatarTextColor: Color(0xFFFBBC05),
-      title: 'Sanduni P. → Ishara P.',
-      subtitle: 'Dementia · Wed 17 Dec · Live-in',
-    ),
-    AdminBookingData(
-      id: 'bk_6',
-      status: BookingFilter.upcoming,
-      initials: 'NW',
-      avatarBg: Color(0xFF6ED5C9),
-      avatarTextColor: Color(0xFF04302C),
-      title: 'Nadeesha W. → Kamal P.',
-      subtitle: 'Elder care · Fri 19 Dec · 8:00 AM – 4:00 PM',
-    ),
-    AdminBookingData(
-      id: 'bk_7',
-      status: BookingFilter.cancelled,
-      initials: 'DR',
-      avatarBg: Color(0xFF784B26),
-      avatarTextColor: Color(0xFFFBBC05),
-      title: 'David R. → Mala Perera',
-      subtitle: 'Cancelled 4h before start · caregiver no-show',
-      penaltyNote: 'Late-cancellation rule: LKR 1,500 penalty, patient refunded in full',
-    ),
-    AdminBookingData(
-      id: 'bk_8',
-      status: BookingFilter.cancelled,
-      initials: 'RJ',
-      avatarBg: Color(0xFF354152),
-      avatarTextColor: Color(0xFFCBD5E1),
-      title: 'Ruwan J. → Nadeesha W.',
-      subtitle: 'Cancelled 1d before start · patient request',
-      penaltyNote: 'Cancelled within policy window — no penalty applies',
-    ),
+  // Decorative avatar palette — purely visual styling (not backed by any
+  // Firestore field), rotated deterministically by booking id so cards
+  // still look varied.
+  static final List<(Color, Color)> _avatarPalette = [
+    (const Color(0xFF784B26), const Color(0xFFFBBC05)),
+    (const Color(0xFF357F83), Colors.white),
+    (const Color(0xFF6ED5C9), const Color(0xFF04302C)),
+    (const Color(0xFF354152), const Color(0xFFCBD5E1)),
   ];
+
+  late BookingFilter _activeFilter;
+  late final Stream<List<Map<String, dynamic>>> _bookingsStream;
+
+  // Bookings only store patientUid (+ the denormalized caregiverName), so
+  // the patient's display name is joined from PatientService and cached
+  // here to avoid re-fetching on every rebuild.
+  final Map<String, String> _patientNames = {};
+  final Set<String> _fetchingPatientNames = {};
+  Timer? _tickTimer;
 
   @override
   void initState() {
     super.initState();
+    _activeFilter = widget.initialFilter;
     setStatusBarStyle(Brightness.dark);
+    _bookingsStream = BookingService.streamAllBookingsForAdmin();
+    // Elapsed-wait labels and on-duty progress bars are derived from real
+    // timestamps and drift as real time passes, so tick a periodic rebuild.
+    _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
-  int _countFor(BookingFilter f) => _bookings.where((b) => b.status == f).length;
+  @override
+  void dispose() {
+    _tickTimer?.cancel();
+    super.dispose();
+  }
 
-  List<AdminBookingData> get _filteredBookings =>
-      _bookings.where((b) => b.status == _activeFilter).toList();
+  void _prefetchPatientNames(List<Map<String, dynamic>> bookings) {
+    final toFetch = <String>{};
+    for (final b in bookings) {
+      final uid = b['patientUid'] as String?;
+      if (uid != null &&
+          uid.isNotEmpty &&
+          !_patientNames.containsKey(uid) &&
+          !_fetchingPatientNames.contains(uid)) {
+        toFetch.add(uid);
+      }
+    }
+    if (toFetch.isEmpty) return;
+    _fetchingPatientNames.addAll(toFetch);
+    Future(() async {
+      for (final uid in toFetch) {
+        _patientNames[uid] = await PatientService.getPatientName(uid);
+      }
+      if (mounted) setState(() {});
+    });
+  }
+
+  String _patientNameFor(String? uid) {
+    if (uid == null || uid.isEmpty) return 'Patient';
+    return _patientNames[uid] ?? 'Patient';
+  }
+
+  // ── Real status/time categorization into the four booking tabs ─────────
+  BookingFilter? _categorize(Map<String, dynamic> data) {
+    final status = data['status'] as String? ?? 'requested';
+    if (status == 'cancelled') return BookingFilter.cancelled;
+    if (status == 'requested') return BookingFilter.unfulfilled;
+    if (status != 'confirmed') return null; // e.g. 'declined' — not shown in any tab
+    final start = BookingService.parseBookingDateTime(
+      data['startDate'] as String?,
+      data['startTime'] as String?,
+    );
+    if (start != null && DateTime.now().isBefore(start)) return BookingFilter.upcoming;
+    return BookingFilter.active;
+  }
 
   void _reviewEmergency(AdminBookingData b) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Opening emergency review for ${b.title}...'), duration: const Duration(seconds: 2)),
-    );
-  }
-
-  void _applyPenalty(AdminBookingData b) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2C251D),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Apply Penalty & Refund?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text(
-          b.penaltyNote ?? 'Apply the cancellation penalty and issue a full refund to the patient.',
-          style: const TextStyle(color: Color(0xFFC4BBAC), fontSize: 13),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: applyPenaltyBtnBg),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Penalty applied and refund issued for ${b.title}.'), duration: const Duration(seconds: 2)),
-              );
-            },
-            child: const Text('Confirm', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _waivePenalty(AdminBookingData b) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Penalty waived for ${b.title}.'), duration: const Duration(seconds: 2)),
     );
   }
 
@@ -218,34 +170,54 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildFilterBar(),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _filteredBookings.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No bookings in this category',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: titleColor.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
-                      itemCount: _filteredBookings.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 11),
-                      itemBuilder: (context, index) => _buildBookingCard(_filteredBookings[index]),
-                    ),
-            ),
-            _buildBottomNav(),
-          ],
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _bookingsStream,
+          builder: (context, snapshot) {
+            final allBookings = snapshot.data ?? const <Map<String, dynamic>>[];
+            _prefetchPatientNames(allBookings);
+
+            final counts = {for (final f in BookingFilter.values) f: 0};
+            final filtered = <Map<String, dynamic>>[];
+            for (final booking in allBookings) {
+              final category = _categorize(booking);
+              if (category == null) continue;
+              counts[category] = (counts[category] ?? 0) + 1;
+              if (category == _activeFilter) filtered.add(booking);
+            }
+            final cards = filtered.map((b) => _buildCardData(b, _activeFilter)).toList();
+            final isLoading = !snapshot.hasData && snapshot.connectionState == ConnectionState.waiting;
+
+            return Column(
+              children: [
+                _buildHeader(),
+                _buildFilterBar(counts),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: isLoading
+                      ? const Center(child: CircularProgressIndicator(color: titleColor))
+                      : cards.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No bookings in this category',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: titleColor.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
+                              itemCount: cards.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 11),
+                              itemBuilder: (context, index) => _buildBookingCard(cards[index]),
+                            ),
+                ),
+                _buildBottomNav(),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -287,10 +259,10 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
   }
 
   // ── Filter bar ──────────────────────────────────────────────────────────
-  Widget _buildFilterBar() {
+  Widget _buildFilterBar(Map<BookingFilter, int> counts) {
     final filters = [
-      (BookingFilter.unfulfilled, 'Unfulfilled ${_countFor(BookingFilter.unfulfilled)}'),
-      (BookingFilter.active, 'Active ${_countFor(BookingFilter.active)}'),
+      (BookingFilter.unfulfilled, 'Unfulfilled ${counts[BookingFilter.unfulfilled] ?? 0}'),
+      (BookingFilter.active, 'Active ${counts[BookingFilter.active] ?? 0}'),
       (BookingFilter.upcoming, 'Upcoming'),
       (BookingFilter.cancelled, 'Cancelled'),
     ];
@@ -327,6 +299,115 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
     );
   }
 
+  // ── Real-data → view-model mapping ──────────────────────────────────────
+  AdminBookingData _buildCardData(Map<String, dynamic> raw, BookingFilter filter) {
+    final id = raw['id'] as String? ?? '';
+    final rawCaregiverName = (raw['caregiverName'] as String?)?.trim();
+    final caregiverName = (rawCaregiverName != null && rawCaregiverName.isNotEmpty) ? rawCaregiverName : 'Caregiver';
+    final patientName = _patientNameFor(raw['patientUid'] as String?);
+    final rawCareType = (raw['careType'] as String?)?.trim();
+    final careType = (rawCareType != null && rawCareType.isNotEmpty) ? rawCareType : 'Care';
+    final startDate = raw['startDate'] as String?;
+    final startTime = raw['startTime'] as String?;
+    final endDate = raw['endDate'] as String?;
+    final endTime = raw['endTime'] as String?;
+    final location = (raw['location'] as String?)?.trim();
+    final duration = (raw['duration'] as String?)?.trim();
+
+    final palette = _avatarPalette[id.hashCode.abs() % _avatarPalette.length];
+
+    String title;
+    String subtitle;
+    String? waitingLabel;
+    int? progressPercent;
+    String? cancelledLabel;
+
+    switch (filter) {
+      case BookingFilter.unfulfilled:
+        title = '$patientName · $careType';
+        subtitle =
+            '${_scheduleLine(startDate, startTime, endTime, location)} · Awaiting response from $caregiverName';
+        waitingLabel = _elapsedSince(raw['createdAt']);
+        break;
+      case BookingFilter.active:
+        title = '$caregiverName → $patientName';
+        subtitle = '$careType · ${startTime ?? '--'} – ${endTime ?? '--'}';
+        progressPercent = _onDutyProgress(startDate, startTime, endDate, endTime);
+        break;
+      case BookingFilter.upcoming:
+        title = '$caregiverName → $patientName';
+        final timing =
+            (duration != null && duration.isNotEmpty) ? duration : '${startTime ?? '--'} – ${endTime ?? '--'}';
+        subtitle = '$careType · ${startDate ?? 'Date TBC'} · $timing';
+        break;
+      case BookingFilter.cancelled:
+        title = '$caregiverName → $patientName';
+        subtitle = '$careType · ${_scheduleLine(startDate, startTime, endTime, location)}';
+        cancelledLabel = _cancelledAgo(raw['cancelledAt']);
+        break;
+    }
+
+    return AdminBookingData(
+      id: id,
+      status: filter,
+      initials: _initialsFor(caregiverName),
+      avatarBg: palette.$1,
+      avatarTextColor: palette.$2,
+      title: title,
+      subtitle: subtitle,
+      waitingLabel: waitingLabel,
+      progressPercent: progressPercent,
+      cancelledLabel: cancelledLabel,
+    );
+  }
+
+  String _scheduleLine(String? date, String? startTime, String? endTime, String? location) {
+    final parts = <String>[];
+    if (date != null && date.isNotEmpty) parts.add(date);
+    if (startTime != null && startTime.isNotEmpty) {
+      parts.add((endTime != null && endTime.isNotEmpty) ? '$startTime – $endTime' : startTime);
+    }
+    if (location != null && location.isNotEmpty) parts.add(location);
+    return parts.isEmpty ? 'Schedule not set' : parts.join(' · ');
+  }
+
+  String _initialsFor(String name) {
+    final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return '?';
+    if (words.length == 1) {
+      return words.first.substring(0, words.first.length >= 2 ? 2 : 1).toUpperCase();
+    }
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+
+  String _elapsedSince(dynamic timestamp) {
+    if (timestamp is! Timestamp) return '';
+    final elapsed = DateTime.now().difference(timestamp.toDate());
+    if (elapsed.inMinutes < 1) return 'Just now';
+    if (elapsed.inMinutes < 60) return '${elapsed.inMinutes} min';
+    if (elapsed.inHours < 24) return '${elapsed.inHours}h';
+    return '${elapsed.inDays}d';
+  }
+
+  String _cancelledAgo(dynamic timestamp) {
+    if (timestamp is! Timestamp) return 'Cancelled';
+    final elapsed = DateTime.now().difference(timestamp.toDate());
+    if (elapsed.inDays >= 1) return 'Cancelled ${elapsed.inDays}d ago';
+    if (elapsed.inHours >= 1) return 'Cancelled ${elapsed.inHours}h ago';
+    if (elapsed.inMinutes >= 1) return 'Cancelled ${elapsed.inMinutes} min ago';
+    return 'Cancelled just now';
+  }
+
+  int? _onDutyProgress(String? startDate, String? startTime, String? endDate, String? endTime) {
+    final start = BookingService.parseBookingDateTime(startDate, startTime);
+    final end = BookingService.parseBookingDateTime(endDate ?? startDate, endTime);
+    if (start == null || end == null) return null;
+    final totalMs = end.difference(start).inMilliseconds;
+    if (totalMs <= 0) return null;
+    final elapsedMs = DateTime.now().difference(start).inMilliseconds.clamp(0, totalMs);
+    return elapsedMs * 100 ~/ totalMs;
+  }
+
   // ── Booking cards ───────────────────────────────────────────────────────
   Widget _buildBookingCard(AdminBookingData b) {
     switch (b.status) {
@@ -358,11 +439,11 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Unassigned · emergency',
+                  'Unassigned · awaiting caregiver',
                   style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700, color: emergencyTitle),
                 ),
               ),
-              if (b.waitingLabel != null)
+              if (b.waitingLabel != null && b.waitingLabel!.isNotEmpty)
                 Text(
                   b.waitingLabel!,
                   style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: emergencyWaiting),
@@ -439,7 +520,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                '${b.progressPercent}%',
+                '${b.progressPercent ?? 0}%',
                 style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w600, color: progressLabel),
               ),
             ],
@@ -473,73 +554,11 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildCardHeaderRow(b),
-          if (b.penaltyNote != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-              decoration: BoxDecoration(color: penaltyBannerBg, borderRadius: BorderRadius.circular(9)),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.receipt_long_rounded, size: 16, color: Colors.white),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      b.penaltyNote!,
-                      style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white, height: 1.4),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Material(
-                    color: applyPenaltyBtnBg,
-                    borderRadius: BorderRadius.circular(9),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(9),
-                      onTap: () => _applyPenalty(b),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10),
-                        child: Center(
-                          child: Text(
-                            'Apply penalty & refund',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: applyPenaltyBtnFg),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(9),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(9),
-                      onTap: () => _waivePenalty(b),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(color: waiveBtnBorder, width: 1),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Waive',
-                            style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w700, color: waiveBtnBorder),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+          if (b.cancelledLabel != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              b.cancelledLabel!,
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: cardTitle),
             ),
           ],
         ],

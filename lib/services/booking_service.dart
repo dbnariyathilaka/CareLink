@@ -271,4 +271,180 @@ class BookingService {
       await doc.update({'pendingExtension': FieldValue.delete()});
     }
   }
+
+  /// All bookings across every patient/caregiver — used by the admin
+  /// bookings screen. Combines live requests with the cancelled archive,
+  /// same merge pattern as [streamBookingsForPatient] but unfiltered.
+  static Stream<List<Map<String, dynamic>>> streamAllBookingsForAdmin() {
+    final controller = StreamController<List<Map<String, dynamic>>>.broadcast();
+    List<Map<String, dynamic>>? active;
+    List<Map<String, dynamic>>? cancelled;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? activeSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? cancelledSub;
+
+    void emit() {
+      if (active == null || cancelled == null) return;
+      final combined = [...active!, ...cancelled!];
+      combined.sort((a, b) {
+        final at = (a['createdAt'] ?? a['cancelledAt']);
+        final bt = (b['createdAt'] ?? b['cancelledAt']);
+        if (at is! Timestamp || bt is! Timestamp) return 0;
+        return bt.compareTo(at);
+      });
+      controller.add(combined);
+    }
+
+    controller.onListen = () {
+      activeSub = _collection.snapshots().listen((snap) {
+        active = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+        emit();
+      });
+      cancelledSub = _cancelledCollection.snapshots().listen((snap) {
+        cancelled = snap.docs
+            .map((d) => {'id': d.id, 'status': 'cancelled', ...d.data()})
+            .toList();
+        emit();
+      });
+    };
+    controller.onCancel = () {
+      activeSub?.cancel();
+      cancelledSub?.cancel();
+    };
+    return controller.stream;
+  }
+
+  /// Real booking/cancellation counts for the admin patient profile — there
+  /// is no "disputes" concept anywhere in the schema, so that stat is not
+  /// derivable and must not be fabricated by callers.
+  static Future<({int active, int cancelled})> countBookingsForPatient(
+    String patientUid,
+  ) async {
+    final activeSnap =
+        await _collection.where('patientUid', isEqualTo: patientUid).count().get();
+    final cancelledSnap = await _cancelledCollection
+        .where('patientUid', isEqualTo: patientUid)
+        .count()
+        .get();
+    return (active: activeSnap.count ?? 0, cancelled: cancelledSnap.count ?? 0);
+  }
+
+  /// Same as [countBookingsForPatient] but for a caregiver.
+  static Future<({int active, int cancelled})> countBookingsForCaregiver(
+    String caregiverUid,
+  ) async {
+    final activeSnap =
+        await _collection.where('caregiverId', isEqualTo: caregiverUid).count().get();
+    final cancelledSnap = await _cancelledCollection
+        .where('caregiverId', isEqualTo: caregiverUid)
+        .count()
+        .get();
+    return (active: activeSnap.count ?? 0, cancelled: cancelledSnap.count ?? 0);
+  }
+
+  /// The caregiver name from a patient's most recently confirmed booking —
+  /// a real (not fabricated) "assigned caregiver" for the admin patient
+  /// profile. Null if the patient has no confirmed booking.
+  static Future<String?> getLatestConfirmedCaregiverName(String patientUid) async {
+    final snap = await _collection
+        .where('patientUid', isEqualTo: patientUid)
+        .where('status', isEqualTo: 'confirmed')
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final docs = snap.docs.toList()
+      ..sort((a, b) {
+        final at = a.data()['createdAt'];
+        final bt = b.data()['createdAt'];
+        if (at is! Timestamp || bt is! Timestamp) return 0;
+        return bt.compareTo(at);
+      });
+    return docs.first.data()['caregiverName'] as String?;
+  }
+
+  /// Bookings actually completed by a caregiver — a confirmed booking whose
+  /// scheduled end has already passed. There is no stored "completed"
+  /// status in the schema (only requested/confirmed/declined/cancelled), so
+  /// this is derived from the real schedule fields rather than a fabricated
+  /// number.
+  static Future<int> countCompletedBookingsForCaregiver(String caregiverUid) async {
+    final snap = await _collection
+        .where('caregiverId', isEqualTo: caregiverUid)
+        .where('status', isEqualTo: 'confirmed')
+        .get();
+    final now = DateTime.now();
+    return snap.docs.where((d) {
+      final data = d.data();
+      final end = parseBookingDateTime(
+        (data['endDate'] as String?) ?? (data['startDate'] as String?),
+        data['endTime'] as String? ?? data['startTime'] as String?,
+      );
+      return end != null && end.isBefore(now);
+    }).length;
+  }
+
+  /// Confirmed bookings grouped by the weekday they were created on, for the
+  /// last 7 days — used by the admin dashboard's real bookings chart.
+  static Future<Map<int, int>> countBookingsByWeekdayLast7Days() async {
+    final since = DateTime.now().subtract(const Duration(days: 7));
+    final snap = await _collection
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+        .get();
+    final counts = <int, int>{for (var i = 1; i <= 7; i++) i: 0};
+    for (final doc in snap.docs) {
+      final createdAt = doc.data()['createdAt'];
+      if (createdAt is Timestamp) {
+        final weekday = createdAt.toDate().weekday; // 1=Mon..7=Sun
+        counts[weekday] = (counts[weekday] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  /// Requests still waiting for a caregiver to be matched — the real
+  /// "unfulfilled requests" count for the admin dashboard/bookings screen.
+  static Future<int> countUnfulfilled() async {
+    final snap = await _collection.where('status', isEqualTo: 'requested').count().get();
+    return snap.count ?? 0;
+  }
+
+  /// Bookings requested since [since] — used for the admin dashboard's
+  /// "this month" stat.
+  static Future<int> countCreatedSince(DateTime since) async {
+    final snap = await _collection
+        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
+  /// Best-effort parse of the app's free-form "20 Dec 2025" / "8:00 AM"
+  /// display strings back into a real DateTime — there's no ISO date stored
+  /// anywhere, only these display strings from the booking flow.
+  static DateTime? parseBookingDateTime(String? dateStr, String? timeStr) {
+    if (dateStr == null) return null;
+    const months = {
+      'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+      'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    };
+    final dateParts = dateStr.trim().split(RegExp(r'\s+'));
+    if (dateParts.length < 3) return null;
+    final day = int.tryParse(dateParts[0]);
+    final monthKey = dateParts[1].toLowerCase();
+    final month = months[monthKey.length >= 3 ? monthKey.substring(0, 3) : monthKey];
+    final year = int.tryParse(dateParts[2]);
+    if (day == null || month == null || year == null) return null;
+
+    var hour = 0;
+    var minute = 0;
+    if (timeStr != null) {
+      final match = RegExp(r'(\d{1,2}):(\d{2})\s*([AaPp][Mm])?').firstMatch(timeStr);
+      if (match != null) {
+        hour = int.parse(match.group(1)!);
+        minute = int.parse(match.group(2)!);
+        final meridiem = match.group(3)?.toLowerCase();
+        if (meridiem == 'pm' && hour != 12) hour += 12;
+        if (meridiem == 'am' && hour == 12) hour = 0;
+      }
+    }
+    return DateTime(year, month, day, hour, minute);
+  }
 }

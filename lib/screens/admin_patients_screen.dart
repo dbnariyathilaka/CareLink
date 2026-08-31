@@ -1,37 +1,54 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../services/patient_service.dart';
+import '../services/user_directory_service.dart';
 import '../widgets/status_bar.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_finance_screen.dart';
 import 'admin_patient_profile_screen.dart';
 
-enum PatientAccountStatus { active, pending, suspended }
+/// Deterministic avatar color pairing so each patient gets a stable (but not
+/// meaningful) color without needing any stored "avatar color" field.
+class _AvatarColors {
+  final Color bg;
+  final Color text;
+  const _AvatarColors(this.bg, this.text);
+}
 
+const List<_AvatarColors> _avatarPalette = [
+  _AvatarColors(Color(0xFFFAE48B), Color(0xFF2E1065)),
+  _AvatarColors(Color(0xFF727953), Color(0xFF313715)),
+  _AvatarColors(Color(0xFF357F83), Colors.white),
+  _AvatarColors(Color(0xFFA28C66), Color(0xFF3B2404)),
+  _AvatarColors(Color(0xFF354152), Color(0xFFCBD5E1)),
+  _AvatarColors(Color(0xFF6ED5C9), Color(0xFF04302C)),
+  _AvatarColors(Color(0xFFD9BDB5), Color(0xFF41302B)),
+];
+
+/// Real patient row for the admin patients list — every field here traces to
+/// `patientProfiles/{uid}` (care fields) or `users/{uid}` (phone/joined date).
+/// There is no rating, account-status, dispute or NIC concept for patients
+/// anywhere in the schema, so none of those are modelled here.
 class AdminPatientData {
-  final String id;
+  final String uid;
   final String initials;
   final Color avatarBg;
   final Color avatarTextColor;
   final String name;
-  final int age;
-  final String gender;
-  final String location;
-  final String patientCode; // e.g. 'PT-10428'
-  final String joinedLabel; // e.g. 'Nov 2025'
-  final Color spotlightAvatarBg;
-  final Color spotlightAvatarTextColor;
+  final int? age;
+  final String? gender;
+  final String? location;
+  final String shortId; // first 8 chars of the real Firestore uid
+  final DateTime? joinedAt;
+  final String joinedLabel; // e.g. 'Nov 2025', or 'Unknown' if no createdAt
   final String careType;
-  final double rating;
-  PatientAccountStatus status;
-  final int bookings;
-  final int cancellations;
-  final int disputes;
-  final String nic;
-  final String phone;
-  final String assignedCaregiver;
   final String conditions;
+  final String phone;
 
   AdminPatientData({
-    required this.id,
+    required this.uid,
     required this.initials,
     required this.avatarBg,
     required this.avatarTextColor,
@@ -39,25 +56,112 @@ class AdminPatientData {
     required this.age,
     required this.gender,
     required this.location,
-    required this.patientCode,
+    required this.shortId,
+    required this.joinedAt,
     required this.joinedLabel,
-    required this.spotlightAvatarBg,
-    required this.spotlightAvatarTextColor,
     required this.careType,
-    required this.rating,
-    required this.status,
-    required this.bookings,
-    required this.cancellations,
-    required this.disputes,
-    required this.nic,
-    required this.phone,
-    required this.assignedCaregiver,
     required this.conditions,
+    required this.phone,
   });
 
-  String get demographics => '$age · $gender · $location';
-  String get idLine => 'ID $patientCode · joined $joinedLabel';
-  String get spotlightSubtitle => '$careType · $location · ${rating.toStringAsFixed(1)} ★';
+  String get demographics {
+    final parts = <String>[];
+    if (age != null) parts.add('$age');
+    if (gender != null && gender!.isNotEmpty) parts.add(gender!);
+    if (location != null && location!.isNotEmpty) parts.add(location!);
+    return parts.isEmpty ? 'No demographic info on file' : parts.join(' · ');
+  }
+
+  String get idLine => 'Internal ID $shortId · joined $joinedLabel';
+
+  String get spotlightSubtitle =>
+      (location != null && location!.isNotEmpty) ? '$careType · $location' : careType;
+}
+
+String _extractName(Map<String, dynamic> data) {
+  final name = (data['patientName'] as String?)?.trim();
+  if (name != null && name.isNotEmpty) return name;
+  final alt = (data['name'] as String?)?.trim();
+  if (alt != null && alt.isNotEmpty) return alt;
+  return 'Unnamed patient';
+}
+
+String? _extractGender(Map<String, dynamic> data) {
+  final gender = (data['patientGender'] as String?)?.trim();
+  if (gender != null && gender.isNotEmpty) return gender;
+  final alt = (data['gender'] as String?)?.trim();
+  if (alt != null && alt.isNotEmpty) return alt;
+  return null;
+}
+
+int? _extractAge(Map<String, dynamic> data) {
+  final value = data['patientAge'] ?? data['age'];
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+String? _extractLocation(Map<String, dynamic> data) {
+  final city = (data['city'] as String?)?.trim();
+  if (city != null && city.isNotEmpty) return city;
+  final address = (data['address'] as String?)?.trim();
+  if (address != null && address.isNotEmpty) return address;
+  return null;
+}
+
+String _extractConditions(Map<String, dynamic> data) {
+  final value = data['medicalConditions'];
+  if (value is List && value.isNotEmpty) {
+    return value.map((e) => e.toString()).join(', ');
+  }
+  if (value is String && value.trim().isNotEmpty) return value.trim();
+  return 'Not specified';
+}
+
+String _initialsFor(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.isEmpty || parts.first.isEmpty) return '?';
+  if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+  return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+}
+
+String _formatJoined(DateTime? dt) {
+  if (dt == null) return 'Unknown';
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[dt.month - 1]} ${dt.year}';
+}
+
+AdminPatientData _mapToPatientData(
+  Map<String, dynamic> doc,
+  Map<String, dynamic>? user,
+) {
+  final uid = doc['uid'] as String? ?? '';
+  final name = _extractName(doc);
+  final careType = (doc['careType'] as String?)?.trim();
+  final phone = (user?['phone'] as String?)?.trim();
+  final joinedAt =
+      (user?['createdAt'] is Timestamp) ? (user!['createdAt'] as Timestamp).toDate() : null;
+  final palette = _avatarPalette[uid.isEmpty ? 0 : uid.hashCode.abs() % _avatarPalette.length];
+
+  return AdminPatientData(
+    uid: uid,
+    initials: _initialsFor(name),
+    avatarBg: palette.bg,
+    avatarTextColor: palette.text,
+    name: name,
+    age: _extractAge(doc),
+    gender: _extractGender(doc),
+    location: _extractLocation(doc),
+    shortId: uid.length >= 8 ? uid.substring(0, 8) : uid,
+    joinedAt: joinedAt,
+    joinedLabel: _formatJoined(joinedAt),
+    careType: (careType != null && careType.isNotEmpty) ? careType : 'Not specified',
+    conditions: _extractConditions(doc),
+    phone: (phone != null && phone.isNotEmpty) ? phone : 'Not provided',
+  );
 }
 
 class AdminPatientsScreen extends StatefulWidget {
@@ -81,154 +185,63 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
   static const Color idColor = Color(0xFF625846);
   static const Color spotlightNameColor = Color(0xFF5C5445);
   static const Color spotlightSubtitleColor = Color(0xFF7C6F5D);
-  static const Color statsTileBg = Color(0xFF44331C);
-  static const Color statsValueGold = Color(0xFFFBBC05);
+  static const Color infoLabelColor = Color(0xFF625846);
+  static const Color infoValueColor = Color(0xFF403522);
   static const Color btnViewProfileBg = Color(0xFF59341E);
-  static const Color btnSuspendBorder = Color(0xFF59341E);
   static const Color bottomNavBg = Color(0xFF3A3328);
   static const Color navGold = Color(0xFFFBBC05);
 
   final TextEditingController _searchController = TextEditingController();
-  String? _expandedPatientId = 'pt_1'; // First card spotlighted by default like Figma
+  String? _expandedPatientId;
+  bool _hasSetDefaultExpand = false;
+  bool _loading = true;
 
-  late List<AdminPatientData> _patients;
+  StreamSubscription<List<Map<String, dynamic>>>? _patientsSub;
+  List<AdminPatientData> _patients = [];
 
   @override
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
-    _initPatients();
+    _listenToPatients();
+  }
+
+  void _listenToPatients() {
+    _patientsSub = PatientService.streamAllPatients().listen((docs) async {
+      final uids = docs
+          .map((d) => d['uid'] as String?)
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      Map<String, Map<String, dynamic>> users = {};
+      try {
+        users = await UserDirectoryService.getUsers(uids);
+      } catch (_) {
+        // Non-fatal — patient care data still renders without phone/joined.
+      }
+
+      if (!mounted) return;
+      final list = docs
+          .map((doc) => _mapToPatientData(doc, users[doc['uid']]))
+          .toList();
+
+      setState(() {
+        _patients = list;
+        _loading = false;
+        if (!_hasSetDefaultExpand && list.isNotEmpty) {
+          _expandedPatientId = list.first.uid;
+          _hasSetDefaultExpand = true;
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _patientsSub?.cancel();
     super.dispose();
-  }
-
-  void _initPatients() {
-    _patients = [
-      AdminPatientData(
-        id: 'pt_1',
-        initials: 'AF',
-        avatarBg: const Color(0xFFFAE48B),
-        avatarTextColor: const Color(0xFF2E1065),
-        name: 'Alice Fernando',
-        age: 46,
-        gender: 'Female',
-        location: 'Negombo',
-        patientCode: 'PT-10428',
-        joinedLabel: 'Nov 2025',
-        spotlightAvatarBg: const Color(0xFF727953),
-        spotlightAvatarTextColor: const Color(0xFF313715),
-        careType: 'Elder care',
-        rating: 4.8,
-        status: PatientAccountStatus.active,
-        bookings: 8,
-        cancellations: 2,
-        disputes: 1,
-        nic: '198578901234',
-        phone: '+94 77 123 4567',
-        assignedCaregiver: 'Sanduni Perera',
-        conditions: 'Hypertension, mild arthritis',
-      ),
-      AdminPatientData(
-        id: 'pt_2',
-        initials: 'NA',
-        avatarBg: const Color(0xFFFAE48B),
-        avatarTextColor: const Color(0xFF2E1065),
-        name: 'Nipuni Ariyathilaka',
-        age: 72,
-        gender: 'Female',
-        location: 'Negombo',
-        patientCode: 'PT-10429',
-        joinedLabel: 'Nov 2025',
-        spotlightAvatarBg: const Color(0xFF357F83),
-        spotlightAvatarTextColor: Colors.white,
-        careType: 'Post-surgery',
-        rating: 4.6,
-        status: PatientAccountStatus.active,
-        bookings: 5,
-        cancellations: 0,
-        disputes: 0,
-        nic: '195345671234',
-        phone: '+94 71 987 6543',
-        assignedCaregiver: 'Brian Kumara',
-        conditions: 'Recovering from hip replacement',
-      ),
-      AdminPatientData(
-        id: 'pt_3',
-        initials: 'KP',
-        avatarBg: const Color(0xFFD9BDB5),
-        avatarTextColor: const Color(0xFF41302B),
-        name: 'Kamal Perera',
-        age: 68,
-        gender: 'Male',
-        location: 'Colombo 03',
-        patientCode: 'PT-10430',
-        joinedLabel: 'Oct 2025',
-        spotlightAvatarBg: const Color(0xFFA28C66),
-        spotlightAvatarTextColor: const Color(0xFF3B2404),
-        careType: 'Dementia care',
-        rating: 4.9,
-        status: PatientAccountStatus.pending,
-        bookings: 3,
-        cancellations: 1,
-        disputes: 0,
-        nic: '195667894561',
-        phone: '+94 76 345 6789',
-        assignedCaregiver: 'Not yet assigned',
-        conditions: 'Early-stage dementia',
-      ),
-      AdminPatientData(
-        id: 'pt_4',
-        initials: 'RJ',
-        avatarBg: const Color(0xFFCBD5E1),
-        avatarTextColor: const Color(0xFF354152),
-        name: 'Ruwan Jayasuriya',
-        age: 81,
-        gender: 'Male',
-        location: 'Seeduwa',
-        patientCode: 'PT-10431',
-        joinedLabel: 'Sep 2025',
-        spotlightAvatarBg: const Color(0xFF354152),
-        spotlightAvatarTextColor: const Color(0xFFCBD5E1),
-        careType: 'Mobility support',
-        rating: 4.2,
-        status: PatientAccountStatus.suspended,
-        bookings: 12,
-        cancellations: 4,
-        disputes: 2,
-        nic: '194412345678',
-        phone: '+94 70 876 5432',
-        assignedCaregiver: 'Ruwan Jayasuriya (paused)',
-        conditions: 'Limited mobility, uses walker',
-      ),
-      AdminPatientData(
-        id: 'pt_5',
-        initials: 'NW',
-        avatarBg: const Color(0xFF6ED5C9),
-        avatarTextColor: const Color(0xFF04302C),
-        name: 'Nadeesha Wickrama',
-        age: 59,
-        gender: 'Female',
-        location: 'Katunayake',
-        patientCode: 'PT-10432',
-        joinedLabel: 'Nov 2025',
-        spotlightAvatarBg: const Color(0xFF6ED5C9),
-        spotlightAvatarTextColor: const Color(0xFF04302C),
-        careType: 'Elder care',
-        rating: 4.9,
-        status: PatientAccountStatus.active,
-        bookings: 6,
-        cancellations: 0,
-        disputes: 0,
-        nic: '196789012345',
-        phone: '+94 78 567 8901',
-        assignedCaregiver: 'Nadeesha Wickrama',
-        conditions: 'Type 2 diabetes',
-      ),
-    ];
   }
 
   List<AdminPatientData> get _filteredPatients {
@@ -236,66 +249,16 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
     if (query.isEmpty) return _patients;
     return _patients.where((p) {
       return p.name.toLowerCase().contains(query) ||
-          p.nic.toLowerCase().contains(query) ||
           p.phone.toLowerCase().contains(query) ||
-          p.patientCode.toLowerCase().contains(query) ||
-          p.location.toLowerCase().contains(query);
+          (p.location?.toLowerCase().contains(query) ?? false) ||
+          p.careType.toLowerCase().contains(query);
     }).toList();
   }
 
-  void _toggleExpand(String id) {
+  void _toggleExpand(String uid) {
     setState(() {
-      _expandedPatientId = _expandedPatientId == id ? null : id;
+      _expandedPatientId = _expandedPatientId == uid ? null : uid;
     });
-  }
-
-  void _toggleSuspendStatus(AdminPatientData p) {
-    final isCurrentlySuspended = p.status == PatientAccountStatus.suspended;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2C251D),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          isCurrentlySuspended ? 'Reactivate Patient?' : 'Suspend Patient?',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        content: Text(
-          isCurrentlySuspended
-              ? 'Are you sure you want to reactivate ${p.name}? They will be able to book caregivers again.'
-              : 'Are you sure you want to suspend ${p.name}? They will not be able to make new booking requests.',
-          style: const TextStyle(color: Color(0xFFC4BBAC), fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isCurrentlySuspended ? Colors.green : const Color(0xFFEF4444),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              setState(() {
-                p.status = isCurrentlySuspended ? PatientAccountStatus.active : PatientAccountStatus.suspended;
-              });
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${p.name} has been ${isCurrentlySuspended ? 'reactivated' : 'suspended'}.'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            child: Text(
-              isCurrentlySuspended ? 'Reactivate' : 'Suspend',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _openProfile(AdminPatientData p) {
@@ -304,6 +267,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
       MaterialPageRoute(
         builder: (_) => AdminPatientProfileScreen(
           data: AdminPatientProfileData(
+            patientUid: p.uid,
             initials: p.initials,
             avatarColor: p.avatarBg,
             avatarTextColor: p.avatarTextColor,
@@ -311,12 +275,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
             demographics: p.demographics,
             patientId: p.idLine,
             careType: p.careType,
-            assignedCaregiver: p.assignedCaregiver,
             conditions: p.conditions,
-            careCircle: const [],
-            bookings: p.bookings,
-            cancellations: p.cancellations,
-            disputes: p.disputes,
           ),
         ),
       ),
@@ -330,7 +289,6 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
             // ── Top Header Bar ──────────────────────────────────────────────
@@ -407,7 +365,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
                           color: Color(0xFF544730),
                         ),
                         decoration: const InputDecoration(
-                          hintText: 'Search name, NIC or phone',
+                          hintText: 'Search name, phone or location',
                           hintStyle: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 13,
@@ -435,35 +393,37 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
 
             // ── Patients List ───────────────────────────────────────────────
             Expanded(
-              child: displayList.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.search_off_rounded, size: 48, color: titleColor.withValues(alpha: 0.5)),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'No patients found',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: titleColor,
-                            ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: titleColor))
+                  : displayList.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.search_off_rounded, size: 48, color: titleColor.withValues(alpha: 0.5)),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'No patients found',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: titleColor,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
-                      itemCount: displayList.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final p = displayList[index];
-                        final isExpanded = _expandedPatientId == p.id;
-                        return _buildPatientCard(p, isExpanded);
-                      },
-                    ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
+                          itemCount: displayList.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final p = displayList[index];
+                            final isExpanded = _expandedPatientId == p.uid;
+                            return _buildPatientCard(p, isExpanded);
+                          },
+                        ),
             ),
 
             // ── Bottom Navigation Bar (Matching Admin Dashboard) ────────────
@@ -478,7 +438,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
     if (!isExpanded) {
       // ── Collapsed "identity" card ─────────────────────────────────────
       return GestureDetector(
-        onTap: () => _toggleExpand(p.id),
+        onTap: () => _toggleExpand(p.uid),
         child: Container(
           decoration: BoxDecoration(
             color: cardBg,
@@ -545,9 +505,9 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
       );
     }
 
-    // ── Expanded "spotlight" card with stats + actions ─────────────────────
+    // ── Expanded "spotlight" card with real details + actions ─────────────
     return GestureDetector(
-      onTap: () => _toggleExpand(p.id),
+      onTap: () => _toggleExpand(p.uid),
       child: Container(
         decoration: BoxDecoration(
           color: cardBg,
@@ -563,7 +523,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: p.spotlightAvatarBg, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: p.avatarBg, shape: BoxShape.circle),
                   alignment: Alignment.center,
                   child: Text(
                     p.initials,
@@ -571,7 +531,7 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
                       fontFamily: 'Inter',
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: p.spotlightAvatarTextColor,
+                      color: p.avatarTextColor,
                     ),
                   ),
                 ),
@@ -602,68 +562,33 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
                     ],
                   ),
                 ),
-                _buildStatusBadge(p.status),
               ],
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: _buildStatTile('${p.bookings}', 'Bookings')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildStatTile('${p.cancellations}', 'Cancellations')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildStatTile('${p.disputes}', 'Disputes')),
-              ],
-            ),
+            _buildInfoRow('Conditions', p.conditions),
+            const SizedBox(height: 6),
+            _buildInfoRow('Phone', p.phone),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => _openProfile(p),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: btnViewProfileBg,
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'View profile',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+            GestureDetector(
+              onTap: () => _openProfile(p),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: btnViewProfileBg,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  'View profile',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => _toggleSuspendStatus(p),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: btnSuspendBorder, width: 1),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        p.status == PatientAccountStatus.suspended ? 'Reactivate' : 'Suspend',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: btnSuspendBorder,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -671,66 +596,34 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
     );
   }
 
-  Widget _buildStatusBadge(PatientAccountStatus status) {
-    Color bg;
-    Color textColor;
-    String text;
-
-    switch (status) {
-      case PatientAccountStatus.active:
-        bg = const Color.fromRGBO(78, 172, 0, 0.16);
-        textColor = const Color(0xFF255010);
-        text = 'ACTIVE';
-        break;
-      case PatientAccountStatus.pending:
-        bg = const Color.fromRGBO(245, 158, 11, 0.16);
-        textColor = const Color(0xFF6D490E);
-        text = 'PENDING';
-        break;
-      case PatientAccountStatus.suspended:
-        bg = const Color.fromRGBO(239, 68, 68, 0.16);
-        textColor = const Color(0xFF822222);
-        text = 'SUSPENDED';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        text,
-        style: TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w700, color: textColor),
-      ),
-    );
-  }
-
-  Widget _buildStatTile(String value, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(color: statsTileBg, borderRadius: BorderRadius.circular(9)),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: statsValueGold,
-            ),
-          ),
-          const SizedBox(height: 1),
-          Text(
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 78,
+          child: Text(
             label,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: infoLabelColor,
             ),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: infoValueColor,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -815,18 +708,17 @@ class _AdminPatientsScreenState extends State<AdminPatientsScreen> {
             ),
             const SizedBox(height: 12),
             ListTile(
-              leading: const Icon(Icons.event_busy_rounded, color: Color(0xFFEF4444)),
-              title: const Text('Most Disputes', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                setState(() => _patients.sort((a, b) => b.disputes.compareTo(a.disputes)));
-                Navigator.pop(ctx);
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.event_available_rounded, color: Colors.lightBlueAccent),
-              title: const Text('Most Bookings', style: TextStyle(color: Colors.white)),
+              title: const Text('Recently joined', style: TextStyle(color: Colors.white)),
               onTap: () {
-                setState(() => _patients.sort((a, b) => b.bookings.compareTo(a.bookings)));
+                setState(() => _patients.sort((a, b) {
+                      final at = a.joinedAt;
+                      final bt = b.joinedAt;
+                      if (at == null && bt == null) return 0;
+                      if (at == null) return 1;
+                      if (bt == null) return -1;
+                      return bt.compareTo(at);
+                    }));
                 Navigator.pop(ctx);
               },
             ),

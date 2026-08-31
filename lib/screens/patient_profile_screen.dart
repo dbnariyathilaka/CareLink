@@ -248,6 +248,12 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
                                 ),
                                 const SizedBox(height: 12),
                                 _menuRow(
+                                  icon: Icons.payments_outlined,
+                                  label: 'Payments',
+                                  onTap: () => Navigator.pushNamed(context, '/payments'),
+                                ),
+                                const SizedBox(height: 12),
+                                _menuRow(
                                   icon: Icons.shield_outlined,
                                   label: 'Privacy policy',
                                   onTap: () => _showComingSoon('Privacy policy'),

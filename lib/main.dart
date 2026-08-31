@@ -26,6 +26,7 @@ import 'screens/caregiver_onboarding3_screen.dart';
 import 'screens/caregiver_onboarding4_screen.dart';
 import 'screens/caregiver_onboarding5_screen.dart';
 import 'screens/caregiver_onboarding6_screen.dart';
+import 'screens/caregiver_onboarding7_screen.dart';
 import 'screens/caregiver_registration_success_screen.dart';
 import 'screens/caregiver_dashboard_screen.dart';
 import 'screens/send_request_screen.dart';
@@ -40,6 +41,7 @@ import 'screens/track_caregiver_screen.dart';
 import 'screens/caregiver_messages_screen.dart';
 import 'screens/caregiver_chat_screen.dart';
 import 'screens/patient_settings_screen.dart';
+import 'screens/patient_payments_screen.dart';
 import 'screens/caregiver_schedule_screen.dart';
 import 'screens/caregiver_bookings_screen.dart';
 import 'screens/caregiver_directions_screen.dart';
@@ -49,6 +51,7 @@ import 'screens/caregiver_own_profile_screen.dart';
 import 'screens/caregiver_earnings_screen.dart';
 import 'screens/caregiver_reviews_screen.dart';
 import 'screens/caregiver_edit_profile_screen.dart';
+import 'screens/caregiver_verification_status_screen.dart';
 import 'screens/caregiver_notifications_screen.dart';
 import 'screens/caregiver_settings_screen.dart';
 import 'screens/forgot_password_step1_screen.dart';
@@ -114,6 +117,8 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverOnboarding5Screen(),
         '/caregiver-onboarding-6': (context) =>
             const CaregiverOnboarding6Screen(),
+        '/caregiver-onboarding-7': (context) =>
+            const CaregiverOnboarding7Screen(),
         '/caregiver-registration-success': (context) =>
             const CaregiverRegistrationSuccessScreen(),
         '/caregiver-dashboard': (context) => const CaregiverDashboardScreen(),
@@ -138,6 +143,7 @@ class CareMatchApp extends StatelessWidget {
         '/chat': (context) => const PatientChatScreen(),
         '/track-caregiver': (context) => const TrackCaregiverScreen(),
         '/settings': (context) => const PatientSettingsScreen(),
+        '/payments': (context) => const PatientPaymentsScreen(),
         '/caregiver-schedule': (context) => const CaregiverScheduleScreen(),
         '/caregiver-bookings': (context) => const CaregiverBookingsScreen(),
         '/caregiver-directions': (context) => const CaregiverDirectionsScreen(),
@@ -150,6 +156,8 @@ class CareMatchApp extends StatelessWidget {
         '/caregiver-reviews': (context) => const CaregiverReviewsScreen(),
         '/caregiver-edit-profile': (context) =>
             const CaregiverEditProfileScreen(),
+        '/caregiver-verification-status': (context) =>
+            const CaregiverVerificationStatusScreen(),
         '/caregiver-notifications': (context) =>
             const CaregiverNotificationsScreen(),
         '/caregiver-settings': (context) => const CaregiverSettingsScreen(),

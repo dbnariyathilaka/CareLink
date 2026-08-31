@@ -1,5 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/booking_service.dart';
+import '../services/caregiver_service.dart';
+import '../services/patient_service.dart';
+import '../services/review_service.dart';
 import '../widgets/status_bar.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_caregivers_screen.dart';
@@ -21,6 +26,17 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _currentNavIndex = 0;
   bool _showMoreMenu = false;
+
+  // Real dashboard stats — null while still loading.
+  String _adminName = 'Admin';
+  int? _activeCaregivers;
+  int? _activePatients;
+  double? _avgRating;
+  int? _ratingCount;
+  int? _unfulfilledCount;
+  int? _docsSubmittedCount;
+  int? _bookingsThisMonth;
+  Map<int, int>? _weekdayBookingCounts;
 
   static const Color bgColor = Color(0xFFF5EEDE);
   static const Color headerBg = Color(0xFF766B58);
@@ -60,7 +76,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // Bottom Nav
   static const Color bottomNavBg = Color(0xFF3A3328);
   static const Color activeGold = Color(0xFFFBBC05);
-  static const double bottomNavHeight = 51;
+  static const double bottomNavHeight = 64;
 
   // "More" popup
   static const Color moreMenuBg = Color(0xFF2C251D);
@@ -70,6 +86,48 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.light);
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid != null) {
+      final profile = await AuthService.getUserProfile(uid);
+      final name = (profile?['name'] as String?)?.trim();
+      if (name != null && name.isNotEmpty && mounted) {
+        setState(() => _adminName = name);
+      }
+    }
+
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+
+    final activeCaregivers = await CaregiverService.countAll();
+    final activePatients = await PatientService.countAll();
+    final rating = await ReviewService.fetchPlatformAverage();
+    final unfulfilled = await BookingService.countUnfulfilled();
+    final docsSubmitted = await CaregiverService.countWithSubmittedDocuments();
+    final bookingsThisMonth = await BookingService.countCreatedSince(startOfMonth);
+    final weekdayCounts = await BookingService.countBookingsByWeekdayLast7Days();
+
+    if (!mounted) return;
+    setState(() {
+      _activeCaregivers = activeCaregivers;
+      _activePatients = activePatients;
+      _avgRating = rating.avg;
+      _ratingCount = rating.count;
+      _unfulfilledCount = unfulfilled;
+      _docsSubmittedCount = docsSubmitted;
+      _bookingsThisMonth = bookingsThisMonth;
+      _weekdayBookingCounts = weekdayCounts;
+    });
+  }
+
+  String _initialsFor(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'A';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
   }
 
   void _handleLogout() {
@@ -107,6 +165,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  // There is no incident-tracking collection anywhere in the app yet — this
+  // is an honest empty state rather than a fabricated incident list.
   void _showIncidentDetails() {
     showModalBottomSheet(
       context: context,
@@ -132,7 +192,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'Active Incidents (3)',
+                  'Incident tracking',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -142,25 +202,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildDetailItem(
-              title: 'Negombo - Caregiver No-Show',
-              subtitle: 'Patient: Kamal Perera • Marked Urgent 25 min ago',
-              badge: 'URGENT',
-              badgeColor: incidentBorder,
-            ),
-            const SizedBox(height: 10),
-            _buildDetailItem(
-              title: 'Colombo 03 - Medication Dispute',
-              subtitle: 'Medication schedule timing discrepancy reported',
-              badge: 'MEDIUM',
-              badgeColor: Colors.orange,
-            ),
-            const SizedBox(height: 10),
-            _buildDetailItem(
-              title: 'Kandy - Payment Processing Glitch',
-              subtitle: 'Card escrow capture pending bank retry',
-              badge: 'LOW',
-              badgeColor: Colors.blueGrey,
+            const Text(
+              'Incident tracking isn\'t implemented yet — there\'s no data source to show here.',
+              style: TextStyle(color: Color(0xFFD4CDC3), fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 16),
           ],
@@ -178,117 +222,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  void _showUnfulfilledRequests() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF2C251D),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  // Opens Bookings pre-filtered to "Unfulfilled" and, once the admin comes
+  // back, makes sure the footer highlights Dashboard again (not Bookings).
+  void _openUnfulfilledBookings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AdminBookingsScreen(initialFilter: BookingFilter.unfulfilled),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.person_search_outlined, color: Color(0xFF81C784)),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Unfulfilled Match Requests (4)',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildDetailItem(
-              title: 'Galle - Dementia Specialist',
-              subtitle: 'Shift starts in 4 hours • 0 caregivers currently available',
-              badge: 'ALERT',
-              badgeColor: Colors.amber,
-            ),
-            const SizedBox(height: 10),
-            _buildDetailItem(
-              title: 'Battaramulla - Post-Surgery Rehab',
-              subtitle: 'Daily morning care needed • 2 candidates suggested',
-              badge: 'PENDING',
-              badgeColor: Colors.orangeAccent,
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailItem({
-    required String title,
-    required String subtitle,
-    required String badge,
-    required Color badgeColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF3B3329),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFFB5ADA2),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: badgeColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: badgeColor, width: 1),
-            ),
-            child: Text(
-              badge,
-              style: TextStyle(
-                color: badgeColor,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    ).then((_) => setState(() => _currentNavIndex = 0));
   }
 
   @override
@@ -358,11 +300,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
             ),
 
-            // "More" popup — pops out from the footer
+            // "More" popup — replaces the footer while open, so the footer's
+            // own tabs never show through underneath it.
             Positioned(
               left: 0,
               right: 0,
-              bottom: bottomNavHeight,
+              bottom: 0,
               child: IgnorePointer(
                 ignoring: !_showMoreMenu,
                 child: AnimatedSlide(
@@ -407,8 +350,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'CARELINK ADMIN',
                           style: TextStyle(
                             fontFamily: 'Quattrocento Sans',
@@ -418,10 +361,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             letterSpacing: 0.8,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Brian Kumara',
-                          style: TextStyle(
+                          _adminName,
+                          style: const TextStyle(
                             fontFamily: 'Quattrocento Sans',
                             fontSize: 26,
                             fontWeight: FontWeight.w700,
@@ -432,7 +375,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
 
-                  // Avatar BK with popup menu for logout
+                  // Avatar with popup menu for logout
                   GestureDetector(
                     onTap: _handleLogout,
                     child: Container(
@@ -442,10 +385,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         color: avatarBg,
                         shape: BoxShape.circle,
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'BK',
-                          style: TextStyle(
+                          _initialsFor(_adminName),
+                          style: const TextStyle(
                             fontFamily: 'Quattrocento Sans',
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -460,20 +403,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
               const SizedBox(height: 18),
 
-              // Two Stat Pill Cards
+              // Two Stat Pill Cards — GMV has no backing anywhere (billing
+              // was fully removed from this app), so it's shown as an
+              // honest "not tracked" state rather than a fabricated figure.
+              // The second pill shows a real, live count instead.
               Row(
                 children: [
                   Expanded(
                     child: _buildHeaderPill(
                       label: 'GMV this month',
-                      value: 'LKR 4.2M',
+                      value: 'Not tracked',
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildHeaderPill(
-                      label: 'GMV this month',
-                      value: 'LKR 4.2M',
+                      label: 'Bookings this month',
+                      value: _bookingsThisMonth?.toString() ?? '—',
                     ),
                   ),
                 ],
@@ -540,13 +486,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // 1. Incidents
+          // 1. Incidents — no incident-tracking data source exists anywhere
+          // in the app, so this honestly says so rather than showing a
+          // fabricated count.
           _buildAlertCard(
             bgColor: incidentBg,
             borderColor: incidentBorder,
-            title: '3 open incidents',
+            title: 'Incident tracking not available',
             titleColor: incidentTitle,
-            subtitle: '1 marked urgent · Negombo',
+            subtitle: 'Not implemented yet',
             subtitleColor: incidentSubtitle,
             icon: Icons.gpp_maybe_rounded,
             iconColor: const Color(0xFFB71C1C),
@@ -554,13 +502,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 8),
 
-          // 2. Documents
+          // 2. Documents — real count of caregivers who've submitted at
+          // least one document. There's no per-document review-status field
+          // anywhere, so the subtitle doesn't claim a turnaround time.
           _buildAlertCard(
             bgColor: docBg,
             borderColor: docBorder,
-            title: '12 documents to verify',
+            title: _docsSubmittedCount != null
+                ? '${_docsSubmittedCount!} caregivers with documents submitted'
+                : 'Loading document submissions…',
             titleColor: docTitle,
-            subtitle: 'Avg turnaround 6h 12min',
+            subtitle: 'Awaiting manual review',
             subtitleColor: docSubtitle,
             icon: Icons.folder_open_rounded,
             iconColor: docBorder,
@@ -568,17 +520,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 8),
 
-          // 3. Unfulfilled Requests
+          // 3. Unfulfilled Requests — real count of requests with no
+          // caregiver matched yet.
           _buildAlertCard(
             bgColor: requestBg,
             borderColor: requestBorder,
-            title: '4 unfulfilled requests',
+            title: _unfulfilledCount != null
+                ? '${_unfulfilledCount!} unfulfilled requests'
+                : 'Loading requests…',
             titleColor: requestTitle,
-            subtitle: 'No caregiver matched in 6h',
+            subtitle: 'No caregiver matched yet',
             subtitleColor: requestSubtitle,
             icon: Icons.groups_rounded,
             iconColor: requestBorder,
-            onTap: _showUnfulfilledRequests,
+            onTap: _openUnfulfilledBookings,
           ),
         ],
       ),
@@ -661,14 +616,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Expanded(
                 child: _buildOperationCard(
-                  value: '318',
+                  value: _activeCaregivers?.toString() ?? '—',
                   label: 'Active caregivers',
                 ),
               ),
               const SizedBox(width: 9),
               Expanded(
                 child: _buildOperationCard(
-                  value: '1,204',
+                  value: _activePatients?.toString() ?? '—',
                   label: 'Active patients',
                 ),
               ),
@@ -677,16 +632,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 9),
           Row(
             children: [
+              // No "matched at" timestamp is ever recorded anywhere in the
+              // schema, so match time can't be derived — honest "not
+              // tracked" state instead of a fabricated figure.
               Expanded(
                 child: _buildOperationCard(
-                  value: '14 min',
+                  value: 'Not tracked',
                   label: 'Avg match time',
                 ),
               ),
               const SizedBox(width: 9),
               Expanded(
                 child: _buildOperationCard(
-                  value: '4.7 ★',
+                  value: _avgRating != null
+                      ? (_ratingCount == 0
+                          ? 'No reviews'
+                          : '${_avgRating!.toStringAsFixed(1)} ★')
+                      : '—',
                   label: 'Avg rating',
                   valueColor: starGold,
                 ),
@@ -741,15 +703,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildBookingsChart() {
-    const barsData = [
-      {'day': 'M', 'height': 44.0, 'isWeekend': false},
-      {'day': 'T', 'height': 62.0, 'isWeekend': false},
-      {'day': 'W', 'height': 36.0, 'isWeekend': false},
-      {'day': 'T', 'height': 70.0, 'isWeekend': false},
-      {'day': 'F', 'height': 58.0, 'isWeekend': false},
-      {'day': 'S', 'height': 30.0, 'isWeekend': true},
-      {'day': 'S', 'height': 24.0, 'isWeekend': true},
-    ];
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // Mon..Sun
+    final counts = _weekdayBookingCounts;
+    final maxCount = counts == null
+        ? 0
+        : counts.values.fold<int>(0, (a, b) => a > b ? a : b);
+
+    final barsData = List.generate(7, (i) {
+      final weekday = i + 1; // 1=Mon..7=Sun
+      final count = counts?[weekday] ?? 0;
+      final height = counts == null
+          ? 4.0
+          : (maxCount == 0 ? 4.0 : (count / maxCount) * 70.0).clamp(4.0, 70.0);
+      return {
+        'day': dayLabels[i],
+        'height': height,
+        'isWeekend': weekday == 6 || weekday == 7,
+      };
+    });
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -800,9 +771,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildBottomNav() {
     final items = [
-      {'label': 'Dashboard', 'icon': Icons.insights_rounded},
+      {'label': 'Dashboard', 'icon': Icons.home_rounded},
       {'label': 'Users', 'icon': Icons.people_alt_outlined},
-      {'label': 'Bookings', 'icon': Icons.calendar_month_outlined},
+      {'label': 'Bookings', 'icon': Icons.event_available_outlined},
       {'label': 'Finance', 'icon': Icons.account_balance_wallet_outlined},
       {'label': 'More', 'icon': Icons.more_horiz_rounded},
     ];
@@ -835,17 +806,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   // Users tab — show the Select User picker first
                   _showSelectUserSheet();
                 } else if (index == 2) {
-                  // Bookings tab
+                  // Bookings tab — defaults to the Active section
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
-                  );
+                    MaterialPageRoute(
+                      builder: (_) => const AdminBookingsScreen(initialFilter: BookingFilter.active),
+                    ),
+                  ).then((_) => setState(() => _currentNavIndex = 0));
                 } else if (index == 3) {
                   // Finance tab
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-                  );
+                  ).then((_) => setState(() => _currentNavIndex = 0));
                 }
               }
             },
@@ -894,13 +867,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       } else if (navIndex == 2) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const AdminBookingsScreen()),
-        );
+          MaterialPageRoute(
+            builder: (_) => const AdminBookingsScreen(initialFilter: BookingFilter.active),
+          ),
+        ).then((_) => setState(() => _currentNavIndex = 0));
       } else if (navIndex == 3) {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AdminFinanceScreen()),
-        );
+        ).then((_) => setState(() => _currentNavIndex = 0));
       }
     } else if (comingSoonLabel == 'Review') {
       Navigator.push(
@@ -1068,23 +1043,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Woman avatar illustration
-                  Container(
+                  // Woman avatar illustration — same asset used on the
+                  // "who needs care" sheet, matching Figma node 683:706.
+                  Image.asset(
+                    'assets/images/who_needs_care_avatar.png',
                     width: 68,
                     height: 68,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFF4A6C2), Color(0xFFE07FA0)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: 40,
-                    ),
                   ),
                   const SizedBox(height: 14),
                   // Title
@@ -1153,14 +1117,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           MaterialPageRoute(
                             builder: (_) => const AdminCaregiversScreen(),
                           ),
-                        );
+                        ).then((_) => setState(() => _currentNavIndex = 0));
                       } else {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => const AdminPatientsScreen(),
                           ),
-                        );
+                        ).then((_) => setState(() => _currentNavIndex = 0));
                       }
                     },
                     child: Container(
@@ -1190,7 +1154,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           },
         );
       },
-    );
+    ).then((_) => setState(() => _currentNavIndex = 0));
   }
 
   Widget _buildUserTypeOption({

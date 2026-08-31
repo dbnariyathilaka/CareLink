@@ -5,7 +5,7 @@ import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver Onboarding — Step 1 of 6
+//  Caregiver Onboarding — Step 1 of 7
 //  Figma node: 423-148 · "What care do you offer?"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding1Screen extends StatefulWidget {
@@ -166,7 +166,7 @@ class _CaregiverOnboarding1ScreenState
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                   const Text(
-                    'Step 1 of 6',
+                    'Step 1 of 7',
                     style: TextStyle(
                       fontFamily: 'Open Sans',
                       color: fieldLabel,
@@ -177,7 +177,7 @@ class _CaregiverOnboarding1ScreenState
                 ],
               ),
               const SizedBox(height: 16),
-              _buildProgressBar(currentStep: 1, totalSteps: 6),
+              _buildProgressBar(currentStep: 1, totalSteps: 7),
               const SizedBox(height: 24),
               Expanded(
                 child: SingleChildScrollView(

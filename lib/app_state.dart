@@ -86,7 +86,7 @@ class AppState {
   }
 }
 
-/// Draft profile filled in across the 6-step caregiver onboarding wizard;
+/// Draft profile filled in across the 7-step caregiver onboarding wizard;
 /// written to Firestore (caregiverProfiles/{uid}) once, on the final step.
 class CaregiverOnboardingDraft {
   String gender = 'Male';
@@ -113,6 +113,15 @@ class CaregiverOnboardingDraft {
   String policeClearanceUrl = '';
   List<String> otherDocumentUrls = [];
 
+  // Payout details (onboarding step 6) — optional, since "Skip for now" is
+  // allowed; blank fields mean the caregiver hasn't set these up yet.
+  String bankName = '';
+  String bankCode = '';
+  String branchName = '';
+  String branchCode = '';
+  String accountNumber = '';
+  String accountHolderName = '';
+
   void reset() {
     gender = 'Male';
     yearsExperience = 5;
@@ -134,6 +143,12 @@ class CaregiverOnboardingDraft {
     certificateUrls = [];
     policeClearanceUrl = '';
     otherDocumentUrls = [];
+    bankName = '';
+    bankCode = '';
+    branchName = '';
+    branchCode = '';
+    accountNumber = '';
+    accountHolderName = '';
   }
 
   Map<String, dynamic> toMap() {
@@ -155,6 +170,12 @@ class CaregiverOnboardingDraft {
       if (certificateUrls.isNotEmpty) 'certificateUrls': certificateUrls,
       if (policeClearanceUrl.isNotEmpty) 'policeClearanceUrl': policeClearanceUrl,
       if (otherDocumentUrls.isNotEmpty) 'otherDocumentUrls': otherDocumentUrls,
+      if (bankName.isNotEmpty) 'bankName': bankName,
+      if (bankCode.isNotEmpty) 'bankCode': bankCode,
+      if (branchName.isNotEmpty) 'branchName': branchName,
+      if (branchCode.isNotEmpty) 'branchCode': branchCode,
+      if (accountNumber.isNotEmpty) 'accountNumber': accountNumber,
+      if (accountHolderName.isNotEmpty) 'accountHolderName': accountHolderName,
     };
   }
 }

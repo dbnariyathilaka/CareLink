@@ -9,7 +9,7 @@ import '../widgets/status_bar.dart';
 //  Caregiver Registration — "Profile set up!" celebration screen
 //  Figma node: 496-769
 //  Shown after the caregiver accepts the terms & conditions on
-//  the final onboarding step (step 6 of 6).
+//  the final onboarding step (step 7 of 7).
 // ─────────────────────────────────────────────────────────────
 class CaregiverRegistrationSuccessScreen extends StatefulWidget {
   const CaregiverRegistrationSuccessScreen({super.key});
