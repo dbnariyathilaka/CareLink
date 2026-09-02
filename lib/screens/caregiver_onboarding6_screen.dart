@@ -566,22 +566,42 @@ class _CaregiverOnboarding6ScreenState
     bool enabled = true,
     TextInputType? keyboardType,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: fieldBg,
-        border: Border.all(color: fieldBorder),
-        borderRadius: BorderRadius.circular(10),
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: keyboardType,
+      style: TextStyle(
+        fontFamily: 'Open Sans',
+        color: enabled ? fieldText : hintText,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
       ),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        keyboardType: keyboardType,
-        style: const TextStyle(fontFamily: 'Open Sans', color: fieldText, fontSize: 13, fontWeight: FontWeight.w600),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(fontFamily: 'Open Sans', color: hintText, fontSize: 13, fontWeight: FontWeight.w400),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(
+          fontFamily: 'Open Sans',
+          color: hintText,
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+        ),
+        filled: true,
+        fillColor: fieldBg,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: fieldBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: fieldBorder, width: 1.5),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: fieldBorder.withValues(alpha: 0.5)),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: fieldBorder),
         ),
       ),
     );

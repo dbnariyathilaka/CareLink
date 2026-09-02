@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
@@ -7,6 +7,8 @@ import '../services/review_service.dart';
 import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
 import 'admin_bookings_screen.dart';
+import 'admin_case_detail_screen.dart' show kMockIncidents;
+import 'admin_open_incidents_screen.dart';
 import 'admin_verification_queue_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -155,50 +157,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // There is no incident-tracking collection anywhere in the app yet — this
-  // is an honest empty state rather than a fabricated incident list.
-  void _showIncidentDetails() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF2C251D),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: incidentBorder.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.warning_amber_rounded, color: incidentBorder),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Incident tracking',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Incident tracking isn\'t implemented yet — there\'s no data source to show here.',
-              style: TextStyle(color: Color(0xFFD4CDC3), fontSize: 13, height: 1.4),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+  // Navigate to the Open Incidents list screen.
+  void _openIncidents() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AdminOpenIncidentsScreen(),
       ),
     );
   }
@@ -435,19 +399,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // 1. Incidents — no incident-tracking data source exists anywhere
-          // in the app, so this honestly says so rather than showing a
-          // fabricated count.
+          // 1. Incidents — static mock data (no Firestore collection yet).
           _buildAlertCard(
             bgColor: incidentBg,
             borderColor: incidentBorder,
-            title: 'Incident tracking not available',
+            title: '${kMockIncidents.length} open incidents',
             titleColor: incidentTitle,
-            subtitle: 'Not implemented yet',
+            subtitle: 'Tap to review and resolve',
             subtitleColor: incidentSubtitle,
             icon: Icons.gpp_maybe_rounded,
             iconColor: const Color(0xFFB71C1C),
-            onTap: _showIncidentDetails,
+            onTap: _openIncidents,
           ),
           const SizedBox(height: 8),
 
