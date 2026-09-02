@@ -9,6 +9,7 @@ import '../services/patient_service.dart';
 import '../services/profile_gate.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/patient_notification_badge.dart';
+import '../widgets/remote_or_local_image.dart';
 import '../widgets/request_sent_dialog.dart';
 import '../widgets/restart_match_dialog.dart';
 import '../widgets/status_bar.dart';
@@ -400,6 +401,7 @@ class _AdvancedMatchResultsScreenState
       BuildContext context, MatchResult m, List<Color> gradient) {
     final uid = m.caregiver['uid'] as String?;
     final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
+    final photoUrl = (m.caregiver['photoUrl'] as String?)?.trim();
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -452,16 +454,26 @@ class _AdvancedMatchResultsScreenState
                   color: Color.fromRGBO(241, 149, 149, 0.4),
                   shape: BoxShape.circle,
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  _initialsOf(name),
-                  style: const TextStyle(
-                    fontFamily: 'Open Sans',
-                    color: bestBorderRed,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                child: (photoUrl != null && photoUrl.isNotEmpty)
+                    ? ClipOval(
+                        child: RemoteOrLocalImage(
+                          source: photoUrl,
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          _initialsOf(name),
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: bestBorderRed,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -596,6 +608,7 @@ class _AdvancedMatchResultsScreenState
       List<Color> gradient) {
     final uid = m.caregiver['uid'] as String?;
     final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
+    final photoUrl = (m.caregiver['photoUrl'] as String?)?.trim();
     final fillFraction = (m.matchPercent / 100).clamp(0.08, 1.0);
     return Container(
       padding: const EdgeInsets.fromLTRB(15, 12, 12, 12),
@@ -650,16 +663,26 @@ class _AdvancedMatchResultsScreenState
                     colors: gradient,
                   ),
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  _initialsOf(name),
-                  style: const TextStyle(
-                    fontFamily: 'Open Sans',
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                child: (photoUrl != null && photoUrl.isNotEmpty)
+                    ? ClipOval(
+                        child: RemoteOrLocalImage(
+                          source: photoUrl,
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          _initialsOf(name),
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(

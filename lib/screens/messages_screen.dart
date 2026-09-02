@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/caregiver_service.dart';
+import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -59,6 +61,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  final Map<String, String?> _caregiverPhotos = {};
+
+  Future<String?> _resolveCaregiverPhoto(String? caregiverId) async {
+    if (caregiverId == null || caregiverId.isEmpty) return null;
+    if (_caregiverPhotos.containsKey(caregiverId)) return _caregiverPhotos[caregiverId];
+    final profile = await CaregiverService.getCaregiverProfile(caregiverId);
+    final photo = (profile?['photoUrl'] as String?)?.trim();
+    final result = (photo != null && photo.isNotEmpty) ? photo : null;
+    _caregiverPhotos[caregiverId] = result;
+    return result;
   }
 
   // Messaging is only meaningful once a booking has moved past a bare
@@ -147,25 +161,25 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   // ── Conversation row (real booking, honest "no messages yet") ──
-  Widget _buildRow(BuildContext context, Map<String, dynamic> booking, int index) {
-    final name = (booking['caregiverName'] as String?) ?? 'Caregiver';
-    final status = (booking['status'] as String?) ?? '';
-    final careType = booking['careType'] as String?;
-    final id = booking['id'] as String? ?? '';
-    final ref = id.length >= 6 ? id.substring(0, 6).toUpperCase() : id.toUpperCase();
+  Widget _buildRow(BuildContext context, Map<String, dynamic> doc, int index) {
+    final name = (doc['caregiverName'] as String?) ?? 'Caregiver';
+    final caregiverId = doc['caregiverId'] as String?;
+    final photoUrl = (doc['caregiverPhotoUrl'] as String?)?.trim();
+    final status = doc['status'] as String? ?? 'upcoming';
+    final careType = (doc['careType'] as String?) ?? 'Care session';
+    final bookingId = doc['id'] as String? ?? '';
+    final ref = bookingId.length >= 6 ? bookingId.substring(0, 6).toUpperCase() : bookingId.toUpperCase();
     final gradient = _avatarGradients[index % _avatarGradients.length];
 
-    return GestureDetector(
+    return InkWell(
       onTap: () => Navigator.pushNamed(
         context,
         '/chat',
         arguments: {
-          'caregiverId': booking['caregiverId'],
+          'bookingId': bookingId,
+          'caregiverId': caregiverId,
           'caregiverName': name,
-          'bookingId': id,
-          'careType': careType,
-          'startDate': booking['startDate'],
-          'endDate': booking['endDate'],
+          'caregiverPhotoUrl': photoUrl,
           'status': status,
         },
       ),
@@ -177,27 +191,73 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: gradient,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                _initialsFor(name),
-                style: const TextStyle(
-                  fontFamily: 'Open Sans',
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+            ClipOval(
+              child: (photoUrl != null && photoUrl.isNotEmpty)
+                  ? RemoteOrLocalImage(
+                      source: photoUrl,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                    )
+                  : (caregiverId != null && caregiverId.isNotEmpty)
+                      ? FutureBuilder<String?>(
+                          future: _resolveCaregiverPhoto(caregiverId),
+                          builder: (context, snap) {
+                            final photo = snap.data;
+                            if (photo != null && photo.isNotEmpty) {
+                              return RemoteOrLocalImage(
+                                source: photo,
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                              );
+                            }
+                            return Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: gradient,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                _initialsFor(name),
+                                style: const TextStyle(
+                                  fontFamily: 'Open Sans',
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: gradient,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _initialsFor(name),
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -232,8 +292,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    (booking['lastMessage'] as String?)?.isNotEmpty == true
-                        ? (booking['lastMessage'] as String)
+                    (doc['lastMessage'] as String?)?.isNotEmpty == true
+                        ? (doc['lastMessage'] as String)
                         : 'No messages yet',
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -247,7 +307,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   Text(
                     [
                       if (ref.isNotEmpty) 'Ref $ref',
-                      if (careType != null && careType.isNotEmpty) careType,
+                      if (careType.isNotEmpty) careType,
                     ].join(' · '),
                     style: const TextStyle(
                       fontFamily: 'Open Sans',
@@ -259,7 +319,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ],
               ),
             ),
-            if (((booking['patientUnreadCount'] as num?)?.toInt() ?? 0) > 0) ...[
+            if (((doc['patientUnreadCount'] as num?)?.toInt() ?? 0) > 0) ...[
               const SizedBox(width: 8),
               Container(
                 height: 20,
@@ -271,7 +331,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  '${booking['patientUnreadCount']}',
+                  '${doc['patientUnreadCount']}',
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     color: Colors.white,

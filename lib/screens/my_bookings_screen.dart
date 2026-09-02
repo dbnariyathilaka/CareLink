@@ -4,7 +4,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/caregiver_service.dart';
 import '../widgets/patient_notification_badge.dart';
+import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -21,7 +23,8 @@ class _Booking {
   final String initials;
   final String subtitle;
   final _BookingStatus status;
-  final bool isActiveNow;
+  final String? caregiverId;
+  final String? photoUrl;
   final int? ratingStars;
   final String? requestSentAgo;
   final String? startDate;
@@ -35,7 +38,8 @@ class _Booking {
     required this.initials,
     required this.subtitle,
     required this.status,
-    this.isActiveNow = false,
+    this.caregiverId,
+    this.photoUrl,
     this.ratingStars,
     this.requestSentAgo,
     this.startDate,
@@ -152,21 +156,60 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     return '${diff.inDays}d ago';
   }
 
+  final Map<String, String?> _caregiverPhotos = {};
+
+  Future<String?> _resolveCaregiverPhoto(String? caregiverId) async {
+    if (caregiverId == null || caregiverId.isEmpty) return null;
+    if (_caregiverPhotos.containsKey(caregiverId)) return _caregiverPhotos[caregiverId];
+    final profile = await CaregiverService.getCaregiverProfile(caregiverId);
+    final photo = (profile?['photoUrl'] as String?)?.trim();
+    final result = (photo != null && photo.isNotEmpty) ? photo : null;
+    _caregiverPhotos[caregiverId] = result;
+    return result;
+  }
+
   _Booking _bookingFromDoc(Map<String, dynamic> doc) {
     final name = doc['caregiverName'] as String? ?? 'Caregiver';
+    final caregiverId = doc['caregiverId'] as String?;
+    final photoUrl = (doc['caregiverPhotoUrl'] as String?)?.trim();
     final status = _statusFromString(doc['status'] as String? ?? 'requested');
     final createdAt = doc['createdAt'];
     final sentAgo = createdAt is Timestamp ? _timeAgo(createdAt.toDate()) : null;
     final cancellable = status == _BookingStatus.requested ||
         status == _BookingStatus.upcoming;
+    final onMessage = status != _BookingStatus.requested && status != _BookingStatus.cancelled
+        ? () => Navigator.pushNamed(
+              context,
+              '/patient-chat',
+              arguments: {
+                'bookingId': doc['id'],
+                'caregiverId': caregiverId,
+                'caregiverName': name,
+                'caregiverPhotoUrl': photoUrl,
+                'status': doc['status'],
+              },
+            )
+        : null;
+    final onRebook = caregiverId != null
+        ? () => Navigator.pushNamed(
+              context,
+              '/caregiver-profile',
+              arguments: {'caregiverId': caregiverId},
+            )
+        : null;
     return _Booking(
       caregiverName: name,
+      caregiverId: caregiverId,
+      photoUrl: photoUrl,
       initials: _initialsFor(name),
       subtitle: doc['careType'] as String? ?? '',
       status: status,
+      ratingStars: (doc['rating'] as num?)?.toInt(),
       requestSentAgo: sentAgo,
       startDate: doc['startDate'] as String?,
       startTime: doc['startTime'] as String?,
+      onMessage: onMessage,
+      onRebook: onRebook,
       onCancel: cancellable ? () => _showRequestDetailsDialog(doc) : null,
     );
   }
@@ -778,25 +821,69 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: style.avatarColor,
-                  gradient: style.avatarGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    b.initials,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: style.avatarTextColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+              ClipOval(
+                child: (b.photoUrl != null && b.photoUrl!.isNotEmpty)
+                    ? RemoteOrLocalImage(
+                        source: b.photoUrl!,
+                        width: 42,
+                        height: 42,
+                        fit: BoxFit.cover,
+                      )
+                    : (b.caregiverId != null && b.caregiverId!.isNotEmpty)
+                        ? FutureBuilder<String?>(
+                            future: _resolveCaregiverPhoto(b.caregiverId),
+                            builder: (context, snap) {
+                              final photo = snap.data;
+                              if (photo != null && photo.isNotEmpty) {
+                                return RemoteOrLocalImage(
+                                  source: photo,
+                                  width: 42,
+                                  height: 42,
+                                  fit: BoxFit.cover,
+                                );
+                              }
+                              return Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: style.avatarColor,
+                                  gradient: style.avatarGradient,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    b.initials,
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: style.avatarTextColor,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: style.avatarColor,
+                              gradient: style.avatarGradient,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                b.initials,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: style.avatarTextColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
               ),
               const SizedBox(width: 11),
               Expanded(

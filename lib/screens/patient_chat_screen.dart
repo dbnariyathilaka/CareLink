@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'call_screen.dart';
 import '../services/auth_service.dart';
+import '../services/caregiver_service.dart';
 import '../services/chat_service.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
+import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -75,6 +77,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   }
 
   String get _caregiverName => (_args['caregiverName'] as String?) ?? 'Caregiver';
+  String? get _photoUrl => (_args['caregiverPhotoUrl'] as String?)?.trim();
+  String? get _caregiverId => _args['caregiverId'] as String?;
 
   String get _initials {
     final parts = _caregiverName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
@@ -208,27 +212,73 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 17),
             ),
           ),
-          Container(
-            width: 38,
-            height: 38,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _initials,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                color: Color(0xFF42413F),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+          ClipOval(
+            child: (_photoUrl != null && _photoUrl!.isNotEmpty)
+                ? RemoteOrLocalImage(
+                    source: _photoUrl!,
+                    width: 38,
+                    height: 38,
+                    fit: BoxFit.cover,
+                  )
+                : (_caregiverId != null && _caregiverId!.isNotEmpty)
+                    ? FutureBuilder<Map<String, dynamic>?>(
+                        future: CaregiverService.getCaregiverProfile(_caregiverId!),
+                        builder: (context, snap) {
+                          final pUrl = (snap.data?['photoUrl'] as String?)?.trim();
+                          if (pUrl != null && pUrl.isNotEmpty) {
+                            return RemoteOrLocalImage(
+                              source: pUrl,
+                              width: 38,
+                              height: 38,
+                              fit: BoxFit.cover,
+                            );
+                          }
+                          return Container(
+                            width: 38,
+                            height: 38,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _initials,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                color: Color(0xFF42413F),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        width: 38,
+                        height: 38,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          _initials,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            color: Color(0xFF42413F),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
           ),
           const SizedBox(width: 11),
           Expanded(

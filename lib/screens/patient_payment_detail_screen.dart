@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../widgets/remote_or_local_image.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Patient Payment Detail Screen ("view booking payment")
@@ -98,6 +99,7 @@ class PatientPaymentDetailScreen extends StatelessWidget {
     final authorizedByName = payment['authorizedByName'] as String?;
     final authorizedAt = payment['authorizedAt'];
     final authorizedAtLabel = authorizedAt is Timestamp ? _formatTime(authorizedAt.toDate()) : null;
+    final photoUrl = (payment['caregiverPhotoUrl'] as String?)?.trim() ?? (payment['photoUrl'] as String?)?.trim();
 
     return Scaffold(
       backgroundColor: bgCream,
@@ -149,7 +151,6 @@ class PatientPaymentDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    // ── Caregiver row ────────────────────────────────
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(color: caregiverCardBg, borderRadius: BorderRadius.circular(14)),
@@ -159,8 +160,26 @@ class PatientPaymentDetailScreen extends StatelessWidget {
                             width: 40,
                             height: 40,
                             decoration: const BoxDecoration(color: darkGreen, shape: BoxShape.circle),
-                            alignment: Alignment.center,
-                            child: Text(_initialsFor(caregiverName), style: const TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                            child: (photoUrl != null && photoUrl.isNotEmpty)
+                                ? ClipOval(
+                                    child: RemoteOrLocalImage(
+                                      source: photoUrl,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      _initialsFor(caregiverName),
+                                      style: const TextStyle(
+                                        fontFamily: 'Open Sans',
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(

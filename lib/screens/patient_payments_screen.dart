@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data/care_type_skill_map.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
+import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 import 'patient_payment_detail_screen.dart';
 import 'patient_refund_detail_screen.dart';
@@ -546,56 +547,58 @@ class _PatientPaymentsScreenState extends State<PatientPaymentsScreen> {
       _sortOrder != _SortOrder.newest;
 
   Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: chipBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: chipBorder.withValues(alpha: 0.4)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.search_rounded, color: darkGreen, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(fontFamily: 'Open Sans', color: darkGreen, fontSize: 13),
-              decoration: const InputDecoration(
-                hintText: 'Caregiver, transaction ID or amount',
-                hintStyle: TextStyle(fontFamily: 'Open Sans', color: Color(0xFF6E6F72), fontSize: 12),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: _showFilterSheet,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.tune_rounded, color: darkGreen, size: 20),
-                  if (_hasActiveFilters)
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(color: Color(0xFFF5B301), shape: BoxShape.circle),
-                      ),
+    return TextField(
+      controller: _searchController,
+      style: const TextStyle(fontFamily: 'Open Sans', color: darkGreen, fontSize: 13),
+      decoration: InputDecoration(
+        hintText: 'Caregiver, transaction ID or amount',
+        hintStyle: const TextStyle(fontFamily: 'Open Sans', color: Color(0xFF6E6F72), fontSize: 12),
+        filled: true,
+        fillColor: chipBg,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
+        prefixIcon: const Icon(Icons.search_rounded, color: darkGreen, size: 20),
+        prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        suffixIcon: GestureDetector(
+          onTap: _showFilterSheet,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.tune_rounded, color: darkGreen, size: 20),
+                if (_hasActiveFilters)
+                  Positioned(
+                    right: -2,
+                    top: 8,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(color: Color(0xFFF5B301), shape: BoxShape.circle),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
-        ],
+        ),
+        suffixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: chipBorder.withValues(alpha: 0.4)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: chipBorder.withValues(alpha: 0.7)),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: chipBorder.withValues(alpha: 0.4)),
+        ),
       ),
     );
   }
+
 
   Widget _buildSummaryCard() {
     final completed = _monthPayments.where((p) => p['status'] == 'completed').toList();
@@ -720,6 +723,7 @@ class _PatientPaymentsScreenState extends State<PatientPaymentsScreen> {
     final cardLast4 = p['cardLast4'] as String?;
     final failureReason = p['failureReason'] as String?;
     final refundEtaLabel = p['refundEtaLabel'] as String?;
+    final photoUrl = (p['caregiverPhotoUrl'] as String?)?.trim() ?? (p['photoUrl'] as String?)?.trim();
 
     final subtitleParts = [
       if (careType.isNotEmpty) careType,
@@ -745,8 +749,26 @@ class _PatientPaymentsScreenState extends State<PatientPaymentsScreen> {
                 width: 40,
                 height: 40,
                 decoration: const BoxDecoration(color: Color(0xFF06402B), shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: Text(_initialsFor(name), style: const TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                child: (photoUrl != null && photoUrl.isNotEmpty)
+                    ? ClipOval(
+                        child: RemoteOrLocalImage(
+                          source: photoUrl,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          _initialsFor(name),
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 10),
               Expanded(

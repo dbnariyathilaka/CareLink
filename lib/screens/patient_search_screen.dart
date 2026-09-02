@@ -458,6 +458,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
             .take(2)
             .join()
             .toUpperCase();
+    final photoUrl = (c['photoUrl'] as String?)?.trim();
     final city = c['city'] as String?;
     final careTypes = (c['careTypes'] as List?)?.cast<String>() ?? [];
     final yearsExperience = c['yearsExperience'] as int?;
@@ -483,17 +484,26 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                   shape: BoxShape.circle,
                   color: Color(0xFFE9C368),
                 ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: const TextStyle(
-                      fontFamily: 'Quattrocento Sans',
-                      color: darkGreen,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                child: (photoUrl != null && photoUrl.isNotEmpty)
+                    ? ClipOval(
+                        child: RemoteOrLocalImage(
+                          source: photoUrl,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontFamily: 'Quattrocento Sans',
+                            color: darkGreen,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(

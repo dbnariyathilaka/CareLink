@@ -38,6 +38,17 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   List<Map<String, dynamic>> _bookings = [];
 
   List<Map<String, dynamic>> _savedCaregivers = [];
+  final Map<String, String?> _caregiverPhotos = {};
+
+  Future<String?> _resolveCaregiverPhoto(String? uid) async {
+    if (uid == null || uid.isEmpty) return null;
+    if (_caregiverPhotos.containsKey(uid)) return _caregiverPhotos[uid];
+    final profile = await CaregiverService.getCaregiverProfile(uid);
+    final photo = (profile?['photoUrl'] as String?)?.trim();
+    final result = (photo != null && photo.isNotEmpty) ? photo : null;
+    _caregiverPhotos[uid] = result;
+    return result;
+  }
 
   // Real-time ETA from OSRM (only when caregiver has liveLocation)
   int? _etaMinutes;
@@ -626,22 +637,38 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
       child: Row(
         children: [
           // Caregiver avatar
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAE48B),
-              borderRadius: BorderRadius.circular(25),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _initialsOf(caregiverName),
-              style: const TextStyle(
-                fontFamily: 'Quattrocento Sans',
-                color: Color(0xFF44331C),
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+          ClipOval(
+            child: FutureBuilder<String?>(
+              future: _resolveCaregiverPhoto(caregiverId),
+              builder: (context, snap) {
+                final photoUrl = (booking['caregiverPhotoUrl'] as String?)?.trim() ?? snap.data;
+                if (photoUrl != null && photoUrl.isNotEmpty) {
+                  return RemoteOrLocalImage(
+                    source: photoUrl,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  );
+                }
+                return Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFAE48B),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _initialsOf(caregiverName),
+                    style: const TextStyle(
+                      fontFamily: 'Quattrocento Sans',
+                      color: Color(0xFF44331C),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(width: 12),
@@ -1150,6 +1177,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   Widget _buildTopMatchCard(MatchResult m) {
     final uid = m.caregiver['uid'] as String?;
     final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
+    final photoUrl = (m.caregiver['photoUrl'] as String?)?.trim();
     final years = m.caregiver['yearsExperience'];
     final careType = m.caregiver['careType'] as String? ??
         (m.caregiver['careTypes'] as List?)?.firstOrNull as String? ?? '';
@@ -1183,7 +1211,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Gradient avatar
+              // Avatar
               Container(
                 width: 42,
                 height: 42,
@@ -1195,16 +1223,27 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                     colors: [Color(0xFF8B653E), Color(0xFF624410)],
                   ),
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  _initialsOf(name),
-                  style: const TextStyle(
-                    fontFamily: 'Open Sans',
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                child: (photoUrl != null && photoUrl.isNotEmpty)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(7),
+                        child: RemoteOrLocalImage(
+                          source: photoUrl,
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          _initialsOf(name),
+                          style: const TextStyle(
+                            fontFamily: 'Open Sans',
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 10),
               // Name + subtitle
@@ -1412,6 +1451,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
           ..._savedCaregivers.map((cg) {
             final name = (cg['name'] as String?) ?? '';
             final uid = cg['uid'] as String?;
+            final photoUrl = (cg['photoUrl'] as String?)?.trim();
             final firstName =
                 name.trim().split(' ').firstOrNull ?? name;
             return GestureDetector(
@@ -1431,16 +1471,26 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                         color: Color(0xFFDDD5C8),
                         shape: BoxShape.circle,
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        _initialsOf(name),
-                        style: const TextStyle(
-                          fontFamily: 'Open Sans',
-                          color: Color(0xFF4A4029),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: (photoUrl != null && photoUrl.isNotEmpty)
+                          ? ClipOval(
+                              child: RemoteOrLocalImage(
+                                source: photoUrl,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                _initialsOf(name),
+                                style: const TextStyle(
+                                  fontFamily: 'Open Sans',
+                                  color: Color(0xFF4A4029),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 5),
                     Text(

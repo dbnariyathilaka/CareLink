@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
 import '../services/review_service.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
 class CaregiverProfileScreen extends StatefulWidget {
@@ -157,6 +158,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   // ── Avatar + name + subtitle + availability badge ─────────
   Widget _buildProfileHeader() {
     final name = (_caregiver?['name'] as String?)?.trim() ?? '';
+    final photoUrl = (_caregiver?['photoUrl'] as String?)?.trim();
     final initials = name.isEmpty
         ? '?'
         : name
@@ -186,17 +188,26 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
               shape: BoxShape.circle,
               color: Color(0xFF94A3B8),
             ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  color: Color(0xFF20385B),
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            child: (photoUrl != null && photoUrl.isNotEmpty)
+                ? ClipOval(
+                    child: RemoteOrLocalImage(
+                      source: photoUrl,
+                      width: 76,
+                      height: 76,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF20385B),
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
           ),
           const SizedBox(height: 10),
           Text(
