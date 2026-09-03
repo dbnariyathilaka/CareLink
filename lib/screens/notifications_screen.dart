@@ -6,8 +6,10 @@ import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/notification_badge_service.dart';
+import '../services/payment_service.dart';
 import '../widgets/patient_notification_badge.dart';
 import '../widgets/status_bar.dart';
+import 'patient_payment_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Notifications Screen  (Patient)
@@ -17,13 +19,14 @@ import '../widgets/status_bar.dart';
 //  "Booking accepted", "Shift starting soon", and "Caregiver is on the way"
 //  are all derived live from each real booking's status/start time vs. the
 //  current clock (re-checked every 30s while this screen is open).
-//  "Payment completed" is built the same way but stays dormant — nothing
-//  writes `paymentStatus` yet since billing doesn't exist in this app; it's
-//  ready to activate once that field is real. "Booking accepted" mentions
-//  payment and shows a "Pay here" button per the Figma design, but that
-//  button is dormant too (an honest "not available yet" message) for the
-//  same reason. Other types (declined/reached out) still have no producing
-//  backend and won't appear yet.
+//  "Payment completed" fires once `paymentStatus` on the booking is 'paid'.
+//  "Booking accepted"'s "Pay here" button opens a sandbox PayHere-style
+//  checkout (PayhereCheckoutScreen) — there's no real payment gateway wired
+//  up, so it simulates a charge rather than moving real money, but it
+//  writes a real `payments` document and a real `paymentStatus: 'paid'` on
+//  the booking, which is what flips this card over to "Payment completed".
+//  Other types (declined/reached out) still have no producing backend and
+//  won't appear yet.
 // ─────────────────────────────────────────────────────────────
 
 enum _NotificationCategory { booking, reminder, system }
@@ -228,6 +231,24 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return '${diff.inDays}d ago';
   }
 
+  Future<void> _openReceipt(BuildContext context, String? bookingId) async {
+    if (bookingId == null) return;
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) return;
+    final payment = await PaymentService.getPaymentForBooking(bookingId, uid);
+    if (!context.mounted) return;
+    if (payment == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Receipt not found.'), duration: Duration(seconds: 2)),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PatientPaymentDetailScreen(payment: payment)),
+    );
+  }
+
   List<_AppNotification> _deriveNotifications(List<Map<String, dynamic>> bookings) {
     final now = DateTime.now();
     final result = <_AppNotification>[];
@@ -255,15 +276,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             _NotificationAction(
               'Receipt',
               isPrimary: true,
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Receipts aren\'t available yet.'), duration: Duration(seconds: 2)),
-              ),
+              onTap: () => _openReceipt(context, b['id'] as String?),
             ),
             _NotificationAction(
               'Payment history',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Payment history isn\'t available yet.'), duration: Duration(seconds: 2)),
-              ),
+              onTap: () => Navigator.pushNamed(context, '/payments'),
             ),
           ],
         ));
@@ -272,6 +289,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       final status = b['status'] as String?;
       if (status != 'confirmed') continue;
       if (b['arrivalConfirmed'] == true) continue;
+      // Already paid — the payment-completed card above covers it, don't
+      // also show the "please complete the payment" card underneath it.
+      if (b['paymentStatus'] == 'paid') continue;
       final shiftStart = _parseShiftStart(b['startDate'] as String?, b['startTime'] as String?);
       if (shiftStart == null) continue;
 
@@ -285,10 +305,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       // that isn't yet close enough to its shift start to become "starting
       // soon". No push backend exists, so this is derived the same way as
       // the other two states below: from real booking fields, re-evaluated
-      // live rather than a one-off pushed event. Billing doesn't exist in
-      // this app yet, so "Pay here" is dormant — same honest pattern as
-      // Receipt/Payment history on the payment-completed card below — it
-      // shows real, not a fake payment flow.
+      // live rather than a one-off pushed event.
       if (now.isBefore(shiftStart.subtract(const Duration(minutes: 10)))) {
         final respondedAt = b['respondedAt'];
         final timeAgo = respondedAt is Timestamp ? _timeAgoFrom(respondedAt.toDate()) : 'just now';
@@ -310,9 +327,22 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
             _NotificationAction(
               'Pay here',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Payments aren\'t available yet.'), duration: Duration(seconds: 2)),
-              ),
+              onTap: bookingId == null
+                  ? null
+                  : () => Navigator.pushNamed(
+                        context,
+                        '/payhere-checkout',
+                        arguments: {
+                          'bookingId': bookingId,
+                          'caregiverId': caregiverId,
+                          'caregiverName': caregiverName,
+                          'careType': careType,
+                          // No hourly rate is stored on a booking yet — this
+                          // matches the flat per-booking estimate the
+                          // caregiver dashboard already uses elsewhere.
+                          'amount': 5000,
+                        },
+                      ),
             ),
           ],
         ));

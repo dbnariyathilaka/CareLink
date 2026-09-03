@@ -119,15 +119,31 @@ class CaregiverBottomNav extends StatelessWidget {
 
 /// Real unread count (see NotificationBadgeService) shown in red above the
 /// bell — never a fixed/fake number, and hidden entirely at 0.
-class _NotificationIconWithBadge extends StatelessWidget {
+class _NotificationIconWithBadge extends StatefulWidget {
   final String uid;
   final Widget icon;
   const _NotificationIconWithBadge({required this.uid, required this.icon});
 
   @override
+  State<_NotificationIconWithBadge> createState() => _NotificationIconWithBadgeState();
+}
+
+class _NotificationIconWithBadgeState extends State<_NotificationIconWithBadge> {
+  // Created once per mount rather than inline in build() — this widget
+  // lives inside CaregiverBottomNav, which every caregiver screen rebuilds
+  // often (timers, stream updates elsewhere on the same screen); recreating
+  // the stream on each of those rebuilds meant spinning up 3 fresh Firestore
+  // listeners (users/{uid}, bookings, reviews) every time, all left for
+  // StreamBuilder to reconcile away — multiplying exactly the kind of
+  // still-live listener that errors loudly if logout revokes the auth
+  // token while one of them hasn't been torn down yet.
+  late final Stream<int> _unreadCount = NotificationBadgeService.caregiverUnreadCount(widget.uid);
+
+  @override
   Widget build(BuildContext context) {
+    final icon = widget.icon;
     return StreamBuilder<int>(
-      stream: NotificationBadgeService.caregiverUnreadCount(uid),
+      stream: _unreadCount,
       builder: (context, snap) {
         final count = snap.data ?? 0;
         return Stack(

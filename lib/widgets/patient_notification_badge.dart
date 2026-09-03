@@ -8,7 +8,7 @@ import '../services/notification_badge_service.dart';
 /// number, and hidden entirely at 0. Each patient screen currently draws
 /// its own bottom nav rather than sharing one widget, so this is dropped
 /// into each of them individually rather than requiring a bigger refactor.
-class PatientNotificationIconWithBadge extends StatelessWidget {
+class PatientNotificationIconWithBadge extends StatefulWidget {
   final Widget icon;
   final Color badgeBorderColor;
 
@@ -19,12 +19,37 @@ class PatientNotificationIconWithBadge extends StatelessWidget {
   });
 
   @override
+  State<PatientNotificationIconWithBadge> createState() => _PatientNotificationIconWithBadgeState();
+}
+
+class _PatientNotificationIconWithBadgeState extends State<PatientNotificationIconWithBadge> {
+  // Created once per mount, not inline in build() — every patient screen
+  // draws its own bottom nav (no shared widget on this side), so recreating
+  // the stream on each rebuild meant a fresh pair of Firestore listeners
+  // (users/{uid}, bookings) spun up repeatedly across many screens at once,
+  // which is exactly the kind of still-live listener that throws a
+  // permission-denied error if logout revokes the auth token before one of
+  // them has been torn down.
+  String? _uid;
+  Stream<int>? _unreadCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _uid = AuthService.currentUser?.uid;
+    if (_uid != null) {
+      _unreadCount = NotificationBadgeService.patientUnreadCount(_uid!);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final uid = AuthService.currentUser?.uid;
-    if (uid == null) return icon;
+    final icon = widget.icon;
+    final badgeBorderColor = widget.badgeBorderColor;
+    if (_unreadCount == null) return icon;
 
     return StreamBuilder<int>(
-      stream: NotificationBadgeService.patientUnreadCount(uid),
+      stream: _unreadCount,
       builder: (context, snap) {
         final count = snap.data ?? 0;
         return Stack(

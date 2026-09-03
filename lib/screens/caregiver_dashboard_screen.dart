@@ -61,7 +61,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
   String _caregiverName = 'Caregiver';
   Stream<List<Map<String, dynamic>>>? _bookingsStream;
   Stream<List<Map<String, dynamic>>>? _reviewsStream;
-  final Map<String, String> _patientNames = {};
+  final Map<String, ({String name, String? photoUrl})> _patientInfo = {};
   Timer? _tickTimer;
 
   @override
@@ -110,16 +110,30 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     }
   }
 
-  Future<String> _resolvePatientName(String? patientUid) async {
-    if (patientUid == null) return 'a patient';
-    final cached = _patientNames[patientUid];
+  Future<({String name, String? photoUrl})> _resolvePatientInfo(String? patientUid) async {
+    if (patientUid == null) return (name: 'a patient', photoUrl: null);
+    final cached = _patientInfo[patientUid];
     if (cached != null) return cached;
+    // getPatientName falls back to users/{uid} when the patient hasn't
+    // filled in their patientProfiles document yet (e.g. sent a booking
+    // request before completing onboarding) — a bare patientProfiles
+    // lookup alone left the card showing the literal "a patient" fallback.
+    final name = await PatientService.getPatientName(patientUid, fallback: 'a patient');
     final profile = await PatientService.getPatientProfile(patientUid);
-    final name = (profile?['name'] as String?)?.trim();
-    final resolved = name != null && name.isNotEmpty ? name : 'a patient';
-    _patientNames[patientUid] = resolved;
+    final photoUrl = (profile?['photoUrl'] as String?)?.trim();
+    final resolved = (name: name, photoUrl: photoUrl != null && photoUrl.isNotEmpty ? photoUrl : null);
+    _patientInfo[patientUid] = resolved;
     if (mounted) setState(() {});
     return resolved;
+  }
+
+  String _titleCase(String name) {
+    return name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
   }
 
   String _initialsOf(String name) {
@@ -422,7 +436,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                       style: TextStyle(fontFamily: 'Quattrocento Sans', color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
                     ),
                     Text(
-                      _caregiverName,
+                      _titleCase(_caregiverName),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontFamily: 'Quattrocento Sans', color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700),
@@ -644,11 +658,11 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                   children: [
                     const Text('Currently on duty', style: TextStyle(fontFamily: 'Open Sans', color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
-                    FutureBuilder<String>(
-                      future: _resolvePatientName(booking['patientUid'] as String?),
+                    FutureBuilder<({String name, String? photoUrl})>(
+                      future: _resolvePatientInfo(booking['patientUid'] as String?),
                       builder: (context, snap) {
                         return Text(
-                          'Caring for ${snap.data ?? 'a patient'}',
+                          'Caring for ${snap.data?.name ?? 'a patient'}',
                           style: const TextStyle(fontFamily: 'Open Sans', color: Color.fromRGBO(255, 255, 255, 0.85), fontSize: 10, fontWeight: FontWeight.w600),
                         );
                       },
@@ -696,16 +710,19 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
       decoration: BoxDecoration(color: scheduleCardBg, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
-          FutureBuilder<String>(
-            future: _resolvePatientName(booking['patientUid'] as String?),
+          FutureBuilder<({String name, String? photoUrl})>(
+            future: _resolvePatientInfo(booking['patientUid'] as String?),
             builder: (context, snap) {
-              final name = snap.data ?? 'Patient';
+              final name = snap.data?.name ?? 'Patient';
+              final photoUrl = snap.data?.photoUrl;
               return Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(color: avatarColor, shape: BoxShape.circle),
                 alignment: Alignment.center,
-                child: Text(_initialsOf(name), style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                child: photoUrl != null
+                    ? ClipOval(child: RemoteOrLocalImage(source: photoUrl, width: 40, height: 40))
+                    : Text(_initialsOf(name), style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
               );
             },
           ),
@@ -714,10 +731,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                FutureBuilder<String>(
-                  future: _resolvePatientName(booking['patientUid'] as String?),
+                FutureBuilder<({String name, String? photoUrl})>(
+                  future: _resolvePatientInfo(booking['patientUid'] as String?),
                   builder: (context, snap) => Text(
-                    snap.data ?? 'Patient',
+                    snap.data?.name ?? 'Patient',
                     style: const TextStyle(fontFamily: 'Open Sans', color: scheduleName, fontSize: 13, fontWeight: FontWeight.w700),
                   ),
                 ),

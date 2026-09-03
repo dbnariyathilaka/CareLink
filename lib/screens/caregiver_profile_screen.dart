@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
+import '../services/patient_service.dart';
 import '../services/review_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/remote_or_local_image.dart';
@@ -34,6 +36,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   bool _loading = true;
   bool _loadedArgs = false;
   Stream<List<Map<String, dynamic>>>? _reviewsStream;
+  final Map<String, String> _patientNames = {};
 
   @override
   void didChangeDependencies() {
@@ -87,30 +90,30 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                             )
                           : SingleChildScrollView(
                               padding: const EdgeInsets.fromLTRB(22, 6, 22, 110),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildProfileHeader(),
-                                  const SizedBox(height: 18),
-                                  _buildStatsRow(),
-                                  if (_matchBreakdown != null) ...[
-                                    const SizedBox(height: 16),
-                                    _buildMatchBreakdownCard(),
-                                  ],
-                                  const SizedBox(height: 20),
-                                  _buildSkillsSection(),
-                                  const SizedBox(height: 20),
-                                  _buildAboutSection(),
-                                  const SizedBox(height: 20),
-                                  StreamBuilder<List<Map<String, dynamic>>>(
-                                    stream: _reviewsStream,
-                                    builder: (context, snapshot) {
-                                      final reviews = snapshot.data ?? const [];
-                                      return _buildReviewsSection(context, reviews);
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                ],
+                              child: StreamBuilder<List<Map<String, dynamic>>>(
+                                stream: _reviewsStream,
+                                builder: (context, snapshot) {
+                                  final reviews = snapshot.data ?? const [];
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildProfileHeader(),
+                                      const SizedBox(height: 18),
+                                      _buildStatsRow(reviews),
+                                      if (_matchBreakdown != null) ...[
+                                        const SizedBox(height: 16),
+                                        _buildMatchBreakdownCard(),
+                                      ],
+                                      const SizedBox(height: 20),
+                                      _buildSkillsSection(),
+                                      const SizedBox(height: 20),
+                                      _buildAboutSection(),
+                                      const SizedBox(height: 20),
+                                      _buildReviewsSection(context, reviews),
+                                      const SizedBox(height: 8),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                 ),
@@ -269,10 +272,19 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     );
   }
 
+  double? _avgRating(List<Map<String, dynamic>> reviews) {
+    final ratings = reviews
+        .map((r) => (r['rating'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList();
+    if (ratings.isEmpty) return null;
+    return ratings.reduce((a, b) => a + b) / ratings.length;
+  }
+
   // ── Stat boxes: years exp, rating, jobs done ──────────────
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(List<Map<String, dynamic>> reviews) {
     final yearsExperience = _caregiver?['yearsExperience'];
-    final rating = _caregiver?['rating'];
+    final avgRating = _avgRating(reviews);
     final jobsDone = _caregiver?['jobsDone'];
     return Row(
       children: [
@@ -286,7 +298,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
         const SizedBox(width: 10),
         Expanded(
           child: _statBox(
-            rating?.toString() ?? '—',
+            avgRating == null ? '—' : avgRating.toStringAsFixed(1),
             'Rating',
             valueColor: const Color(0xFFE04913),
           ),
@@ -517,11 +529,10 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   // ── Reviews section ───────────────────────────────────────
   Widget _buildReviewsSection(BuildContext context, List<Map<String, dynamic>> reviews) {
     final hasReviews = reviews.isNotEmpty;
-    final ratings = reviews
-        .map((r) => (r['rating'] as num?)?.toDouble())
-        .whereType<double>()
-        .toList();
-    final avgRating = ratings.isEmpty ? null : ratings.reduce((a, b) => a + b) / ratings.length;
+    final avgRating = _avgRating(reviews);
+    // Reviews arrive newest-first; only preview a couple here, "See all"
+    // opens the full list.
+    final preview = reviews.take(2).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,7 +602,100 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
               ),
             ],
           ),
+        if (hasReviews) ...[
+          const SizedBox(height: 10),
+          Column(
+            children: [
+              for (final review in preview) ...[
+                _reviewCard(review),
+                if (review != preview.last) const SizedBox(height: 10),
+              ],
+            ],
+          ),
+        ],
       ],
+    );
+  }
+
+  Future<String> _resolvePatientName(String? patientUid) async {
+    if (patientUid == null) return 'A family member';
+    final cached = _patientNames[patientUid];
+    if (cached != null) return cached;
+    final profile = await PatientService.getPatientProfile(patientUid);
+    final name = (profile?['name'] as String?)?.trim();
+    final resolved = name != null && name.isNotEmpty ? name : 'A family member';
+    _patientNames[patientUid] = resolved;
+    if (mounted) setState(() {});
+    return resolved;
+  }
+
+  Widget _reviewCard(Map<String, dynamic> review) {
+    final rating = (review['rating'] as num?)?.toDouble() ?? 0;
+    final text = (review['text'] as String?)?.trim() ?? '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+      decoration: BoxDecoration(
+        color: chipBg,
+        border: Border.all(color: chipBorder),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: FutureBuilder<String>(
+                  future: _resolvePatientName(review['patientUid'] as String?),
+                  builder: (context, snap) {
+                    return Text(
+                      snap.data ?? 'A family member',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFF8FAFC),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 14),
+                  const SizedBox(width: 3),
+                  Text(
+                    rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      color: Color(0xFFF59E0B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (text.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              text,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

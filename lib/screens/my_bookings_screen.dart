@@ -27,11 +27,14 @@ class _Booking {
   final String? photoUrl;
   final int? ratingStars;
   final String? requestSentAgo;
-  final String? startDate;
-  final String? startTime;
+  final String? cancelReason;
+  final String? bookingId;
+  final bool isPaid;
+  final DateTime? paymentDeadline;
   final VoidCallback? onMessage;
   final VoidCallback? onRebook;
   final VoidCallback? onCancel;
+  final VoidCallback? onPayNow;
 
   const _Booking({
     required this.caregiverName,
@@ -42,11 +45,14 @@ class _Booking {
     this.photoUrl,
     this.ratingStars,
     this.requestSentAgo,
-    this.startDate,
-    this.startTime,
+    this.cancelReason,
+    this.bookingId,
+    this.isPaid = false,
+    this.paymentDeadline,
     this.onMessage,
     this.onRebook,
     this.onCancel,
+    this.onPayNow,
   });
 }
 
@@ -156,6 +162,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     return '${diff.inDays}d ago';
   }
 
+  String _formatClock(DateTime t) {
+    final hour = t.hour % 12 == 0 ? 12 : t.hour % 12;
+    final minute = t.minute.toString().padLeft(2, '0');
+    final period = t.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
+
   final Map<String, String?> _caregiverPhotos = {};
 
   Future<String?> _resolveCaregiverPhoto(String? caregiverId) async {
@@ -197,20 +210,45 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
               arguments: {'caregiverId': caregiverId},
             )
         : null;
+    final bookingId = doc['id'] as String?;
+    final careType = doc['careType'] as String?;
+    final isPaid = doc['paymentStatus'] == 'paid';
+    final paymentDeadline = createdAt is Timestamp
+        ? createdAt.toDate().add(BookingService.paymentDeadline)
+        : null;
+    final onPayNow = (status == _BookingStatus.upcoming && !isPaid && bookingId != null)
+        ? () => Navigator.pushNamed(
+              context,
+              '/payhere-checkout',
+              arguments: {
+                'bookingId': bookingId,
+                'caregiverId': caregiverId,
+                'caregiverName': name,
+                'careType': careType,
+                // No hourly rate is stored on a booking yet — matches the
+                // flat per-booking estimate used elsewhere (dashboard,
+                // notifications "Pay here").
+                'amount': 5000,
+              },
+            )
+        : null;
     return _Booking(
       caregiverName: name,
       caregiverId: caregiverId,
       photoUrl: photoUrl,
       initials: _initialsFor(name),
-      subtitle: doc['careType'] as String? ?? '',
+      subtitle: careType ?? '',
       status: status,
       ratingStars: (doc['rating'] as num?)?.toInt(),
       requestSentAgo: sentAgo,
-      startDate: doc['startDate'] as String?,
-      startTime: doc['startTime'] as String?,
+      cancelReason: doc['cancelReason'] as String?,
+      bookingId: bookingId,
+      isPaid: isPaid,
+      paymentDeadline: paymentDeadline,
       onMessage: onMessage,
       onRebook: onRebook,
       onCancel: cancellable ? () => _showRequestDetailsDialog(doc) : null,
+      onPayNow: onPayNow,
     );
   }
 
@@ -909,6 +947,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    // Figma node 769:632 — only shown for an unpaid upcoming
+                    // booking, using the real 6-hour auto-cancel deadline
+                    // (BookingService.paymentDeadline) rather than a
+                    // hardcoded example time.
+                    if (b.status == _BookingStatus.upcoming &&
+                        !b.isPaid &&
+                        b.paymentDeadline != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Make the payment before ${_formatClock(b.paymentDeadline!)}',
+                        style: const TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: Color(0xFFB7694D),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1020,9 +1076,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         );
 
       case _BookingStatus.cancelled:
-        return const Text(
-          'No review · Cancelled',
-          style: TextStyle(
+        return Text(
+          b.cancelReason ?? 'No review · Cancelled',
+          style: const TextStyle(
             fontFamily: 'Open Sans',
             color: Color(0xFF6E6F72),
             fontSize: 11,
@@ -1058,28 +1114,51 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
           ],
         );
 
-      // Figma nodes 769:632 / 769:599 show two "Upcoming" sub-states split
-      // by payment ("Payment Due" / "Paid") — billing doesn't exist in this
-      // app, so there's no real field to distinguish them. Unified into one
-      // real state instead: the actual confirmed visit date/time.
+      // Figma nodes 769:599 ("Paid") / 769:632 ("Payment Due") — now a real
+      // split on paymentStatus instead of the unified placeholder this used
+      // to show before the sandbox PayHere checkout existed.
       case _BookingStatus.upcoming:
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: Text(
-                (b.startDate != null && b.startTime != null)
-                    ? 'Visit on ${b.startDate} · ${b.startTime}'
-                    : 'Confirmed',
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: 'Open Sans',
-                  color: Color(0xFF6E6F72),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+            if (b.isPaid)
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.circle, color: Color(0xFFBA4242), size: 6),
+                  SizedBox(width: 5),
+                  Text(
+                    'Paid',
+                    style: TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: Color(0xFFBA4242),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              )
+            else
+              Material(
+                color: const Color(0xFF973D3D),
+                borderRadius: BorderRadius.circular(17),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(17),
+                  onTap: b.onPayNow,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    child: Text(
+                      'Payment Due',
+                      style: TextStyle(
+                        fontFamily: 'Open Sans',
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
             GestureDetector(
               onTap: b.onCancel,
               child: const Text(

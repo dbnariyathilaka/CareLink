@@ -42,6 +42,7 @@ import 'screens/caregiver_messages_screen.dart';
 import 'screens/caregiver_chat_screen.dart';
 import 'screens/patient_settings_screen.dart';
 import 'screens/patient_payments_screen.dart';
+import 'screens/payhere_checkout_screen.dart';
 import 'screens/caregiver_schedule_screen.dart';
 import 'screens/caregiver_bookings_screen.dart';
 import 'screens/caregiver_directions_screen.dart';
@@ -144,6 +145,7 @@ class CareMatchApp extends StatelessWidget {
         '/track-caregiver': (context) => const TrackCaregiverScreen(),
         '/settings': (context) => const PatientSettingsScreen(),
         '/payments': (context) => const PatientPaymentsScreen(),
+        '/payhere-checkout': (context) => const PayhereCheckoutScreen(),
         '/caregiver-schedule': (context) => const CaregiverScheduleScreen(),
         '/caregiver-bookings': (context) => const CaregiverBookingsScreen(),
         '/caregiver-directions': (context) => const CaregiverDirectionsScreen(),

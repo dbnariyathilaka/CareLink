@@ -79,21 +79,27 @@ class NotificationBadgeService {
       controller.add(_countUnreadCaregiver(bookings, reviews, lastViewed));
     }
 
+    // onError swallows permission-denied cleanly — this fires routinely for
+    // an instant on logout, when the auth token is revoked while a
+    // still-tearing-down screen's badge widget is mid-dispose. Left
+    // unhandled, that's an uncaught stream error on top of whatever the
+    // caregiver dashboard's own listeners are also throwing at the same
+    // moment; nothing here needs to recover from it, just not crash on it.
     final userSub = _firestore.collection('users').doc(uid).snapshots().listen((snap) {
       lastViewed = (snap.data()?['lastViewedNotificationsAt'] as Timestamp?)?.toDate();
       gotUser = true;
       emit();
-    });
+    }, onError: (_) {});
     final bookingsSub = BookingService.streamBookingsForCaregiver(uid).listen((data) {
       bookings = data;
       gotBookings = true;
       emit();
-    });
+    }, onError: (_) {});
     final reviewsSub = ReviewService.streamReviewsForCaregiver(uid).listen((data) {
       reviews = data;
       gotReviews = true;
       emit();
-    });
+    }, onError: (_) {});
 
     controller.onCancel = () {
       userSub.cancel();
@@ -118,12 +124,12 @@ class NotificationBadgeService {
       lastViewed = (snap.data()?['lastViewedNotificationsAt'] as Timestamp?)?.toDate();
       gotUser = true;
       emit();
-    });
+    }, onError: (_) {});
     final bookingsSub = BookingService.streamBookingsForPatient(uid).listen((data) {
       bookings = data;
       gotBookings = true;
       emit();
-    });
+    }, onError: (_) {});
 
     controller.onCancel = () {
       userSub.cancel();

@@ -94,7 +94,12 @@ class BookingService {
           .snapshots()
           .listen((snap) {
         active = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+        _enforcePaymentDeadline(active!);
         emit();
+      }, onError: (_) {
+        // e.g. permission-denied right as the auth token is revoked on
+        // logout, while this screen is still mid-teardown — nothing to
+        // recover here, just don't let it become an unhandled stream error.
       });
       cancelledSub = _cancelledCollection
           .where('patientUid', isEqualTo: patientUid)
@@ -104,7 +109,7 @@ class BookingService {
             .map((d) => {'id': d.id, 'status': 'cancelled', ...d.data()})
             .toList();
         emit();
-      });
+      }, onError: (_) {});
     };
     controller.onCancel = () {
       activeSub?.cancel();
@@ -113,11 +118,59 @@ class BookingService {
     return controller.stream;
   }
 
+  /// A request gives the caregiver (accept/decline) and then the patient
+  /// (pay) 6 hours from when it was originally sent — the same window
+  /// `confirm_booking_screen.dart` already tells the patient about
+  /// ("$caregiverName has 6 hours to accept this request.") but that
+  /// nothing previously enforced. Past that deadline, a booking that's
+  /// still just 'requested' (caregiver never responded) or 'confirmed' but
+  /// unpaid (patient never completed checkout) is stale and auto-cancels —
+  /// whichever side dropped the ball.
+  // Public so screens (e.g. my_bookings_screen's "Make the payment before…"
+  // caption) can show the real deadline instead of a value that could drift
+  // from what actually triggers the auto-cancel below.
+  static const Duration paymentDeadline = Duration(hours: 6);
+
+  static bool _isPastPaymentDeadline(Map<String, dynamic> b) {
+    final status = b['status'] as String?;
+    if (status != 'requested' && status != 'confirmed') return false;
+    if (status == 'confirmed' && b['paymentStatus'] == 'paid') return false;
+    final createdAt = b['createdAt'];
+    if (createdAt is! Timestamp) return false;
+    return DateTime.now().difference(createdAt.toDate()) > paymentDeadline;
+  }
+
+  // Multiple screens (dashboard, notifications, my-bookings) can each hold
+  // their own streamBookingsForPatient subscription at once — this guards
+  // against two of them racing to archive the same stale booking twice.
+  static final Set<String> _cancelling = {};
+
+  /// Fire-and-forget: auto-cancels any booking in [bookings] that blew past
+  /// [_paymentDeadline] without being both confirmed and paid. Only the
+  /// owning patient's client can actually perform the cancel (Firestore
+  /// rules restrict delete to `patientUid == request.auth.uid`), so this is
+  /// only wired into [streamBookingsForPatient] — enforcement happens
+  /// lazily, the next time that patient's app is open and streams their
+  /// bookings, since there's no server/cron in this app to do it while
+  /// no one is looking.
+  static void _enforcePaymentDeadline(List<Map<String, dynamic>> bookings) {
+    for (final b in bookings) {
+      if (!_isPastPaymentDeadline(b)) continue;
+      final id = b['id'] as String?;
+      if (id == null || _cancelling.contains(id)) continue;
+      _cancelling.add(id);
+      final reason = b['status'] == 'requested'
+          ? 'Auto-cancelled — the caregiver did not respond within 6 hours of the request.'
+          : 'Auto-cancelled — payment was not completed within 6 hours of the request.';
+      unawaited(cancelBooking(id, reason: reason).whenComplete(() => _cancelling.remove(id)));
+    }
+  }
+
   /// Archives a reduced copy of the booking (enough to still render a
   /// "Cancelled" card) to cancelledBookings, then deletes the live doc —
   /// cancelling removes the request from the active collection entirely
   /// rather than leaving it there forever with status: 'cancelled'.
-  static Future<void> cancelBooking(String bookingId) async {
+  static Future<void> cancelBooking(String bookingId, {String? reason}) async {
     final doc = _collection.doc(bookingId);
     final snap = await doc.get();
     final data = snap.data();
@@ -136,6 +189,7 @@ class BookingService {
         'originalBookingId': bookingId,
         'createdAt': data['createdAt'],
         'cancelledAt': FieldValue.serverTimestamp(),
+        if (reason != null) 'cancelReason': reason,
       });
     }
     await doc.delete();
@@ -147,6 +201,17 @@ class BookingService {
     return _collection.doc(bookingId).update({
       'status': accept ? 'confirmed' : 'declined',
       'respondedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Marks a booking as paid — written by the sandbox PayHere-style
+  /// checkout once its (simulated) charge succeeds. `notifications_screen`
+  /// already keys its dormant "Payment completed" card off this exact
+  /// field name, so setting it here is what activates that card.
+  static Future<void> markBookingPaid(String bookingId) {
+    return _collection.doc(bookingId).update({
+      'paymentStatus': 'paid',
+      'paidAt': FieldValue.serverTimestamp(),
     });
   }
 

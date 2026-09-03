@@ -114,23 +114,24 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.patientUid;
     }
 
-    // payments/{paymentId} — billing hasn't been built yet, so nothing
-    // writes documents here today; these rules exist so the patient
-    // Payments screen and caregiver Earnings screens (which already query
-    // this collection for real, just against an empty one right now) don't
-    // hit permission-denied the moment a query runs. Readable by the
-    // patient or caregiver on the payment, or an admin. No create/delete
-    // from the client — a real billing backend will write status/amount
-    // via a server-side Cloud Function using the Admin SDK (which bypasses
-    // these rules), never the client directly, so a payment's "it was
-    // paid" status can't be forged from a modified app. The one real
-    // client write today is PaymentService.submitDispute, restricted here
-    // to just the dispute fields it actually sets.
+    // payments/{paymentId} — readable by the patient or caregiver on the
+    // payment, or an admin. Billing has no real payment-gateway backend
+    // (no Cloud Function/Admin SDK writer exists), so PaymentService.
+    // recordCompletedPayment — the sandbox PayHere-style checkout — writes
+    // directly from the client, same trust model as `reviews` below: a
+    // patient may only create a payment attributed to themselves. This is
+    // fine for a sandbox/demo flow with no real money moving, but would
+    // need to move to a server-side writer before handling real payments,
+    // since nothing here stops a modified client from forging an amount or
+    // a 'completed' status. The dispute fields stay update-only, restricted
+    // to just what PaymentService.submitDispute actually sets.
     match /payments/{paymentId} {
       allow read: if request.auth != null &&
         (request.auth.uid == resource.data.patientUid ||
          request.auth.uid == resource.data.caregiverId ||
          isAdmin());
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.patientUid;
       allow update: if request.auth != null &&
         request.auth.uid == resource.data.patientUid &&
         request.resource.data.diff(resource.data).affectedKeys()

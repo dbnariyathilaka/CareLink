@@ -62,6 +62,16 @@ class ReviewService {
     return result;
   }
 
+  /// Number of reviews a patient has submitted — used by the patient's own
+  /// profile stats row.
+  static Future<int> countReviewsByPatient(String patientUid) async {
+    final snap = await _collection
+        .where('patientUid', isEqualTo: patientUid)
+        .count()
+        .get();
+    return snap.count ?? 0;
+  }
+
   static Stream<List<Map<String, dynamic>>> streamReviewsForCaregiver(
     String caregiverId,
   ) {

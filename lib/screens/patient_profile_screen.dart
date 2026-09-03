@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
+import '../services/review_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/patient_notification_badge.dart';
@@ -82,6 +83,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
   List<Map<String, dynamic>> _favoriteCaregivers = [];
   List<Map<String, dynamic>> _familyMembers = [];
   int? _bookingsCount;
+  int? _reviewsGivenCount;
 
   late final AnimationController _matchIconController;
   late final Animation<double> _matchIconRotation;
@@ -123,12 +125,14 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
       PatientService.getFavoriteCaregiverIds(user.uid),
       PatientService.getFamilyMembers(user.uid),
       BookingService.streamBookingsForPatient(user.uid).first,
+      ReviewService.countReviewsByPatient(user.uid),
     ]);
     final userProfile = results[0] as Map<String, dynamic>?;
     final patientProfile = results[1] as Map<String, dynamic>?;
     final favoriteIds = results[2] as List<String>;
     final familyMembers = results[3] as List<Map<String, dynamic>>;
     final bookings = results[4] as List<Map<String, dynamic>>;
+    final reviewsGivenCount = results[5] as int;
 
     final favorites = <Map<String, dynamic>>[];
     for (final id in favoriteIds) {
@@ -167,6 +171,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
       _favoriteCaregivers = favorites;
       _familyMembers = familyMembers;
       _bookingsCount = bookings.length;
+      _reviewsGivenCount = reviewsGivenCount;
       _loading = false;
     });
   }
@@ -528,7 +533,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen>
       children: [
         Expanded(child: _statCard(_bookingsCount?.toString() ?? '—', 'Bookings')),
         const SizedBox(width: 10),
-        Expanded(child: _statCard('—', 'Reviews given')),
+        Expanded(child: _statCard(_reviewsGivenCount?.toString() ?? '—', 'Reviews given')),
         const SizedBox(width: 10),
         Expanded(child: _statCard('${_favoriteCaregivers.length}', 'Favourite')),
       ],
