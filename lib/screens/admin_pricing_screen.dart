@@ -46,18 +46,27 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                     const SizedBox(height: 9),
                     _buildInfoCard(
                       icon: Icons.balance_rounded,
-                      title: 'Equal weighting — no per-criterion configuration',
+                      title: 'Stage 1–4: hard filters, then a W2-weighted score',
                       body:
-                          'Matching currently uses equal weighting across whichever criteria are active for a match — skill match, proximity, availability, and gender preference — with weights automatically redistributed when a caregiver has no data for a criterion. There is no "rating" criterion, and there are no adjustable per-criterion percentages today.',
+                          'Language, skill match, and work schedule hard-reject; gender preference, certification, and distance filter conditionally/with a fixed 30km system cap plus the patient\'s own optional limit. Survivors are scored on seven criteria — skill match, availability, proximity, feedback/ratings, references, experience, certification — weighted by the stakeholder-derived W2 vector (not equal weighting), with weight redistribution when a caregiver has no References or Certification data on file. Ratings use a Bayesian-adjusted score (own average weighted against review count, pulled toward the live platform average) rather than a raw average.',
                     ),
                     const SizedBox(height: 16),
-                    _buildSectionLabel('MATCHING & PRICING SETTINGS'),
+                    _buildSectionLabel('HOURLY RATE'),
+                    const SizedBox(height: 9),
+                    _buildInfoCard(
+                      icon: Icons.payments_outlined,
+                      title: 'Two-phase, admin-assigned per caregiver',
+                      body:
+                          'LKR 150 flat for a caregiver\'s first 5 completed services, then scaled by their Bayesian-adjusted rating (anchored at 3.0 stars, floored at the base rate, capped at 1.5×). There\'s no backend to run this automatically — open a caregiver\'s profile from Caregivers to see the computed suggested rate and assign it.',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSectionLabel('NOT YET CONNECTED'),
                     const SizedBox(height: 9),
                     _buildInfoCard(
                       icon: Icons.tune_rounded,
-                      title: 'Not yet connected to real behavior',
+                      title: 'No global config screen yet',
                       body:
-                          'Search radius, minimum rating, request-expiry window, platform fee, minimum hourly rate, and surcharges are not backed by a configuration system in this app yet. There is nothing here to edit or save.',
+                          'Request-expiry window, platform fee, and surcharges are not backed by a configuration system in this app yet. The 30km system distance cap is currently a hardcoded constant (MatchWeights.systemDistanceCapKm), not editable here.',
                     ),
                   ],
                 ),

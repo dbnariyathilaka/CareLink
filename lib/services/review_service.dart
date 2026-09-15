@@ -107,7 +107,7 @@ class ReviewService {
   }
 
   /// Platform-wide average rating across every review — used by the admin
-  /// dashboard's "Avg rating" tile.
+  /// dashboard's "Avg rating" tile, and as the Bayesian prior (C) below.
   static Future<({double avg, int count})> fetchPlatformAverage() async {
     final snap = await _collection.get();
     if (snap.docs.isEmpty) return (avg: 0.0, count: 0);
@@ -116,5 +116,61 @@ class ReviewService {
       sum += (doc.data()['rating'] as int?) ?? 0;
     }
     return (avg: sum / snap.docs.length, count: snap.docs.length);
+  }
+
+  /// Smoothing value (m) for the Bayesian-adjusted rating — the point at
+  /// which a caregiver's own ratings begin to outweigh the platform
+  /// average. Also the threshold for the introductory hourly-rate phase.
+  static const int ratingSmoothing = 5;
+
+  /// Bayesian-adjusted rating: weighs a caregiver's own average against how
+  /// many reviews back it, so a single 5-star review doesn't outrank a 4.7
+  /// average over 40 reviews. [platformAverage] is the real, live platform
+  /// average (fetchPlatformAverage) — not a frozen constant, so this moves
+  /// with actual review data. A brand-new caregiver (count 0) resolves
+  /// exactly to the platform average — the formula cold-starts on its own,
+  /// no special case needed.
+  static double adjustedRating({
+    required double average,
+    required int count,
+    required double platformAverage,
+  }) {
+    final v = count.toDouble();
+    const m = ratingSmoothing;
+    return (v / (v + m)) * average + (m / (v + m)) * platformAverage;
+  }
+
+  /// [fetchPlatformAverage] returns 0.0 when literally no review exists on
+  /// the platform yet — unusable as a Bayesian prior (it would drag every
+  /// new caregiver's adjusted rating to 0). This is the only place that
+  /// bootstrap case is handled: the neutral midpoint of the 1–5 scale.
+  static double platformAverageOrNeutral(({double avg, int count}) platform) {
+    return platform.count == 0 ? 3.0 : platform.avg;
+  }
+
+  /// Stamps a real `adjustedRating` onto each caregiver map in place —
+  /// MatchingService is pure Dart with no Firestore access, so callers
+  /// building a candidate list for it must do this first, or its
+  /// Feedback/ratings criterion falls back to a neutral 0.5.
+  static Future<void> stampAdjustedRatings(
+    List<Map<String, dynamic>> caregivers,
+  ) async {
+    final ids = caregivers
+        .map((c) => c['uid'] as String?)
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty) return;
+    final platform = platformAverageOrNeutral(await fetchPlatformAverage());
+    final ratings = await fetchRatingsFor(ids);
+    for (final c in caregivers) {
+      final uid = c['uid'] as String?;
+      if (uid == null) continue;
+      final r = ratings[uid];
+      c['adjustedRating'] = adjustedRating(
+        average: r?.avg ?? platform,
+        count: r?.count ?? 0,
+        platformAverage: platform,
+      );
+    }
   }
 }

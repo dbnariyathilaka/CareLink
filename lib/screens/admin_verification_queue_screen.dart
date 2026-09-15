@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/status_bar.dart';
 import '../services/caregiver_service.dart';
 import '../services/user_directory_service.dart';
@@ -13,8 +14,9 @@ class DocumentEntry {
   final String key; // 'nic' | 'policeClearance' | 'cert0'... | 'other0'...
   final String label;
   final Map<String, dynamic>? review; // null = still in review
+  final String? url; // null for 'nic' — that's a number, not an uploaded file
 
-  const DocumentEntry({required this.key, required this.label, this.review});
+  const DocumentEntry({required this.key, required this.label, this.review, this.url});
 }
 
 /// A caregiver with at least one verification document actually submitted,
@@ -109,6 +111,39 @@ class _AdminVerificationQueueScreenState
     }
   }
 
+  static const _imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic'];
+
+  bool _looksLikeImage(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    return _imageExtensions.any(path.contains);
+  }
+
+  /// Opens a submitted document so the admin can actually inspect it before
+  /// approving/rejecting — images render in-app (zoomable); anything else
+  /// (PDFs, etc.) opens in the device's own viewer/browser, since this app
+  /// doesn't bundle a PDF renderer.
+  Future<void> _openDocument(String label, String url) async {
+    if (_looksLikeImage(url)) {
+      if (!mounted) return;
+      Navigator.push(context, MaterialPageRoute(builder: (_) => _DocumentImageViewer(title: label, url: url)));
+      return;
+    }
+    try {
+      final launched = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open this document.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open this document.')),
+        );
+      }
+    }
+  }
+
   /// Every individually-reviewable document on a caregiver's profile, with
   /// its real review decision attached if one exists (see
   /// CaregiverService.setDocumentReviewStatus). Keys match exactly what the
@@ -127,17 +162,37 @@ class _AdminVerificationQueueScreenState
         key: 'policeClearance',
         label: _labelForUrl(police, 'Police clearance certificate'),
         review: reviews['policeClearance'] as Map<String, dynamic>?,
+        url: police,
       ));
     }
     final certs = (caregiver['certificateUrls'] as List?)?.cast<String>() ?? const [];
     for (var i = 0; i < certs.length; i++) {
       final key = 'cert$i';
-      docs.add(DocumentEntry(key: key, label: _labelForUrl(certs[i], 'Certificate ${i + 1}'), review: reviews[key] as Map<String, dynamic>?));
+      docs.add(DocumentEntry(
+        key: key,
+        label: _labelForUrl(certs[i], 'Certificate ${i + 1}'),
+        review: reviews[key] as Map<String, dynamic>?,
+        url: certs[i],
+      ));
     }
     final other = (caregiver['otherDocumentUrls'] as List?)?.cast<String>() ?? const [];
     for (var i = 0; i < other.length; i++) {
       final key = 'other$i';
-      docs.add(DocumentEntry(key: key, label: _labelForUrl(other[i], 'Other document ${i + 1}'), review: reviews[key] as Map<String, dynamic>?));
+      docs.add(DocumentEntry(
+        key: key,
+        label: _labelForUrl(other[i], 'Other document ${i + 1}'),
+        review: reviews[key] as Map<String, dynamic>?,
+        url: other[i],
+      ));
+    }
+    final reference = (caregiver['referenceUrl'] as String?) ?? '';
+    if (reference.isNotEmpty) {
+      docs.add(DocumentEntry(
+        key: 'reference',
+        label: _labelForUrl(reference, 'References'),
+        review: reviews['reference'] as Map<String, dynamic>?,
+        url: reference,
+      ));
     }
     return docs;
   }
@@ -395,31 +450,41 @@ class _AdminVerificationQueueScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.description_outlined, size: 17, color: docNameColor),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  doc.label,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: docNameColor,
+          GestureDetector(
+            onTap: doc.url != null ? () => _openDocument(doc.label, doc.url!) : null,
+            child: Row(
+              children: [
+                Icon(
+                  doc.url != null ? Icons.visibility_outlined : Icons.description_outlined,
+                  size: 17,
+                  color: docNameColor,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    doc.label,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: docNameColor,
+                      decoration: doc.url != null ? TextDecoration.underline : null,
+                      decorationColor: docNameColor,
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                statusLabel,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
+                const SizedBox(width: 8),
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           if (status == 'rejected' && note != null && note.isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -436,6 +501,16 @@ class _AdminVerificationQueueScreenState
             padding: const EdgeInsets.only(left: 26),
             child: Row(
               children: [
+                if (doc.url != null) ...[
+                  GestureDetector(
+                    onTap: () => _openDocument(doc.label, doc.url!),
+                    child: const Text(
+                      'View',
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFFBBC05)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
                 GestureDetector(
                   onTap: () => CaregiverService.setDocumentReviewStatus(uid: uid, docKey: doc.key, status: 'approved'),
                   child: const Text(
@@ -685,6 +760,49 @@ class _AdminVerificationQueueScreenState
             child: const Text('Reject'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Full-screen, zoomable viewer for a submitted image document (photo of a
+/// certificate/police clearance/etc.) — real image data from Firebase
+/// Storage, not a placeholder.
+class _DocumentImageViewer extends StatelessWidget {
+  final String title;
+  final String url;
+  const _DocumentImageViewer({required this.title, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.8,
+          maxScale: 5,
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return const CircularProgressIndicator(color: Colors.white);
+            },
+            errorBuilder: (context, error, stackTrace) => const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Could not load this image.',
+                style: TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

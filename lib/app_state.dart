@@ -20,6 +20,10 @@ class AppState {
   static final careLocation = ValueNotifier<String>('Negombo, Western Province');
   static final preferredGender = ValueNotifier<String>('No preference');
   static final additionalCareNotes = ValueNotifier<String>('');
+  // Optional — the patient's own tighter cap on caregiver travel distance,
+  // on top of the system-wide 30km max (MatchWeights.systemDistanceCapKm).
+  // Null means "no limit given", so only the system cap applies.
+  static final maxDistanceKm = ValueNotifier<double?>(null);
 
   // Patient identity fields — filled in during onboarding (the
   // patient-details step), written to patientProfiles/{uid} alongside the
@@ -61,6 +65,7 @@ class AppState {
     careLocation.value = 'Negombo, Western Province';
     preferredGender.value = 'No preference';
     additionalCareNotes.value = '';
+    maxDistanceKm.value = null;
     patientName.value = '';
     patientGenderSelf.value = 'Female';
     patientAge.value = '';
@@ -103,7 +108,12 @@ class CaregiverOnboardingDraft {
     'Dementia care',
   };
   String city = 'Negombo, Western Province';
-  String serviceRadius = '10 km';
+  // Exact coordinates from the map picker (caregiver_onboarding3_screen /
+  // CaregiverLocationPickerScreen) — null until the caregiver actually
+  // picks a location, so matching_service.dart can fall back to its
+  // existing city-name lookup for anyone who onboarded before this existed.
+  double? locationLat;
+  double? locationLng;
   String bio = '';
 
   // Storage download URLs — populated as each onboarding step uploads its
@@ -112,6 +122,11 @@ class CaregiverOnboardingDraft {
   List<String> certificateUrls = [];
   String policeClearanceUrl = '';
   List<String> otherDocumentUrls = [];
+  // Optional — a single PDF/image of professional references, uploaded
+  // alongside the other qualification documents. Not required; when blank,
+  // matching_service.dart treats References as structurally absent for
+  // this caregiver rather than scoring it 0.
+  String referenceUrl = '';
 
   // Payout details (onboarding step 6) — optional, since "Skip for now" is
   // allowed; blank fields mean the caregiver hasn't set these up yet.
@@ -137,12 +152,14 @@ class CaregiverOnboardingDraft {
       'Dementia care',
     };
     city = 'Negombo, Western Province';
-    serviceRadius = '10 km';
+    locationLat = null;
+    locationLng = null;
     bio = '';
     photoUrl = '';
     certificateUrls = [];
     policeClearanceUrl = '';
     otherDocumentUrls = [];
+    referenceUrl = '';
     bankName = '';
     bankCode = '';
     branchName = '';
@@ -163,13 +180,14 @@ class CaregiverOnboardingDraft {
       'languagesSpoken': languagesSpoken.toList(),
       'skills': skills.toList(),
       'city': city,
-      'serviceRadiusKm':
-          int.tryParse(serviceRadius.replaceAll(RegExp(r'[^0-9]'), '')) ?? 10,
+      if (locationLat != null) 'locationLat': locationLat,
+      if (locationLng != null) 'locationLng': locationLng,
       'bio': bio,
       if (photoUrl.isNotEmpty) 'photoUrl': photoUrl,
       if (certificateUrls.isNotEmpty) 'certificateUrls': certificateUrls,
       if (policeClearanceUrl.isNotEmpty) 'policeClearanceUrl': policeClearanceUrl,
       if (otherDocumentUrls.isNotEmpty) 'otherDocumentUrls': otherDocumentUrls,
+      if (referenceUrl.isNotEmpty) 'referenceUrl': referenceUrl,
       if (bankName.isNotEmpty) 'bankName': bankName,
       if (bankCode.isNotEmpty) 'bankCode': bankCode,
       if (branchName.isNotEmpty) 'branchName': branchName,

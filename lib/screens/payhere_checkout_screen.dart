@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/caregiver_service.dart';
 import '../services/payment_service.dart';
 import '../widgets/status_bar.dart';
 
@@ -36,6 +37,13 @@ class _PayhereCheckoutScreenState extends State<PayhereCheckoutScreen> {
   String? _caregiverId;
   String _caregiverName = 'Your caregiver';
   String? _careType;
+  // A single shift's worth of the caregiver's real admin-assigned hourly
+  // rate — this app has no reliable way to turn a booking's free-text
+  // duration into total hours, so rather than fabricate a multi-day total,
+  // this charges for one representative 8-hour shift at the real rate.
+  // Falls back to the flat estimate the caller passed (or 5000) only until
+  // _loadHourlyRate resolves, or if the admin hasn't assigned a rate yet.
+  static const double _standardShiftHours = 8;
   double _amount = 5000;
 
   bool _processing = false;
@@ -57,6 +65,16 @@ class _PayhereCheckoutScreenState extends State<PayhereCheckoutScreen> {
       final amount = args['amount'];
       if (amount is num && amount > 0) _amount = amount.toDouble();
     }
+    _loadHourlyRate();
+  }
+
+  Future<void> _loadHourlyRate() async {
+    final caregiverId = _caregiverId;
+    if (caregiverId == null) return;
+    final profile = await CaregiverService.getCaregiverProfile(caregiverId);
+    final rate = (profile?['hourlyRate'] as num?)?.toDouble();
+    if (rate == null || !mounted) return;
+    setState(() => _amount = rate * _standardShiftHours);
   }
 
   @override

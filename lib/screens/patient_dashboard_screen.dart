@@ -12,6 +12,7 @@ import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/matching_service.dart';
 import '../services/patient_service.dart';
+import '../services/review_service.dart';
 import '../services/profile_gate.dart';
 import '../widgets/patient_notification_badge.dart';
 import '../widgets/remote_or_local_image.dart';
@@ -214,10 +215,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     }
     final matchContext = MatchContext(patientProfile: profile);
     final caregivers = await CaregiverService.searchCaregivers();
+    final eligible =
+        caregivers.where((c) => MatchingService.isEligible(c, matchContext)).toList();
+    await ReviewService.stampAdjustedRatings(eligible);
     final ranked = MatchingService.rankCaregivers(
-      caregivers: caregivers,
+      caregivers: eligible,
       context: matchContext,
-      profile: MatchProfile.onboardingPreview,
     );
     if (!mounted) return;
     setState(() {

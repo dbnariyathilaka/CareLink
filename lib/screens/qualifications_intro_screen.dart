@@ -189,7 +189,7 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen> {
               ),
               const SizedBox(height: 14),
               const Text(
-                'Tell us the education, experience and skills your ideal caregiver should have.',
+                'Tell us the training and language your ideal caregiver should have.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'Open Sans',
@@ -201,10 +201,8 @@ class _QualificationsIntroScreenState extends State<QualificationsIntroScreen> {
               ),
               const SizedBox(height: 28),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildCategoryItem('assets/images/qualifications_education_icon.png', 'Education'),
-                  _buildCategoryItem('assets/images/qualifications_experience_icon.png', 'Experience'),
                   _buildCategoryItem('assets/images/qualifications_language_icon.png', 'Language'),
                 ],
               ),

@@ -96,8 +96,7 @@ CaregiverCompleteness evaluateCaregiverProfile(
         _isBlank(profile['languagesSpoken']) ||
         _isBlank(profile['skills']))
       'Qualifications & skills',
-    if (_isBlank(profile['city']) || _isBlank(profile['serviceRadiusKm']))
-      'Location & bio',
+    if (_isBlank(profile['city'])) 'Location & bio',
   ];
 
   return CaregiverCompleteness(

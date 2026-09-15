@@ -51,7 +51,6 @@ class _CaregiverEditProfileScreenState
 
   String _gender = 'Male';
   int _yearsExperience = 5;
-  int _radiusKm = 10;
   String _educationalQualification = 'Diploma';
   bool _formalTraining = false;
 
@@ -145,7 +144,6 @@ class _CaregiverEditProfileScreenState
     setState(() {
       _gender = (merged['gender'] as String?)?.trim() ?? 'Male';
       _yearsExperience = merged['yearsExperience'] as int? ?? 5;
-      _radiusKm = merged['serviceRadiusKm'] as int? ?? 10;
       _educationalQualification =
           (merged['educationalQualification'] as String?)?.trim() ?? 'Diploma';
       _formalTraining = merged['formalTraining'] == true;
@@ -314,7 +312,6 @@ class _CaregiverEditProfileScreenState
         'educationalQualification': _educationalQualification,
         'formalTraining': _formalTraining,
         'city': _cityController.text.trim(),
-        'serviceRadiusKm': _radiusKm,
         'careTypes': _selectedCareTypes.toList(),
         'skills': _selectedSkills.toList(),
         'languagesSpoken': _selectedLanguages.toList(),
@@ -660,17 +657,6 @@ class _CaregiverEditProfileScreenState
                             onChanged: (_) {
                               if (_cityError != null) setState(() => _cityError = null);
                             },
-                          ),
-                          const SizedBox(height: 20),
-
-                          _buildLabel('Service radius'),
-                          const SizedBox(height: 8),
-                          _buildStepperRow(
-                            value: '$_radiusKm km',
-                            onDecrement: () {
-                              if (_radiusKm > 5) setState(() => _radiusKm -= 5);
-                            },
-                            onIncrement: () => setState(() => _radiusKm += 5),
                           ),
                           const SizedBox(height: 20),
 

@@ -587,7 +587,7 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
     final refPhone = (_profile?['referencePhone'] as String?)?.trim();
     final city = (_profile?['city'] as String?)?.trim() ?? 'Negombo, Western Province';
-    final radius = _profile?['serviceRadiusKm'] as int? ?? 10;
+    final hourlyRate = (_profile?['hourlyRate'] as num?)?.toDouble();
 
     return Container(
       width: double.infinity,
@@ -608,7 +608,14 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                 : 'Reference No: Not provided',
           ),
           const SizedBox(height: 10),
-          _contactRow(Icons.location_on_outlined, '$city - $radius km radius'),
+          _contactRow(Icons.location_on_outlined, city),
+          const SizedBox(height: 10),
+          _contactRow(
+            Icons.payments_outlined,
+            hourlyRate == null
+                ? 'Hourly rate: Not yet assigned by admin'
+                : 'Hourly rate: Rs.${hourlyRate.toStringAsFixed(0)}/hr',
+          ),
         ],
       ),
     );

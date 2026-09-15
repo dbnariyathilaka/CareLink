@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/caregiver_service.dart';
 import '../services/profile_gate.dart';
 import '../widgets/status_bar.dart';
 
@@ -60,10 +61,9 @@ class ConfirmBookingScreen extends StatelessWidget {
     final caregiverName = args?['caregiverName'] as String? ?? 'Your caregiver';
 
     // Advanced-only quiz answers
-    final education  = args?['education']  as String?;
-    final experience = args?['experience'] as String?;
     final training   = args?['training']   as String?;
     final languages  = args?['languages']  as List?;
+    final caregiverId = args?['caregiverId'] as String?;
 
     final Color accent = isAdvanced ? _accentAdvanced : darkGreen;
     const Color accentOnColor = Colors.white;
@@ -98,13 +98,28 @@ class ConfirmBookingScreen extends StatelessWidget {
                           careType:  careType,
                         ),
 
+                        // ── Pricing card — only when a specific caregiver
+                        // is already known (the direct-request flow); the
+                        // advanced flow doesn't pick one until the results
+                        // screen after this. Shows the real admin-assigned
+                        // rate, not a guess — "Not yet assigned" if the
+                        // admin hasn't set one for this caregiver yet.
+                        if (caregiverId != null) ...[
+                          const SizedBox(height: 14),
+                          FutureBuilder<Map<String, dynamic>?>(
+                            future: CaregiverService.getCaregiverProfile(caregiverId),
+                            builder: (context, snap) {
+                              final rate = (snap.data?['hourlyRate'] as num?)?.toDouble();
+                              return _buildPricingCard(isAdvanced: isAdvanced, hourlyRate: rate);
+                            },
+                          ),
+                        ],
+
                         // ── Qualifications card (advanced only) ────────────
                         if (isAdvanced) ...[
                           const SizedBox(height: 14),
                           _buildQualificationsCard(
                             isAdvanced: isAdvanced,
-                            education:  education,
-                            experience: experience,
                             training:   training,
                             languages:  languages,
                           ),
@@ -277,11 +292,20 @@ class ConfirmBookingScreen extends StatelessWidget {
     return _buildSummaryCardContainer(rows, isAdvanced: isAdvanced);
   }
 
+  // ── Pricing card ─────────────────────────────────────────────────────────
+  Widget _buildPricingCard({required bool isAdvanced, double? hourlyRate}) {
+    final rows = [
+      _BookingRow(
+        'Hourly rate',
+        hourlyRate == null ? 'Not yet assigned' : 'Rs.${hourlyRate.toStringAsFixed(0)} / hour',
+      ),
+    ];
+    return _buildSummaryCardContainer(rows, isAdvanced: isAdvanced);
+  }
+
   // ── Qualifications card ────────────────────────────────────────────────────
   Widget _buildQualificationsCard({
     required bool isAdvanced,
-    String? education,
-    String? experience,
     String? training,
     List? languages,
   }) {
@@ -308,8 +332,6 @@ class ConfirmBookingScreen extends StatelessWidget {
               ),
             ),
           ),
-          _buildQualRow('Education',       education ?? '–', isAdvanced: isAdvanced),
-          _buildQualRow('Experience',      experience ?? '–', isAdvanced: isAdvanced),
           _buildQualRow('Formal training', training ?? '–', isAdvanced: isAdvanced),
           _buildQualRow(
             'Languages',

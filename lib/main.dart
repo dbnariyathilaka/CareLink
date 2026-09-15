@@ -23,6 +23,7 @@ import 'screens/notifications_screen.dart';
 import 'screens/caregiver_onboarding1_screen.dart';
 import 'screens/caregiver_onboarding2_screen.dart';
 import 'screens/caregiver_onboarding3_screen.dart';
+import 'screens/caregiver_location_picker_screen.dart';
 import 'screens/caregiver_onboarding4_screen.dart';
 import 'screens/caregiver_onboarding5_screen.dart';
 import 'screens/caregiver_onboarding6_screen.dart';
@@ -66,6 +67,7 @@ import 'screens/qualifications_intro_screen.dart';
 import 'screens/matching_analysis_screen.dart';
 import 'screens/advanced_match_results_screen.dart';
 import 'screens/admin_dashboard_screen.dart';
+import 'widgets/popup_notification_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,12 +81,30 @@ void main() async {
 class CareMatchApp extends StatelessWidget {
   const CareMatchApp({super.key});
 
+  // Static (not per-build) so the same key survives rebuilds of this
+  // stateless root widget — PopupNotificationOverlay needs a stable
+  // NavigatorState to push the notifications route from outside the
+  // widget tree's own BuildContext.
+  static final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CareLink',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      navigatorKey: _navigatorKey,
+      // Wraps every screen with the global "new notification" popup host,
+      // so it isn't tied to any one screen's lifecycle — see
+      // PopupNotificationOverlay.
+      builder: (context, child) {
+        return Stack(
+          children: [
+            if (child != null) child,
+            PopupNotificationOverlay(navigatorKey: _navigatorKey),
+          ],
+        );
+      },
       initialRoute: '/',
       routes: {
         '/': (context) => const StartingScreen(),
@@ -112,6 +132,8 @@ class CareMatchApp extends StatelessWidget {
             const CaregiverOnboarding2Screen(),
         '/caregiver-onboarding-3': (context) =>
             const CaregiverOnboarding3Screen(),
+        '/caregiver-location-picker': (context) =>
+            const CaregiverLocationPickerScreen(),
         '/caregiver-onboarding-4': (context) =>
             const CaregiverOnboarding4Screen(),
         '/caregiver-onboarding-5': (context) =>

@@ -112,6 +112,8 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
           'medicalConditions': AppState.additionalCareNotes.value,
           'preferredCaregiverGender': AppState.preferredGender.value,
           'city': AppState.careLocation.value,
+          if (AppState.maxDistanceKm.value != null)
+            'maxDistanceKm': AppState.maxDistanceKm.value,
         },
       );
     } catch (_) {

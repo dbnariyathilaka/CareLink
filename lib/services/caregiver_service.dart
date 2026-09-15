@@ -20,6 +20,17 @@ class CaregiverService {
     return {'uid': snap.id, ...?snap.data()};
   }
 
+  /// Assigns a real hourly rate to a caregiver's profile — the admin
+  /// action that applies PaymentService.calculateHourlyRate's result,
+  /// since there's no backend/cron to write it automatically. Shown on
+  /// every caregiver card/profile, and used to price a booking's payment.
+  static Future<void> setHourlyRate(String uid, double rate) {
+    return _collection.doc(uid).set(
+      {'hourlyRate': rate, 'hourlyRateAssignedAt': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
+  }
+
   /// Plain, unscored lookup of caregivers — no matching/ranking logic.
   /// Optionally narrows by care type or city if provided.
   static Future<List<Map<String, dynamic>>> searchCaregivers({

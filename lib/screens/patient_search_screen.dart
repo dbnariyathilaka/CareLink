@@ -463,6 +463,7 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
     final careTypes = (c['careTypes'] as List?)?.cast<String>() ?? [];
     final yearsExperience = c['yearsExperience'] as int?;
     final skills = (c['skills'] as List?)?.cast<String>() ?? [];
+    final hourlyRate = (c['hourlyRate'] as num?)?.toDouble();
 
     return Container(
       width: double.infinity,
@@ -556,11 +557,12 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                         ],
                       ),
                     const SizedBox(height: 6),
-                    if (careTypes.isNotEmpty || yearsExperience != null)
+                    if (careTypes.isNotEmpty || yearsExperience != null || hourlyRate != null)
                       Text(
                         [
                           if (careTypes.isNotEmpty) careTypes.join(', '),
                           if (yearsExperience != null) '$yearsExperience yrs exp',
+                          if (hourlyRate != null) 'Rs.${hourlyRate.toStringAsFixed(0)}/hr',
                         ].join(' · '),
                         style: const TextStyle(
                           fontFamily: 'Open Sans',

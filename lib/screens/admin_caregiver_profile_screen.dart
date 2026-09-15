@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/booking_service.dart';
+import '../services/caregiver_service.dart';
+import '../services/payment_service.dart';
+import '../services/review_service.dart';
 import '../widgets/status_bar.dart';
 
 /// Everything this screen displays about one caregiver, already resolved to
@@ -89,10 +92,18 @@ class _AdminCaregiverProfileScreenState extends State<AdminCaregiverProfileScree
   // Derived, best-effort "completed jobs" count — see [_loadCompletedJobs].
   int? _completedJobs;
 
+  // Hourly rate section — the current assigned rate (if any), the real
+  // Bayesian-adjusted rating behind the suggested rate, and whether an
+  // assign action is in flight.
+  double? _currentHourlyRate;
+  double? _adjustedRating;
+  bool _assigningRate = false;
+
   @override
   void initState() {
     super.initState();
     _loadCompletedJobs();
+    _loadRateInputs();
   }
 
   /// Fetched lazily here — one caregiver at a time, only when this detail
@@ -105,6 +116,46 @@ class _AdminCaregiverProfileScreenState extends State<AdminCaregiverProfileScree
   Future<void> _loadCompletedJobs() async {
     final count = await BookingService.countCompletedBookingsForCaregiver(data.uid);
     if (mounted) setState(() => _completedJobs = count);
+  }
+
+  Future<void> _loadRateInputs() async {
+    final profile = await CaregiverService.getCaregiverProfile(data.uid);
+    final platform = ReviewService.platformAverageOrNeutral(
+      await ReviewService.fetchPlatformAverage(),
+    );
+    final ratings = await ReviewService.fetchRatingsFor([data.uid]);
+    final r = ratings[data.uid];
+    final adjusted = ReviewService.adjustedRating(
+      average: r?.avg ?? platform,
+      count: r?.count ?? 0,
+      platformAverage: platform,
+    );
+    if (!mounted) return;
+    setState(() {
+      _currentHourlyRate = (profile?['hourlyRate'] as num?)?.toDouble();
+      _adjustedRating = adjusted;
+    });
+  }
+
+  Future<void> _assignRate(double rate) async {
+    setState(() => _assigningRate = true);
+    try {
+      await CaregiverService.setHourlyRate(data.uid, rate);
+      if (!mounted) return;
+      setState(() {
+        _currentHourlyRate = rate;
+        _assigningRate = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hourly rate set to LKR ${rate.toStringAsFixed(0)}.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _assigningRate = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not assign rate: $e')),
+      );
+    }
   }
 
   @override
@@ -176,6 +227,12 @@ class _AdminCaregiverProfileScreenState extends State<AdminCaregiverProfileScree
                     _buildSectionTitle('Care Service Details'),
                     const SizedBox(height: 8),
                     _buildCareServiceDetailsCard(),
+                    const SizedBox(height: 18),
+
+                    // ── Section 2b: Hourly rate ────────────────────────────
+                    _buildSectionTitle('Hourly rate'),
+                    const SizedBox(height: 8),
+                    _buildHourlyRateCard(),
                     const SizedBox(height: 18),
 
                     // ── Section 3: Skills ─────────────────────────────────
@@ -343,6 +400,77 @@ class _AdminCaregiverProfileScreenState extends State<AdminCaregiverProfileScree
             _completedJobs == null ? 'Loading…' : '$_completedJobs',
             hasDivider: false,
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── Hourly rate: two-phase formula (LKR 150 flat until 5 completed
+  // services, then scaled by the Bayesian-adjusted rating), computed here
+  // from real data and assigned by the admin — there's no backend to run
+  // it automatically. See PaymentService.calculateHourlyRate.
+  Widget _buildHourlyRateCard() {
+    final loading = _completedJobs == null || _adjustedRating == null;
+    final suggested = loading
+        ? null
+        : PaymentService.calculateHourlyRate(
+            completedServices: _completedJobs!,
+            adjustedRating: _adjustedRating!,
+          );
+    final upToDate = suggested != null && _currentHourlyRate == suggested;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: cardBorder, width: 1.5),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      child: Column(
+        children: [
+          _buildDetailRow(
+            'Current rate',
+            _currentHourlyRate == null
+                ? 'Not yet assigned'
+                : 'LKR ${_currentHourlyRate!.toStringAsFixed(0)} / hr',
+            hasDivider: true,
+          ),
+          _buildDetailRow(
+            'Adjusted rating',
+            _adjustedRating == null ? 'Loading…' : _adjustedRating!.toStringAsFixed(2),
+            hasDivider: true,
+          ),
+          _buildDetailRow(
+            'Suggested rate',
+            suggested == null ? 'Loading…' : 'LKR ${suggested.toStringAsFixed(0)} / hr',
+            hasDivider: false,
+          ),
+          if (!loading && suggested != null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: (_assigningRate || upToDate) ? null : () => _assignRate(suggested),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: rowValueColor),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: Text(
+                  _assigningRate
+                      ? 'Assigning…'
+                      : upToDate
+                          ? 'Rate is up to date'
+                          : 'Assign LKR ${suggested.toStringAsFixed(0)} / hr',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: rowValueColor,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

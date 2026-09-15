@@ -448,6 +448,48 @@ class BookingService {
     }).length;
   }
 
+  /// Caregivers (from [caregiverIds]) currently mid-shift right now — a
+  /// confirmed, arrived booking whose window contains this moment. Used to
+  /// keep an emergency request from matching someone already on another
+  /// job. Chunked by Firestore's 30-item whereIn limit.
+  static Future<Set<String>> currentlyBusyCaregiverIds(
+    List<String> caregiverIds,
+  ) async {
+    final busy = <String>{};
+    if (caregiverIds.isEmpty) return busy;
+    final now = DateTime.now();
+    final ids = caregiverIds.toSet().toList();
+    for (var i = 0; i < ids.length; i += 30) {
+      final chunk = ids.sublist(i, i + 30 > ids.length ? ids.length : i + 30);
+      final snap = await _collection
+          .where('caregiverId', whereIn: chunk)
+          .where('status', isEqualTo: 'confirmed')
+          .where('arrivalConfirmed', isEqualTo: true)
+          .get();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final caregiverId = data['caregiverId'] as String?;
+        if (caregiverId == null || busy.contains(caregiverId)) continue;
+        final start = parseBookingDateTime(
+          data['startDate'] as String?,
+          data['startTime'] as String?,
+        );
+        if (start == null) continue;
+        var end = parseBookingDateTime(
+          (data['endDate'] as String?) ?? (data['startDate'] as String?),
+          data['endTime'] as String?,
+        );
+        if (end == null || !end.isAfter(start)) {
+          end = start.add(const Duration(hours: 8));
+        }
+        if (now.isAfter(start) && now.isBefore(end)) {
+          busy.add(caregiverId);
+        }
+      }
+    }
+    return busy;
+  }
+
   /// Confirmed bookings grouped by the weekday they were created on, for the
   /// last 7 days — used by the admin dashboard's real bookings chart.
   static Future<Map<int, int>> countBookingsByWeekdayLast7Days() async {

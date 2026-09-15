@@ -3,11 +3,15 @@ import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Caregiver Qualifications Quiz  (Advanced Match — Step 4)
-//  4 question screens sharing one light-theme card template:
-//    Q1 · Education    (Figma node 334-869)  – single-select
-//    Q2 · Experience   (Figma node 338-922)  – single-select
-//    Q3 · Training     (Figma node 334-868)  – single-select (Yes / No)
-//    Q4 · Languages    (Figma node 344-995)  – multi-select  → Continue
+//  2 question screens sharing one light-theme card template:
+//    Q1 · Training     (Figma node 334-868)  – single-select (Yes / No)
+//    Q2 · Languages    (Figma node 344-995)  – multi-select  → Continue
+//  The Education and Experience questions this quiz used to ask were
+//  removed — matching_service.dart already scores a caregiver's own
+//  education/experience as an intrinsic quality signal (from their own
+//  onboarding data), never against anything a patient requests here, so
+//  these two answers were collected and shown on the confirm-booking
+//  summary but never actually fed into matching.
 // ─────────────────────────────────────────────────────────────────────────────
 class QualificationsSelectionScreen extends StatefulWidget {
   const QualificationsSelectionScreen({super.key});
@@ -31,30 +35,13 @@ class _QualificationsSelectionScreenState
 
   // ── Quiz state ───────────────────────────────────────────────────────────
   int _currentQ = 0; // 0-based index of current question
-  static const int _totalQ = 4;
+  static const int _totalQ = 2;
 
-  // Q1 – Education (single-select)
-  String? _education;
-  static const _eduOptions = [
-    'Primary',
-    'Diploma',
-    'Degree or higher',
-  ];
-
-  // Q2 – Experience (single-select)
-  String? _experience;
-  static const _expOptions = [
-    'Less than 1 year',
-    '1–3 years',
-    '4–6 years',
-    'More than 6 years',
-  ];
-
-  // Q3 – Training (single-select)
+  // Q1 – Training (single-select)
   String? _training;
   static const _trainOptions = ['Yes', 'No'];
 
-  // Q4 – Languages (multi-select)
+  // Q2 – Languages (multi-select)
   final Set<String> _languages = {'Sinhala', 'English'};
   static const _langOptions = ['Sinhala', 'English', 'Tamil'];
 
@@ -89,8 +76,6 @@ class _QualificationsSelectionScreenState
         '/confirm-booking',
         arguments: {
           ..._bookingArgs,
-          'education': _education,
-          'experience': _experience,
           'training': _training,
           'languages': _languages.toList(),
         },
@@ -104,28 +89,6 @@ class _QualificationsSelectionScreenState
     if (_currentQ == 0) {
       return _buildQuestionCard(
         context,
-        heroAsset: 'assets/images/qualification1.png',
-        title: 'Highest educational qualification',
-        options: _eduOptions,
-        isSelected: (v) => v == _education,
-        onToggle: (v) => setState(() => _education = v),
-        canProceed: _education != null,
-      );
-    }
-    if (_currentQ == 1) {
-      return _buildQuestionCard(
-        context,
-        heroAsset: 'assets/images/qualification2.png',
-        title: 'Years of caregiving experience',
-        options: _expOptions,
-        isSelected: (v) => v == _experience,
-        onToggle: (v) => setState(() => _experience = v),
-        canProceed: _experience != null,
-      );
-    }
-    if (_currentQ == 2) {
-      return _buildQuestionCard(
-        context,
         heroAsset: 'assets/images/qualification3.png',
         title: 'Do you accept a formal trained caregiver?',
         options: _trainOptions,
@@ -134,7 +97,7 @@ class _QualificationsSelectionScreenState
         canProceed: _training != null,
       );
     }
-    // Q4 · Languages (multi-select)
+    // Q2 · Languages (multi-select)
     return _buildQuestionCard(
       context,
       heroAsset: 'assets/images/qualification4.png',

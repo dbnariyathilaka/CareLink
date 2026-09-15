@@ -236,37 +236,61 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
             ),
           ],
           const SizedBox(height: 10),
-          if (isAvailable)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: availableBadgeBg,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: const BoxDecoration(
-                      color: availableAccent,
-                      shape: BoxShape.circle,
-                    ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              if (isAvailable)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: availableBadgeBg,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Available now',
-                    style: TextStyle(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: availableAccent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Available now',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: availableAccent,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_caregiver?['hourlyRate'] != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: availableBadgeBg,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Hourly rate: Rs.${((_caregiver!['hourlyRate']) as num).toStringAsFixed(0)}',
+                    style: const TextStyle(
                       fontFamily: 'Inter',
                       color: availableAccent,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
+          ),
         ],
       ),
     );

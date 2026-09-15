@@ -59,6 +59,13 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   String? _preferredCaregiverGender;
   final List<String> _preferredGenderOptions = ['No preference', 'Female', 'Male'];
 
+  // Optional — only the system-wide 30km cap applies to matching when this
+  // is left unset ('No limit').
+  String? _maxDistance = 'No limit';
+  final List<String> _maxDistanceOptions = [
+    'No limit', '5 km', '10 km', '15 km', '20 km', '25 km', '30 km',
+  ];
+
   List<Map<String, String>> _filteredCities = [];
 
   late AnimationController _fadeController;
@@ -418,6 +425,21 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                           _buildSuggestionsList(),
                           const SizedBox(height: 18),
 
+                          _buildLabel('Maximum caregiver travel distance', required: false),
+                          const SizedBox(height: 7),
+                          _buildDropdownField(
+                            value: _maxDistance,
+                            hintText: 'No limit',
+                            hasError: false,
+                            onTap: () => _showPicker(
+                              title: 'Maximum caregiver travel distance',
+                              options: _maxDistanceOptions,
+                              selected: _maxDistance,
+                              onSelect: (v) => setState(() => _maxDistance = v),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+
                           _buildLabel('Preferred caregiver gender'),
                           const SizedBox(height: 7),
                           _buildDropdownField(
@@ -492,6 +514,9 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                         AppState.careLocation.value = _cityController.text.trim();
                         AppState.preferredGender.value = _preferredCaregiverGender!;
                         AppState.additionalCareNotes.value = _notesController.text.trim();
+                        AppState.maxDistanceKm.value = (_maxDistance == null || _maxDistance == 'No limit')
+                            ? null
+                            : double.tryParse(_maxDistance!.replaceAll(RegExp(r'[^0-9.]'), ''));
                         Navigator.pushNamed(context, '/patient-onboarding-2');
                       },
                       child: const Center(

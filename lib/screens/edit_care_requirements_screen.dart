@@ -69,6 +69,12 @@ class _EditCareRequirementsScreenState
     'Male',
   ];
 
+  // Optional — only the system-wide 30km cap applies to matching when this
+  // is 'No limit'.
+  static const List<String> _maxDistanceOptions = [
+    'No limit', '5 km', '10 km', '15 km', '20 km', '25 km', '30 km',
+  ];
+
   // ── Controllers / state ──────────────────────────────────────
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -79,6 +85,7 @@ class _EditCareRequirementsScreenState
   String _selectedCareType = 'Elder care';
   String _selectedSchedule = 'Full-time';
   String _selectedPreferredGender = 'No preference';
+  String _maxDistance = 'No limit';
   String _location = '';
 
   bool _loading = true;
@@ -155,6 +162,15 @@ class _EditCareRequirementsScreenState
           (profile?['city'] as String?) ??
           AppState.careLocation.value;
 
+      final storedMaxDistance = (profile?['maxDistanceKm'] as num?) ??
+          AppState.maxDistanceKm.value;
+      _maxDistance = storedMaxDistance == null
+          ? 'No limit'
+          : '${storedMaxDistance.toInt()} km';
+      if (!_maxDistanceOptions.contains(_maxDistance)) {
+        _maxDistance = 'No limit';
+      }
+
       _notesController.text =
           (profile?['medicalConditions'] as String?) ??
           AppState.additionalCareNotes.value;
@@ -198,6 +214,12 @@ class _EditCareRequirementsScreenState
           'careLevel': _selectedSchedule,
           'preferredCaregiverGender': _selectedPreferredGender,
           'city': _location,
+          // Explicit null (not omitted) so clearing back to "No limit"
+          // actually overwrites a previously-set value instead of leaving
+          // it stale under Firestore's merge write.
+          'maxDistanceKm': _maxDistance == 'No limit'
+              ? null
+              : double.tryParse(_maxDistance.replaceAll(RegExp(r'[^0-9.]'), '')),
           'medicalConditions': notes,
         },
       );
@@ -227,6 +249,9 @@ class _EditCareRequirementsScreenState
       AppState.preferredGender.value = _selectedPreferredGender;
       AppState.careLocation.value = _location;
       AppState.additionalCareNotes.value = notes;
+      AppState.maxDistanceKm.value = _maxDistance == 'No limit'
+          ? null
+          : double.tryParse(_maxDistance.replaceAll(RegExp(r'[^0-9.]'), ''));
 
       if (!mounted) return;
       setState(() => _saving = false);
@@ -531,6 +556,15 @@ class _EditCareRequirementsScreenState
                           ],
                         ),
                       ),
+                    ),
+
+                    const SizedBox(height: 22),
+                    _buildLabel('Maximum caregiver travel distance'),
+                    const SizedBox(height: 10),
+                    _buildChipRow(
+                      options: _maxDistanceOptions,
+                      selected: _maxDistance,
+                      onSelect: (v) => setState(() => _maxDistance = v),
                     ),
 
                     const SizedBox(height: 22),

@@ -23,6 +23,30 @@ class PaymentService {
   static CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection('payments');
 
+  /// Two-phase hourly rate: LKR 150 flat until a caregiver has 5 completed
+  /// services (not enough rating evidence yet to justify a different rate —
+  /// the threshold matches ReviewService.ratingSmoothing, the point their
+  /// own ratings start outweighing the platform average). After that, the
+  /// rate scales with their Bayesian-adjusted rating: anchored at 3.0 stars
+  /// (no change), floored at the base rate (a weak rating never pays below
+  /// LKR 150), capped at 1.5× base (a perfect 5.0 caps at LKR 225).
+  /// Rounded to the nearest LKR 5 for billing. This isn't run
+  /// automatically — there's no backend/cron in this app — an admin
+  /// reviews and assigns it (see CaregiverService.setHourlyRate).
+  static const double baseHourlyRate = 150;
+  static const double _upliftFactor = 0.5; // β
+  static const double _rateCap = 1.5;
+
+  static double calculateHourlyRate({
+    required int completedServices,
+    required double adjustedRating,
+  }) {
+    if (completedServices <= 5) return baseHourlyRate;
+    final multiplier =
+        (1 + _upliftFactor * (adjustedRating - 3.0) / 2.0).clamp(1.0, _rateCap);
+    return (baseHourlyRate * multiplier / 5).round() * 5;
+  }
+
   /// Records a completed payment for a booking. Written by the sandbox
   /// PayHere-style checkout (`PayhereCheckoutScreen`) — there's no real
   /// payment gateway wired up, so this simulates a successful charge and
