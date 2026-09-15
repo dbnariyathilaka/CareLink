@@ -140,31 +140,62 @@ class AuthService {
   }
 
   /// Deletes an Auth account that never completed onboarding, along with
-  /// every Firestore document created for it. Used to clean up half-baked
-  /// caregiver accounts on login so they cannot access the app in a broken
-  /// state.  Each delete is best-effort — one failure does not block others.
+  /// every Firestore document created for it — both caregiver and patient
+  /// data (harmless no-op on whichever collection doesn't apply to this
+  /// account), including the patient profile's subcollections, since those
+  /// can't cascade-delete on their own. Checked from starting_screen.dart
+  /// (an already-signed-in session restored on relaunch — the common case,
+  /// since refreshing mid-onboarding is exactly what leaves an account in
+  /// this state) and login_screen.dart's explicit sign-in path.
+  ///
+  /// Firestore is wiped BEFORE the Auth user, not after: every rule here
+  /// requires `request.auth.uid == uid`, which needs the session to still
+  /// be authenticated as this exact user — deleting the Auth user first
+  /// could invalidate that for the writes that follow. If deleting the Auth
+  /// user itself fails (e.g. `requires-recent-login` on a stale session),
+  /// this falls back to just signing out — the account is left with no
+  /// profile data either way, so it can't be used, even though the bare
+  /// credential technically still exists.
   static Future<void> deleteIncompleteAccount(String uid, String email) async {
-    // 1. Delete the Firebase Auth user (requires the session to still be live).
-    try {
-      await FirebaseAuth.instance.currentUser?.delete();
-    } catch (_) {}
-
-    // 2. Wipe Firestore documents.
+    // 1. Wipe Firestore documents.
+    await _deleteSubcollectionDocs('patientProfiles/$uid/favorites');
+    await _deleteSubcollectionDocs('patientProfiles/$uid/familyMembers');
+    await _deleteSubcollectionDocs('patientProfiles/$uid/activity');
     for (final collectionPath in [
       'users',
       'caregiverProfiles',
+      'patientProfiles',
     ]) {
       try {
         await _firestore.collection(collectionPath).doc(uid).delete();
       } catch (_) {}
     }
 
-    // 3. Remove the email from the lookup index.
+    // 2. Remove the email from the lookup index.
     try {
       await _firestore
           .collection('registeredEmails')
           .doc(_emailKey(email))
           .delete();
+    } catch (_) {}
+
+    // 3. Delete the Firebase Auth user; fall back to a plain sign-out if
+    // that's not possible right now.
+    try {
+      await FirebaseAuth.instance.currentUser?.delete();
+    } catch (_) {
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
+  }
+
+  static Future<void> _deleteSubcollectionDocs(String collectionPath) async {
+    try {
+      final snap = await _firestore.collection(collectionPath).get();
+      for (final doc in snap.docs) {
+        await doc.reference.delete();
+      }
     } catch (_) {}
   }
 
@@ -175,6 +206,22 @@ class AuthService {
     try {
       final snap = await _firestore
           .collection('caregiverProfiles')
+          .doc(uid)
+          .get();
+      return snap.data()?['onboardingComplete'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Returns true only once the last patient onboarding step has actually
+  /// saved (`onboardingComplete == true` in patientProfiles/{uid}) — not
+  /// merely "the document exists", since a refresh mid-onboarding can leave
+  /// a partial write.
+  static Future<bool> isPatientOnboardingComplete(String uid) async {
+    try {
+      final snap = await _firestore
+          .collection('patientProfiles')
           .doc(uid)
           .get();
       return snap.data()?['onboardingComplete'] == true;

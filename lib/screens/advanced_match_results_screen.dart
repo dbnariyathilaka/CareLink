@@ -17,18 +17,17 @@ import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Advanced Match Results Screen  (Figma node 324-471)
-//  Ranking is produced by MatchingService's seven-criterion, W2-weighted
-//  score (skill match, availability, proximity, feedback/ratings,
-//  references, experience, certification) with Stage-1 hard/conditional/
-//  mixed eligibility filtering applied first (language, skills, work
-//  schedule, gender preference, certification-mandatory, distance, and —
-//  for emergency requests only — not already mid-shift elsewhere) and S1
-//  weight redistribution for caregivers whose References/Certification/
-//  Experience data is structurally absent, rather than scoring it as zero.
-//  Gender and language are filters only here — they carry no ranking
-//  weight. See lib/services/matching_service.dart for the full algorithm;
-//  the same model (not a separate lighter one) drives the dashboard's
-//  "top match" preview in patient_dashboard_screen.dart too.
+//  Stage 1 hard filters (skill match, real-time availability, gender
+//  preference, exact work schedule, spoken language, and a 30km proximity
+//  cap) run first and exclude only — they carry no ranking weight. The
+//  survivors are then ranked by six equally-weighted criteria: rating,
+//  proximity, references, experience, certification (only when the patient
+//  asked for a certified caregiver), and education — with weight
+//  redistribution for any caregiver whose references/certification data is
+//  structurally absent, rather than scoring it as zero. See
+//  lib/services/matching_service.dart for the full algorithm — a separate,
+//  independent model from the dashboard's "top match" preview
+//  (OnboardingMatchingService) in patient_dashboard_screen.dart.
 // ─────────────────────────────────────────────────────────────────────────────
 class AdvancedMatchResultsScreen extends StatefulWidget {
   const AdvancedMatchResultsScreen({super.key});
@@ -151,15 +150,14 @@ class _AdvancedMatchResultsScreenState
 
     final caregivers = await CaregiverService.searchCaregivers();
 
-    // Emergency requests additionally exclude caregivers already mid-shift
-    // right now — stamped onto each candidate before eligibility filtering
-    // so MatchingService (pure Dart, no Firestore access) can read it.
-    if (matchContext.isEmergency) {
-      final ids = caregivers.map((c) => c['uid'] as String?).whereType<String>().toList();
-      final busy = await BookingService.currentlyBusyCaregiverIds(ids);
-      for (final c in caregivers) {
-        c['currentlyBusy'] = busy.contains(c['uid']);
-      }
+    // Availability is a real-time hard filter on every advanced-match
+    // request now (not just emergency ones) — stamped onto each candidate
+    // before eligibility filtering so MatchingService (pure Dart, no
+    // Firestore access) can read it.
+    final ids = caregivers.map((c) => c['uid'] as String?).whereType<String>().toList();
+    final busy = await BookingService.currentlyBusyCaregiverIds(ids);
+    for (final c in caregivers) {
+      c['currentlyBusy'] = busy.contains(c['uid']);
     }
 
     final eligible = caregivers

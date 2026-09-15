@@ -112,8 +112,11 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
           'medicalConditions': AppState.additionalCareNotes.value,
           'preferredCaregiverGender': AppState.preferredGender.value,
           'city': AppState.careLocation.value,
-          if (AppState.maxDistanceKm.value != null)
-            'maxDistanceKm': AppState.maxDistanceKm.value,
+          // Written only once every onboarding field above has actually
+          // saved — starting_screen.dart / login_screen.dart key off this
+          // to tell a real account apart from one abandoned mid-onboarding
+          // (e.g. the app was closed/refreshed before reaching this step).
+          'onboardingComplete': true,
         },
       );
     } catch (_) {

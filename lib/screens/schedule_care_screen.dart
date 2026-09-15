@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/booking_service.dart';
 import '../widgets/status_bar.dart';
 
 class ScheduleCareScreen extends StatefulWidget {
@@ -135,10 +136,51 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  bool _isUnavailable(DateTime day) {
+  bool _isPastDate(DateTime day) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return day.isBefore(today);
+  }
+
+  // Real, currently-confirmed shift days for the specific caregiver this
+  // request is addressed to — only populated for the direct/"normal"
+  // request flow, where a caregiver is already chosen at this step (the
+  // advanced flow doesn't know one yet, so this stays empty there and every
+  // day behaves exactly as before).
+  bool _loadedCaregiverBookedDates = false;
+  Set<DateTime> _caregiverBookedDates = {};
+
+  bool _isCaregiverBooked(DateTime day) {
+    return _caregiverBookedDates.contains(DateTime(day.year, day.month, day.day));
+  }
+
+  Future<void> _loadCaregiverBookedDates(String caregiverId) async {
+    final bookings = await BookingService.streamBookingsForCaregiver(caregiverId).first;
+    final dates = <DateTime>{};
+    for (final b in bookings) {
+      // Only shifts the caregiver has actually confirmed hold a day —
+      // another patient's still-pending request might get declined, so it
+      // shouldn't block this patient from requesting the same date.
+      if (b['status'] != 'confirmed') continue;
+      final start = BookingService.parseBookingDateTime(
+        b['startDate'] as String?,
+        b['startTime'] as String?,
+      );
+      if (start == null) continue;
+      var end = BookingService.parseBookingDateTime(
+        (b['endDate'] as String?) ?? (b['startDate'] as String?),
+        b['endTime'] as String?,
+      );
+      if (end == null || end.isBefore(start)) end = start;
+      var cursor = DateTime(start.year, start.month, start.day);
+      final lastDay = DateTime(end.year, end.month, end.day);
+      while (!cursor.isAfter(lastDay)) {
+        dates.add(cursor);
+        cursor = cursor.add(const Duration(days: 1));
+      }
+    }
+    if (!mounted) return;
+    setState(() => _caregiverBookedDates = dates);
   }
 
   // The Part-time wheel picker stores a 12-hour hour (1-12) plus a separate
@@ -308,6 +350,18 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   void initState() {
     super.initState();
     setStatusBarStyle(Brightness.dark);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadedCaregiverBookedDates) return;
+    _loadedCaregiverBookedDates = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      final caregiverId = args['caregiverId'] as String?;
+      if (caregiverId != null) _loadCaregiverBookedDates(caregiverId);
+    }
   }
 
   @override
@@ -753,7 +807,9 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
         day.isAfter(_selectedDate) &&
         day.isBefore(_selectedDate.add(Duration(days: durationDays)));
 
-    final unavailable = _isUnavailable(day);
+    final isPast = _isPastDate(day);
+    final isCaregiverBooked = !isPast && _isCaregiverBooked(day);
+    final unavailable = isPast || isCaregiverBooked;
 
     return GestureDetector(
       onTap: unavailable
@@ -781,9 +837,11 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
               ? _calendarSelectedBg
               : inRange
                   ? _calendarRangeBg
-                  : unavailable
-                      ? _calendarCompletedBgColor
-                      : Colors.transparent,
+                  : isCaregiverBooked
+                      ? _legendBookedDotColor
+                      : isPast
+                          ? _calendarCompletedBgColor
+                          : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         alignment: Alignment.center,

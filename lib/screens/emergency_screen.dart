@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../data/sri_lankan_cities.dart';
+import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/status_bar.dart';
@@ -8,9 +9,11 @@ import '../widgets/status_bar.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 //  Emergency Screen  (Figma node 346-1260)
 //  Shows real registered caregivers within 10 km of the patient's saved
-//  location, sorted by real (haversine) distance. No live availability or
-//  drive-time system exists yet, so the Figma design's "Available now"
-//  badges and ETA figures are intentionally left out rather than faked.
+//  location, closest first, excluding anyone currently mid-shift on another
+//  booking (BookingService.currentlyBusyCaregiverIds — the same live
+//  "on an active job right now" check the emergency-match hard filter in
+//  matching_service.dart uses). No drive-time system exists yet, so the
+//  Figma design's ETA figures are intentionally left out rather than faked.
 // ─────────────────────────────────────────────────────────────────────────────
 class EmergencyScreen extends StatefulWidget {
   const EmergencyScreen({super.key});
@@ -64,17 +67,28 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     final results = await CaregiverService.searchCaregivers();
     final ranked = <_RankedCaregiver>[];
     if (patientCity != null) {
+      final patientLat = double.parse(patientCity['lat']!);
+      final patientLng = double.parse(patientCity['lng']!);
       for (final c in results) {
-        final city = c['city'] as String?;
-        if (city == null || city.isEmpty) continue;
-        final caregiverCity = cityCoords(city);
-        if (caregiverCity == null) continue;
-        final distanceKm = haversineKm(
-          double.parse(patientCity['lat']!),
-          double.parse(patientCity['lng']!),
-          double.parse(caregiverCity['lat']!),
-          double.parse(caregiverCity['lng']!),
-        );
+        // Prefer the caregiver's own exact coordinates (set via the
+        // onboarding map picker) over the coarser city-name lookup — the
+        // same preference matching_service.dart uses, and precision
+        // matters more here than anywhere else in the app.
+        final exactLat = (c['locationLat'] as num?)?.toDouble();
+        final exactLng = (c['locationLng'] as num?)?.toDouble();
+        double caregiverLat, caregiverLng;
+        if (exactLat != null && exactLng != null) {
+          caregiverLat = exactLat;
+          caregiverLng = exactLng;
+        } else {
+          final city = c['city'] as String?;
+          if (city == null || city.isEmpty) continue;
+          final caregiverCity = cityCoords(city);
+          if (caregiverCity == null) continue;
+          caregiverLat = double.parse(caregiverCity['lat']!);
+          caregiverLng = double.parse(caregiverCity['lng']!);
+        }
+        final distanceKm = haversineKm(patientLat, patientLng, caregiverLat, caregiverLng);
         if (distanceKm <= _radiusKm) {
           ranked.add(_RankedCaregiver(c, distanceKm));
         }
@@ -82,9 +96,15 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
       ranked.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
     }
 
+    // Exclude anyone already mid-shift on another booking right now — an
+    // emergency request needs someone who can actually respond.
+    final candidateIds = ranked.map((r) => r.data['uid'] as String?).whereType<String>().toList();
+    final busy = await BookingService.currentlyBusyCaregiverIds(candidateIds);
+    final available = ranked.where((r) => !busy.contains(r.data['uid'])).toList();
+
     if (!mounted) return;
     setState(() {
-      _nearby = ranked.take(3).toList();
+      _nearby = available.take(3).toList();
       _loading = false;
     });
   }
@@ -213,7 +233,7 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
           const SizedBox(width: 11),
           const Expanded(
             child: Text(
-              'Showing nearest registered caregivers · top 3 within 10 km, closest first.',
+              'Showing available caregivers not currently on a job · top 3 within 10 km, closest first.',
               style: TextStyle(
                 fontFamily: 'Open Sans',
                 color: bannerText,
@@ -238,9 +258,9 @@ class _EmergencyScreenState extends State<EmergencyScreen> {
     if (_nearby.isEmpty) {
       return EmptyState(
         icon: Icons.person_search_rounded,
-        message: 'No registered caregivers within 10 km right now. Try '
-            'Search for a wider radius, or contact your existing caregiver '
-            'directly.',
+        message: 'No available caregivers within 10 km right now — they may '
+            'all be on another job. Try Search for a wider radius, or '
+            'contact your existing caregiver directly.',
         iconColor: cardBorder,
         textColor: bannerText,
         actionLabel: 'Search caregivers',

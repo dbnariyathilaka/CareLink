@@ -20,10 +20,6 @@ class AppState {
   static final careLocation = ValueNotifier<String>('Negombo, Western Province');
   static final preferredGender = ValueNotifier<String>('No preference');
   static final additionalCareNotes = ValueNotifier<String>('');
-  // Optional — the patient's own tighter cap on caregiver travel distance,
-  // on top of the system-wide 30km max (MatchWeights.systemDistanceCapKm).
-  // Null means "no limit given", so only the system cap applies.
-  static final maxDistanceKm = ValueNotifier<double?>(null);
 
   // Patient identity fields — filled in during onboarding (the
   // patient-details step), written to patientProfiles/{uid} alongside the
@@ -65,7 +61,6 @@ class AppState {
     careLocation.value = 'Negombo, Western Province';
     preferredGender.value = 'No preference';
     additionalCareNotes.value = '';
-    maxDistanceKm.value = null;
     patientName.value = '';
     patientGenderSelf.value = 'Female';
     patientAge.value = '';

@@ -10,7 +10,7 @@ import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
-import '../services/matching_service.dart';
+import '../services/onboarding_matching_service.dart';
 import '../services/patient_service.dart';
 import '../services/review_service.dart';
 import '../services/profile_gate.dart';
@@ -33,7 +33,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
   int _caregiverCount = 0;
 
   bool _loadingTopMatches = true;
-  List<MatchResult> _topMatches = const [];
+  List<OnboardingMatchResult> _topMatches = const [];
+  // "See all" reveals the next 4 ranked matches inline instead of
+  // navigating away — collapsed by default so the dashboard still opens
+  // showing just the single top match.
+  bool _showMoreTopMatches = false;
 
   StreamSubscription<List<Map<String, dynamic>>>? _bookingsSub;
   List<Map<String, dynamic>> _bookings = [];
@@ -159,8 +163,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
 
   // "Caregivers near you" — real caregivers within 10km of the patient's
   // registered city, via the same city-coordinate + haversine approach
-  // MatchingService already uses for proximity scoring (there's no exact
-  // GPS stored for either side, only registered city). Also checks the
+  // OnboardingMatchingService already uses for proximity scoring (there's
+  // no exact GPS stored for either side, only registered city). Also checks the
   // caregiver's `isAvailable` flag — no real presence/online system exists
   // anywhere in this app, so this currently never excludes anyone (the
   // field is never actually written), but keeps the filter honest and
@@ -213,18 +217,27 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
       if (mounted) setState(() => _loadingTopMatches = false);
       return;
     }
-    final matchContext = MatchContext(patientProfile: profile);
+    final matchContext = OnboardingMatchContext(
+      careType: (profile['careType'] as String?) ?? AppState.careType.value,
+      preferredSchedule: (profile['careLevel'] as String?) ?? AppState.careSchedule.value,
+      preferredGender:
+          (profile['preferredCaregiverGender'] as String?) ?? AppState.preferredGender.value,
+      cityName: (profile['city'] as String?) ?? AppState.careLocation.value,
+    );
     final caregivers = await CaregiverService.searchCaregivers();
-    final eligible =
-        caregivers.where((c) => MatchingService.isEligible(c, matchContext)).toList();
+    final eligible = caregivers
+        .where((c) => OnboardingMatchingService.isEligible(c, matchContext))
+        .toList();
     await ReviewService.stampAdjustedRatings(eligible);
-    final ranked = MatchingService.rankCaregivers(
+    final ranked = OnboardingMatchingService.rankCaregivers(
       caregivers: eligible,
       context: matchContext,
     );
     if (!mounted) return;
     setState(() {
-      _topMatches = ranked.take(1).toList();
+      // Top match + the next 4, already sorted descending by match
+      // percentage — "See all" reveals the extra 4 inline.
+      _topMatches = ranked.take(5).toList();
       _loadingTopMatches = false;
     });
   }
@@ -438,6 +451,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                     _buildTopMatchHeader(),
                     const SizedBox(height: 10),
                     _buildTopMatchCard(_topMatches.first),
+                    if (_showMoreTopMatches)
+                      for (final m in _topMatches.skip(1).take(4)) ...[
+                        const SizedBox(height: 10),
+                        _buildTopMatchCard(m),
+                      ],
                     const SizedBox(height: 16),
                   ],
                   // ── Saved caregivers ──────────────────────────────────
@@ -1149,35 +1167,38 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
 
   // ── Top match section header ──────────────────────────────────────────
   Widget _buildTopMatchHeader() {
+    // Nothing more to reveal with only one (or zero) ranked caregivers.
+    final canShowMore = _topMatches.length > 1;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildSectionLabel('Top match for you'),
-        GestureDetector(
-          onTap: _startOrViewMatch,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color.fromRGBO(64, 64, 6, 0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'See all',
-              style: TextStyle(
-                fontFamily: 'Quattrocento Sans',
-                color: Color(0xFF33440A),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+        if (canShowMore)
+          GestureDetector(
+            onTap: () => setState(() => _showMoreTopMatches = !_showMoreTopMatches),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(64, 64, 6, 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _showMoreTopMatches ? 'Show less' : 'See all',
+                style: const TextStyle(
+                  fontFamily: 'Quattrocento Sans',
+                  color: Color(0xFF33440A),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
 
   // ── Top match card ────────────────────────────────────────────────────
-  Widget _buildTopMatchCard(MatchResult m) {
+  Widget _buildTopMatchCard(OnboardingMatchResult m) {
     final uid = m.caregiver['uid'] as String?;
     final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
     final photoUrl = (m.caregiver['photoUrl'] as String?)?.trim();

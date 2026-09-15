@@ -150,22 +150,51 @@ class _LoginScreenState extends State<LoginScreen>
           (route) => false,
         );
       } else if (role == 'caregiver') {
-        // A caregiver who never finished onboarding still gets into their
-        // dashboard — their account is no longer deleted on login. What
-        // they can't do (accept a job) is gated at that specific action
-        // instead, via ensureCaregiverProfileComplete (profile_gate.dart),
-        // which explains what's missing rather than wiping their account.
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/caregiver-dashboard',
-          (route) => false,
-        );
+        // A caregiver who never finished onboarding never had a working
+        // account to begin with (no completed profile, nothing to show on
+        // their dashboard) — same cleanup starting_screen.dart runs on an
+        // auto-restored session, so this catches it even if they never hit
+        // that path (e.g. they explicitly logged back in after uninstalling
+        // and reinstalling).
+        final caregiverComplete = await AuthService.isCaregiverOnboardingComplete(uid);
+        if (!mounted) return;
+        if (caregiverComplete) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/caregiver-dashboard',
+            (route) => false,
+          );
+        } else {
+          await AuthService.deleteIncompleteAccount(uid, credential.user!.email ?? '');
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your previous signup never finished, so it was removed. Please register again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+        }
       } else if (role == 'patient') {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/patient-dashboard',
-          (route) => false,
-        );
+        final patientComplete = await AuthService.isPatientOnboardingComplete(uid);
+        if (!mounted) return;
+        if (patientComplete) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/patient-dashboard',
+            (route) => false,
+          );
+        } else {
+          await AuthService.deleteIncompleteAccount(uid, credential.user!.email ?? '');
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your previous signup never finished, so it was removed. Please register again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+        }
       } else {
         // Account exists but hasn't finished choosing a role yet.
         ScaffoldMessenger.of(context).showSnackBar(

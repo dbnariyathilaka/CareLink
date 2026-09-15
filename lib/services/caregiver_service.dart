@@ -106,6 +106,26 @@ class CaregiverService {
     }, SetOptions(merge: true));
   }
 
+  /// Verifying the references document isn't a plain approve — the admin
+  /// reads the attached letter and records how many references it actually
+  /// lists. `referenceCount` (top-level) is what the onboarding-matching
+  /// algorithm scores; the same number is echoed into the review record so
+  /// the verification queue can display it without a second lookup. An
+  /// unverified (or rejected) reference document has no count at all — the
+  /// caller must NOT fall back to 0, since "unverified" and "verified with
+  /// zero references" are different things.
+  static Future<void> setReferenceCount(String uid, int count) {
+    return _collection.doc(uid).set({
+      'referenceCount': count,
+      'documentReviews.reference': {
+        'status': 'approved',
+        'count': count,
+        'decidedAt': FieldValue.serverTimestamp(),
+        'decidedBy': 'CareLink verification team',
+      },
+    }, SetOptions(merge: true));
+  }
+
   /// Real replacement of one submitted document's file, used when a
   /// caregiver re-uploads after a rejection. Clears that document's review
   /// decision (a replaced file is unreviewed again) rather than leaving a
