@@ -24,6 +24,14 @@
         { "fieldPath": "nicVerified", "order": "ASCENDING" },
         { "fieldPath": "city", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "familyMembers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "email", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

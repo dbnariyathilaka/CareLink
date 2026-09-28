@@ -37,6 +37,14 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
   bool _loadedArgs = false;
   bool _isEmergency = false;
 
+  // Set when this screen was reached from a family member's "Book care"
+  // action on family_access_home_screen.dart — carried through the rest of
+  // the booking flow (schedule_care_screen.dart -> ... -> confirm_booking_
+  // screen.dart) so the resulting booking is created under the patient's
+  // uid, not the family member's own.
+  String? _onBehalfOfPatientUid;
+  String? _onBehalfOfPatientName;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -51,6 +59,10 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
     }
     if (args is Map && args['isEmergency'] == true) {
       _isEmergency = true;
+    }
+    if (args is Map && args['onBehalfOfPatientUid'] is String) {
+      _onBehalfOfPatientUid = args['onBehalfOfPatientUid'] as String;
+      _onBehalfOfPatientName = args['onBehalfOfPatientName'] as String?;
     }
   }
 
@@ -528,6 +540,8 @@ class _SendRequestScreenState extends State<SendRequestScreen> {
                       'caregiverName': _caregiver!['name'],
                     'notes': _notesController.text.trim(),
                     if (_isEmergency) 'isEmergency': true,
+                    if (_onBehalfOfPatientUid != null) 'onBehalfOfPatientUid': _onBehalfOfPatientUid,
+                    if (_onBehalfOfPatientName != null) 'onBehalfOfPatientName': _onBehalfOfPatientName,
                   },
                 );
               },

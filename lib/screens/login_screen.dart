@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
+import '../services/family_access_service.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/status_bar.dart';
 
@@ -143,6 +144,16 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (!mounted) return;
 
+      // A pending family-circle invite addressed to this email is offered
+      // right here, before any role routing below — including the delete-
+      // incomplete-account branches, which would otherwise wrongly treat a
+      // family-only account (one that intentionally never finishes patient/
+      // caregiver onboarding) as an abandoned signup.
+      await FamilyAccessService.checkAndPromptPendingInvites(context, credential.user!.email);
+      if (!mounted) return;
+      final familyLinks = await FamilyAccessService.fetchAcceptedFamilyLinks(uid);
+      final hasFamilyAccess = familyLinks.isNotEmpty;
+
       if (role == 'admin') {
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -155,7 +166,8 @@ class _LoginScreenState extends State<LoginScreen>
         // their dashboard) — same cleanup starting_screen.dart runs on an
         // auto-restored session, so this catches it even if they never hit
         // that path (e.g. they explicitly logged back in after uninstalling
-        // and reinstalling).
+        // and reinstalling). Skipped when they have real accepted family
+        // access — that's a legitimate reason to never finish onboarding.
         final caregiverComplete = await AuthService.isCaregiverOnboardingComplete(uid);
         if (!mounted) return;
         if (caregiverComplete) {
@@ -164,6 +176,8 @@ class _LoginScreenState extends State<LoginScreen>
             '/caregiver-dashboard',
             (route) => false,
           );
+        } else if (hasFamilyAccess) {
+          Navigator.pushNamedAndRemoveUntil(context, '/family-circles', (route) => false);
         } else {
           await AuthService.deleteIncompleteAccount(uid, credential.user!.email ?? '');
           if (!mounted) return;
@@ -184,6 +198,8 @@ class _LoginScreenState extends State<LoginScreen>
             '/patient-dashboard',
             (route) => false,
           );
+        } else if (hasFamilyAccess) {
+          Navigator.pushNamedAndRemoveUntil(context, '/family-circles', (route) => false);
         } else {
           await AuthService.deleteIncompleteAccount(uid, credential.user!.email ?? '');
           if (!mounted) return;
@@ -195,6 +211,11 @@ class _LoginScreenState extends State<LoginScreen>
           );
           Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
         }
+      } else if (hasFamilyAccess) {
+        // No patient/caregiver role of their own, but real accepted family
+        // access — a legitimate "family-only" account, not an incomplete
+        // signup.
+        Navigator.pushNamedAndRemoveUntil(context, '/family-circles', (route) => false);
       } else {
         // Account exists but hasn't finished choosing a role yet.
         ScaffoldMessenger.of(context).showSnackBar(

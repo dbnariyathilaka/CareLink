@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/family_access_service.dart';
 import '../widgets/status_bar.dart';
 
 class StartingScreen extends StatefulWidget {
@@ -38,15 +39,26 @@ class _StartingScreenState extends State<StartingScreen> {
 
     if (!mounted) return;
 
+    // Same real invite check as login_screen.dart — needed here too since
+    // an auto-restored session never goes through that screen at all.
+    await FamilyAccessService.checkAndPromptPendingInvites(context, user.email);
+    if (!mounted) return;
+    final familyLinks = await FamilyAccessService.fetchAcceptedFamilyLinks(user.uid);
+    final hasFamilyAccess = familyLinks.isNotEmpty;
+
     if (role == 'caregiver') {
       // A relaunch is exactly how an account can get stuck mid-onboarding —
       // the Firebase session survives a refresh even though no onboarding
       // screen ever finished. An account this incomplete has never been
       // usable (no dashboard data), so it's wiped here rather than let
-      // through to look like a real, working account.
+      // through to look like a real, working account — unless it has real
+      // accepted family access, which is a legitimate reason to never
+      // finish onboarding.
       if (await AuthService.isCaregiverOnboardingComplete(user.uid)) {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/caregiver-dashboard');
+      } else if (hasFamilyAccess) {
+        Navigator.pushReplacementNamed(context, '/family-circles');
       } else {
         await AuthService.deleteIncompleteAccount(user.uid, user.email ?? '');
         if (!mounted) return;
@@ -56,11 +68,17 @@ class _StartingScreenState extends State<StartingScreen> {
       if (await AuthService.isPatientOnboardingComplete(user.uid)) {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/patient-dashboard');
+      } else if (hasFamilyAccess) {
+        Navigator.pushReplacementNamed(context, '/family-circles');
       } else {
         await AuthService.deleteIncompleteAccount(user.uid, user.email ?? '');
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/welcome');
       }
+    } else if (hasFamilyAccess) {
+      // No patient/caregiver role of their own, but real accepted family
+      // access — a legitimate "family-only" account.
+      Navigator.pushReplacementNamed(context, '/family-circles');
     } else {
       // Role unknown / not set → welcome.
       Navigator.pushReplacementNamed(context, '/welcome');

@@ -10,6 +10,7 @@ import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/family_access_service.dart';
 import '../services/onboarding_matching_service.dart';
 import '../services/patient_service.dart';
 import '../services/review_service.dart';
@@ -100,6 +101,16 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     _loadTopMatches();
     _subscribeBookings();
     _loadSavedCaregivers();
+    // Redundant safety net for FamilyAccessService's invite check — the
+    // login/starting-screen/account-created hooks cover the normal paths,
+    // this just catches anything reaching the dashboard another way. A
+    // cheap no-op when nothing is actually pending.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final email = AuthService.currentUser?.email;
+      if (email != null && mounted) {
+        FamilyAccessService.checkAndPromptPendingInvites(context, email);
+      }
+    });
 
     _matchIconController = AnimationController(
       vsync: this,

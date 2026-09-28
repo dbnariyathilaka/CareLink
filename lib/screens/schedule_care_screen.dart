@@ -101,6 +101,16 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   ];
   int _selectedShiftIndex = 0;
 
+  // Real (start, end) times matching _shifts' display strings — kept
+  // separate from the display text since parsing "8:00 AM – 5:00 PM" back
+  // into TimeOfDay values would be fragile. Used to resolve the actual
+  // shift length for the total-cost calculation on confirm_booking_screen.
+  static const List<(TimeOfDay, TimeOfDay)> _shiftTimes = [
+    (TimeOfDay(hour: 8, minute: 0), TimeOfDay(hour: 17, minute: 0)),
+    (TimeOfDay(hour: 14, minute: 0), TimeOfDay(hour: 22, minute: 0)),
+    (TimeOfDay(hour: 22, minute: 0), TimeOfDay(hour: 6, minute: 0)),
+  ];
+
   // For Part-time / Half-time: Wheel Time Picker states
   int _ptHour = 9;
   int _ptMinute = 0;
@@ -192,8 +202,27 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     return TimeOfDay(hour: hour24, minute: _ptMinute);
   }
 
+  // Mirrors _ptEndTimeFormatted's "+4 hours" rule, as a TimeOfDay rather
+  // than display text, wrapping past midnight the same way a real shift
+  // would (e.g. a 10 PM start ends at 2 AM the next day).
+  TimeOfDay get _partTimeEndResolved {
+    final startMinutes = _partTimeStartResolved.hour * 60 + _partTimeStartResolved.minute;
+    final endMinutes = (startMinutes + 240) % (24 * 60);
+    return TimeOfDay(hour: endMinutes ~/ 60, minute: endMinutes % 60);
+  }
+
   TimeOfDay _resolvedStartTime(String scheduleType) =>
       scheduleType == 'Part-time' ? _partTimeStartResolved : _startTime;
+
+  // Full-time's real end time comes from the selected shift, Part-time's
+  // from the +4-hour rule above — both were previously left out of the
+  // booking args entirely, silently falling back to _endTime's Flexible-only
+  // default (5:00 PM) regardless of what shift was actually chosen.
+  TimeOfDay _resolvedEndTime(String scheduleType) {
+    if (scheduleType == 'Full-time') return _shiftTimes[_selectedShiftIndex].$2;
+    if (scheduleType == 'Part-time') return _partTimeEndResolved;
+    return _endTime;
+  }
 
   // Minimum lead time before a shift can start — same rule for every
   // schedule type. Past dates are already excluded from the calendar (see
@@ -373,6 +402,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
     String? caregiverName;
     String? notes;
     bool isEmergency = false;
+    String? onBehalfOfPatientUid;
+    String? onBehalfOfPatientName;
 
     if (args is String) {
       scheduleType = args;
@@ -383,6 +414,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
       caregiverName = args['caregiverName'] as String?;
       notes = args['notes'] as String?;
       isEmergency = args['isEmergency'] as bool? ?? false;
+      onBehalfOfPatientUid = args['onBehalfOfPatientUid'] as String?;
+      onBehalfOfPatientName = args['onBehalfOfPatientName'] as String?;
     }
 
     _isAdvanced = isAdvanced;
@@ -442,7 +475,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
             right: 0,
             bottom: 0,
             child: _buildBottomButton(context, scheduleType, isAdvanced, caregiverId,
-                caregiverName, notes, isEmergency),
+                caregiverName, notes, isEmergency, onBehalfOfPatientUid, onBehalfOfPatientName),
           ),
         ],
       ),
@@ -1798,8 +1831,16 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
   }
 
   // ── Bottom Button ──
-  Widget _buildBottomButton(BuildContext context, String scheduleType, bool isAdvanced,
-      String? caregiverId, String? caregiverName, String? notes, bool isEmergency) {
+  Widget _buildBottomButton(
+      BuildContext context,
+      String scheduleType,
+      bool isAdvanced,
+      String? caregiverId,
+      String? caregiverName,
+      String? notes,
+      bool isEmergency,
+      String? onBehalfOfPatientUid,
+      String? onBehalfOfPatientName) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1863,7 +1904,7 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     'schedule': scheduleType,
                     'startDate': _formatDate(_selectedDate),
                     'startTime': _formatTime(resolvedStart),
-                    'endTime': _formatTime(_endTime),
+                    'endTime': _formatTime(_resolvedEndTime(scheduleType)),
                     'duration': scheduleType == 'Flexible' ? '1 day' : _selectedDuration,
                     'endDate': _formatDate(scheduleType == 'Flexible' ? _selectedDate : _endDate),
                     'careType': 'Elder · $scheduleType',
@@ -1871,6 +1912,8 @@ class _ScheduleCareScreenState extends State<ScheduleCareScreen> {
                     if (caregiverName != null) 'caregiverName': caregiverName,
                     if (notes != null && notes.isNotEmpty) 'notes': notes,
                     if (isEmergency) 'isEmergency': true,
+                    if (onBehalfOfPatientUid != null) 'onBehalfOfPatientUid': onBehalfOfPatientUid,
+                    if (onBehalfOfPatientName != null) 'onBehalfOfPatientName': onBehalfOfPatientName,
                   },
                 );
               },

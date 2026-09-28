@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/nic_verification_service.dart';
+import '../services/payment_service.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -73,6 +74,17 @@ class _CaregiverOnboarding7ScreenState
             'nicVerified': nicCheck.isValid,
             'nicVerificationReason': nicCheck.reason,
             'nicVerifiedAt': FieldValue.serverTimestamp(),
+            // A brand-new caregiver always has 0 completed services, which
+            // PaymentService.calculateHourlyRate resolves to the flat base
+            // rate regardless of rating — so this is that same formula's
+            // result, not a guess, and it means a caregiver shows a real
+            // rate on every card from their very first day instead of
+            // waiting on an admin to notice and assign one. An admin's
+            // "Apply hourly rates" action (or the per-caregiver Assign
+            // button) still recomputes this for real once they've actually
+            // completed bookings and earned reviews.
+            'hourlyRate': PaymentService.baseHourlyRate,
+            'hourlyRateAssignedAt': FieldValue.serverTimestamp(),
           },
         );
       }

@@ -11,6 +11,7 @@ service cloud.firestore {
     // document review decisions).
     function isAdmin() {
       return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -81,11 +82,30 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
-      // familyMembers/{memberId} — also readable by admins: the admin
-      // patient-profile screen shows a patient's real care circle.
+      // familyMembers/{memberId} — real delegated-access invites (see
+      // PatientService.addFamilyMember/acceptFamilyInvite), also readable
+      // by admins (the admin patient-profile screen shows a patient's real
+      // care circle). Two access paths beyond the owning patient:
+      //   - read, by the invitee's own account email matching the invite's
+      //     stored `email` — lets FamilyAccessService's collectionGroup
+      //     query find a pending invite addressed to whoever just signed
+      //     in, without needing a code or link.
+      //   - update, narrowly: the invitee claims (accepts/declines) their
+      //     own pending invite. Scoped via affectedKeys() to exactly the
+      //     three fields that action touches, and only while status is
+      //     still 'pending', so this can never be used to edit anything
+      //     else on someone else's invite.
       match /familyMembers/{memberId} {
-        allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+        allow read: if request.auth != null &&
+          (request.auth.uid == uid || isAdmin() ||
+           request.auth.token.email == resource.data.email);
         allow write: if request.auth != null && request.auth.uid == uid;
+        allow update: if request.auth != null &&
+          request.auth.token.email == resource.data.email &&
+          resource.data.status == 'pending' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'linkedUid', 'acceptedAt']) &&
+          request.resource.data.status in ['accepted', 'declined'] &&
+          (request.resource.data.status != 'accepted' || request.resource.data.linkedUid == request.auth.uid);
       }
 
       // activity/{activityId} — patient-facing activity feed entries
@@ -95,6 +115,48 @@ service cloud.firestore {
       match /activity/{activityId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
+
+      // careJournal/{entryId} — real caregiver visit notes
+      // (CareJournalService). No rule existed for this collection at all
+      // before — every read/write was silently denied by the trailing
+      // default-deny. Read is open to the patient themself, an admin, or
+      // anyone with accepted delegated family access (either role); write
+      // is self-attested by authorUid, the same trust model already used
+      // for reviews/payments above.
+      match /careJournal/{entryId} {
+        allow read: if request.auth != null &&
+          (request.auth.uid == uid || isAdmin() ||
+           get(/databases/$(database)/documents/familyLinks/$(request.auth.uid)/patients/$(uid)).data.status == 'accepted');
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.authorUid;
+      }
+    }
+
+    // Collection-group counterpart of the familyMembers rule above —
+    // required separately and verified against a real emulator: a nested
+    // `match /patientProfiles/{uid} { match /familyMembers/{id} {...} }`
+    // rule governs direct-path access (get/set on a known patient's
+    // subcollection) but does NOT apply to a `collectionGroup('familyMembers')`
+    // query across every patient at once, which is what
+    // PatientService.fetchPendingInvitesForEmail runs — without this block
+    // that query is denied outright ("No matching allow statements"),
+    // regardless of how permissive the nested rule is. Deliberately omits
+    // the owner-uid check the nested rule has (not reachable here without
+    // the parent id) — the email-match clause is the only thing this query
+    // actually needs.
+    match /{path=**}/familyMembers/{memberId} {
+      allow read: if request.auth != null &&
+        (isAdmin() || request.auth.token.email == resource.data.email);
+    }
+
+    // familyLinks/{uid}/patients/{patientUid} — the family member's own
+    // record of which patients they've accepted delegated access to (see
+    // PatientService.acceptFamilyInvite), keyed under their own uid so
+    // every other rule that needs "is this caller an accepted Editor/Viewer
+    // for patient X" can check it with a single get() by exact path — the
+    // same reason favorites/{caregiverUid} above is structured as an
+    // owner-keyed subcollection rather than something query-based.
+    match /familyLinks/{uid}/patients/{patientUid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
     // bookingRequests/{bookingId} — created by a patient when they send a
@@ -111,8 +173,15 @@ service cloud.firestore {
     // patients can only create bookings for themselves.
     match /bookingRequests/{bookingId} {
       allow read: if request.auth != null;
+      // Create is also allowed for a delegated Editor booking on the
+      // patient's behalf (family_access_home_screen.dart's "Book care" ->
+      // confirm_booking_screen.dart, which stamps createdByUid alongside
+      // patientUid so there's a real record of who actually acted) — a
+      // Viewer, with no matching familyLinks entry role, still can't.
       allow create: if request.auth != null &&
-        request.auth.uid == request.resource.data.patientUid;
+        (request.auth.uid == request.resource.data.patientUid ||
+         (get(/databases/$(database)/documents/familyLinks/$(request.auth.uid)/patients/$(request.resource.data.patientUid)).data.status == 'accepted' &&
+          get(/databases/$(database)/documents/familyLinks/$(request.auth.uid)/patients/$(request.resource.data.patientUid)).data.role == 'Editor'));
       allow update: if request.auth != null &&
         (request.auth.uid == resource.data.patientUid ||
          request.auth.uid == resource.data.caregiverId);

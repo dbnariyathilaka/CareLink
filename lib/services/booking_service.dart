@@ -33,9 +33,14 @@ class BookingService {
     double? locationLng,
     bool isAdvanced = false,
     bool isEmergency = false,
+    // Who actually performed this booking, when different from patientUid —
+    // e.g. an Editor family member booking on the patient's behalf. Null
+    // (the common case) means the patient booked for themselves.
+    String? createdByUid,
   }) async {
     await _collection.add({
       'patientUid': patientUid,
+      if (createdByUid != null && createdByUid != patientUid) 'createdByUid': createdByUid,
       'caregiverId': caregiverId,
       'caregiverName': caregiverName,
       'careType': careType,

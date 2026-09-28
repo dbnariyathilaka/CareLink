@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/family_access_service.dart';
 import '../services/patient_service.dart';
 import '../services/review_service.dart';
 import '../widgets/caregiver_bottom_nav.dart';
@@ -74,6 +75,14 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
       _reviewsStream = ReviewService.streamReviewsForCaregiver(uid);
       _loadProfile(uid);
     }
+    // Redundant safety net for FamilyAccessService's invite check — see
+    // patient_dashboard_screen.dart's identical hook for why.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final email = AuthService.currentUser?.email;
+      if (email != null && mounted) {
+        FamilyAccessService.checkAndPromptPendingInvites(context, email);
+      }
+    });
     // Re-evaluate "currently on duty" / "this week" purely because the
     // clock moved, not just when Firestore data changes.
     _tickTimer = Timer.periodic(const Duration(minutes: 1), (_) {

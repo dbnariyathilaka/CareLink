@@ -65,6 +65,12 @@ class ConfirmBookingScreen extends StatelessWidget {
     final languages  = args?['languages']  as List?;
     final caregiverId = args?['caregiverId'] as String?;
 
+    // Set when a family member is booking on the patient's behalf (see
+    // family_access_home_screen.dart's "Book care" action) — carried
+    // through send_request/schedule_care/location_selection unchanged.
+    final onBehalfOfPatientUid = args?['onBehalfOfPatientUid'] as String?;
+    final onBehalfOfPatientName = args?['onBehalfOfPatientName'] as String?;
+
     final Color accent = isAdvanced ? _accentAdvanced : darkGreen;
     const Color accentOnColor = Colors.white;
     final String bannerMsg = isAdvanced
@@ -86,6 +92,27 @@ class ConfirmBookingScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (onBehalfOfPatientUid != null) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: accent.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              'Booking for ${onBehalfOfPatientName ?? 'the patient'}',
+                              style: TextStyle(
+                                fontFamily: 'Open Sans',
+                                color: accent,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
                         // ── Schedule summary card ──────────────────────────
                         _buildScheduleCard(
                           isAdvanced: isAdvanced,
@@ -114,7 +141,9 @@ class ConfirmBookingScreen extends StatelessWidget {
                                 isAdvanced: isAdvanced,
                                 hourlyRate: rate,
                                 careType: careType,
+                                startDate: startDate,
                                 startTime: startTime,
+                                endDate: endDate,
                                 endTime: endTime,
                               );
                             },
@@ -299,33 +328,43 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Pricing card ─────────────────────────────────────────────────────────
-  // Figma node 208-58: shows the actual cost of the booking, not just the
-  // bare rate. Only computable for a single flexible-schedule day, since
-  // that's the only case where the shift is defined by a start/end time —
-  // a multi-day booking's length is a free-text duration ("1 month") with
-  // no structured hour count to multiply against, so that case still shows
-  // just the hourly rate rather than guessing a total.
+  // Figma node 208-58: shows the actual total cost of the booking, not just
+  // the bare rate — for every schedule type, not only Flexible:
+  //   - Flexible: a single day, hours = the picked start/end time gap.
+  //   - Part-time / Full-time: hours/day from the real resolved shift
+  //     (schedule_care_screen._resolvedEndTime — Full-time's chosen shift,
+  //     Part-time's +4-hour rule), times the number of days in the date
+  //     range (e.g. a 1-month booking spans ~30 days, so "30 days ×
+  //     9 hrs/day" is the total, not just one day's rate).
+  //   - Live-in: a flat 24 hours/day — it's round-the-clock care, not a
+  //     timed shift, so there's no start/end time to measure.
   Widget _buildPricingCard({
     required bool isAdvanced,
     required String careType,
+    required String startDate,
     required String startTime,
+    required String endDate,
     required String endTime,
     double? hourlyRate,
   }) {
     final isFlexible = careType.contains('Flexible');
-    final hours = isFlexible ? _hoursBetween(startTime, endTime) : null;
+    final isLiveIn = careType.contains('Live-in');
+
+    final dailyHours = isLiveIn ? 24.0 : _hoursBetween(startTime, endTime);
+    final days = isFlexible ? 1 : _daysBetween(startDate, endDate);
+    final totalHours = (dailyHours != null && days != null) ? dailyHours * days : null;
 
     final rows = [
       _BookingRow(
         'Hourly rate',
         hourlyRate == null ? 'Not yet assigned' : 'Rs.${hourlyRate.toStringAsFixed(0)} / hour',
       ),
-      if (hours != null)
-        _BookingRow('Duration', '${_formatHours(hours)} hrs'),
-      if (hourlyRate != null && hours != null)
-        _BookingRow('Total', 'Rs.${_formatAmount(hourlyRate * hours)}'),
+      if (totalHours != null)
+        _BookingRow('Hours', '${_formatHours(totalHours)} hrs'),
+      if (hourlyRate != null && totalHours != null)
+        _BookingRow('Total', 'Rs.${_formatAmount(hourlyRate * totalHours)}'),
     ];
-    return _buildSummaryCardContainer(rows, isAdvanced: isAdvanced, highlightLastRow: hours != null);
+    return _buildSummaryCardContainer(rows, isAdvanced: isAdvanced, highlightLastRow: totalHours != null);
   }
 
   /// Parses "9:00 AM" / "17:00" style strings into hours-since-midnight, and
@@ -350,6 +389,38 @@ class ConfirmBookingScreen extends StatelessWidget {
     if (meridiem == 'pm' && hour != 12) hour += 12;
     if (meridiem == 'am' && hour == 12) hour = 0;
     return hour * 60 + minute;
+  }
+
+  static const Map<String, int> _monthAbbrev = {
+    'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+    'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
+  };
+
+  /// Parses this screen's own "D Mon YYYY" date format (e.g. "26 Sep 2026",
+  /// see schedule_care_screen._formatDate, which produces every startDate/
+  /// endDate this screen receives).
+  DateTime? _parseDate(String value) {
+    final parts = value.trim().split(RegExp(r'\s+'));
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = _monthAbbrev[parts[1]];
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+    return DateTime(year, month, day);
+  }
+
+  /// Real calendar length of the booking — e.g. a "1 month" duration
+  /// starting 26 Sep resolves to an end date of 26 Oct, which is exactly
+  /// 30 days later; a "2 weeks" duration is exactly 14. Using the actual
+  /// resolved dates rather than parsing the free-text duration label
+  /// ("1 month") handles every duration option correctly, including
+  /// custom date-range picks.
+  int? _daysBetween(String startDate, String endDate) {
+    final start = _parseDate(startDate);
+    final end = _parseDate(endDate);
+    if (start == null || end == null) return null;
+    final diff = end.difference(start).inDays;
+    return diff > 0 ? diff : null;
   }
 
   String _formatHours(double hours) =>
@@ -571,14 +642,25 @@ class ConfirmBookingScreen extends StatelessWidget {
     double? locationLat,
     double? locationLng,
     bool isEmergency = false,
+    // Set when a family member is booking on the patient's behalf — the
+    // booking is created under the *patient's* uid, not the signed-in
+    // family member's. The profile-completeness gate below is about the
+    // signed-in account's own patient profile, which doesn't apply to a
+    // family member (who may have no patient profile at all), so it's
+    // skipped in that case; the patient's own profile is assumed complete
+    // since they were already able to invite someone.
+    String? onBehalfOfPatientUid,
   }) async {
-    if (!await ensurePatientProfileComplete(context)) return false;
-    if (!context.mounted) return false;
+    if (onBehalfOfPatientUid == null) {
+      if (!await ensurePatientProfileComplete(context)) return false;
+      if (!context.mounted) return false;
+    }
     final uid = AuthService.currentUser?.uid;
     if (uid == null) return false;
     final isFlexible = careType.contains('Flexible');
     await BookingService.createBookingRequest(
-      patientUid: uid,
+      patientUid: onBehalfOfPatientUid ?? uid,
+      createdByUid: uid,
       caregiverId: caregiverId,
       caregiverName: isAdvanced ? 'Matching caregivers' : caregiverName,
       careType: careType,
@@ -649,6 +731,7 @@ class ConfirmBookingScreen extends StatelessWidget {
                     locationLat:   args?['lat'] as double?,
                     locationLng:   args?['lng'] as double?,
                     isEmergency:   args?['isEmergency'] as bool? ?? false,
+                    onBehalfOfPatientUid: args?['onBehalfOfPatientUid'] as String?,
                   );
                   if (!created) return;
                   if (!context.mounted) return;

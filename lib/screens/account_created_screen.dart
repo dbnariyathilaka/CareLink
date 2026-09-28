@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/family_access_service.dart';
 import '../widgets/status_bar.dart';
 
 class AccountCreatedScreen extends StatefulWidget {
@@ -50,6 +52,41 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
     );
 
     _mainController.forward();
+
+    // This is the one landing point every registration passes through
+    // before any onboarding starts (see main.dart's route wiring) — the
+    // natural place to catch "this new account's email was already
+    // invited to a care circle" and skip onboarding entirely rather than
+    // force it on someone who only wants family access. Deliberately after
+    // the animation kicks off, not before, so the dialog (if any) appears
+    // over a screen that's already visible.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkFamilyInvites());
+  }
+
+  Future<void> _checkFamilyInvites() async {
+    final email = AuthService.currentUser?.email;
+    if (email == null || !mounted) return;
+    final acceptedPatientUid = await FamilyAccessService.checkAndPromptPendingInvites(context, email);
+    if (acceptedPatientUid == null || !mounted) return;
+
+    final uid = AuthService.currentUser?.uid;
+    final links = uid == null ? const <Map<String, dynamic>>[] : await FamilyAccessService.fetchAcceptedFamilyLinks(uid);
+    if (!mounted) return;
+    if (links.length <= 1) {
+      final link = links.isEmpty ? null : links.first;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/family-access-home',
+        (route) => false,
+        arguments: {
+          'patientUid': acceptedPatientUid,
+          'patientName': link?['patientName'],
+          'role': link?['role'] ?? 'Viewer',
+        },
+      );
+    } else {
+      Navigator.pushNamedAndRemoveUntil(context, '/family-circles', (route) => false);
+    }
   }
 
   @override

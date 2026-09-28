@@ -36,6 +36,8 @@ import 'screens/schedule_care_screen.dart';
 import 'screens/confirm_booking_screen.dart';
 import 'screens/patient_profile_screen.dart';
 import 'screens/care_circle_screen.dart';
+import 'screens/family_circles_screen.dart';
+import 'screens/family_access_home_screen.dart';
 import 'screens/edit_care_requirements_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/patient_chat_screen.dart';
@@ -162,6 +164,8 @@ class CareMatchApp extends StatelessWidget {
         '/confirm-booking': (context) => const ConfirmBookingScreen(),
         '/patient-profile': (context) => const PatientProfileScreen(),
         '/care-circle': (context) => const CareCircleScreen(),
+        '/family-circles': (context) => const FamilyCirclesScreen(),
+        '/family-access-home': (context) => const FamilyAccessHomeScreen(),
         '/edit-care-requirements': (context) =>
             const EditCareRequirementsScreen(),
         '/messages': (context) => const MessagesScreen(),

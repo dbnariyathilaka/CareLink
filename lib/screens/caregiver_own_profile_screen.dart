@@ -995,18 +995,128 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
     );
   }
 
+  // ── Log out confirmation dialog — same pattern as
+  // caregiver_settings_screen.dart / patient_profile_screen.dart, so every
+  // logout entry point in the app behaves the same way. ─────────────────
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => Dialog(
+        backgroundColor: bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: logoutBorder.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: logoutBorder,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Log out?',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: titleDark,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Are you sure you want to log out of your caregiver account?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: titleDark.withValues(alpha: 0.7),
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: titleDark.withValues(alpha: 0.25)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: titleDark.withValues(alpha: 0.7),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(context); // dismiss dialog
+                        // Navigate away first so every still-mounted
+                        // screen's Firestore listeners are disposed and
+                        // cancelled before the auth token is revoked —
+                        // signing out first left them all live to receive
+                        // a simultaneous permission-denied error storm,
+                        // which could block the main thread long enough
+                        // to trip an ANR on logout.
+                        Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+                        await AuthService.signOut();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: logoutBg,
+                          border: Border.all(color: logoutBorder, width: 1.5),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Log out',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: logoutBorder,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Log out button ─────────────────────────────────────────
   Widget _buildLogoutButton(BuildContext context) {
     return GestureDetector(
-      onTap: () async {
-        // Navigate away first so every still-mounted screen's Firestore
-        // listeners are disposed and cancelled before the auth token is
-        // revoked — signing out first left them all live to receive a
-        // simultaneous permission-denied error storm, which could block
-        // the main thread long enough to trip an ANR on logout.
-        Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
-        await AuthService.signOut();
-      },
+      onTap: () => _showLogoutConfirmationDialog(context),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 15.5),

@@ -102,22 +102,34 @@ class PatientService {
     });
   }
 
-  /// Adds a real member to the care circle — no email invite is actually
-  /// sent (no email backend exists), so this adds them directly rather
-  /// than creating a fake "pending invite" that could never be delivered.
-  static Future<void> addFamilyMember({
+  /// Creates a real, pending invite — the invited person claims it
+  /// themselves (see [fetchPendingInvitesForEmail] / [acceptFamilyInvite])
+  /// once they sign in with this exact email under their own account; there
+  /// is still no email/SMS backend to actually deliver a notification, so
+  /// they only discover it by logging into (or registering) CareLink.
+  /// [name] is shown until acceptance, when it's replaced with the real
+  /// name from the invitee's own account.
+  static Future<String> addFamilyMember({
     required String patientUid,
+    required String patientName,
     required String name,
+    required String email,
     required String relation,
     required String role,
   }) async {
-    await _collection.doc(patientUid).collection('familyMembers').add({
+    final ref = await _collection.doc(patientUid).collection('familyMembers').add({
       'name': name,
+      'email': email.trim().toLowerCase(),
+      'patientName': patientName,
       'relation': relation,
       'role': role,
+      'status': 'pending',
+      'linkedUid': null,
       'addedAt': FieldValue.serverTimestamp(),
+      'invitedAt': FieldValue.serverTimestamp(),
     });
-    await logActivity(patientUid, '$name joined the care circle', icon: 'person_add');
+    await logActivity(patientUid, 'Invited $name to the care circle', icon: 'person_add');
+    return ref.id;
   }
 
   static Future<void> removeFamilyMember(String patientUid, String memberId) {
@@ -126,6 +138,93 @@ class PatientService {
         .collection('familyMembers')
         .doc(memberId)
         .delete();
+  }
+
+  /// Every pending invite addressed to [email] — checked at login/register
+  /// time (see FamilyAccessService) so the invitee can be prompted to
+  /// accept/decline the moment their account's email matches one, without
+  /// needing to know a code or link. `patientUid` comes from the parent
+  /// document's own id, not a stored field, since `familyMembers` is always
+  /// a subcollection of exactly one `patientProfiles/{patientUid}`.
+  static Future<List<Map<String, dynamic>>> fetchPendingInvitesForEmail(String email) async {
+    final normalized = email.trim().toLowerCase();
+    if (normalized.isEmpty) return const [];
+    final snap = await _firestore
+        .collectionGroup('familyMembers')
+        .where('email', isEqualTo: normalized)
+        .where('status', isEqualTo: 'pending')
+        .get();
+    return snap.docs.map((d) {
+      final patientUid = d.reference.parent.parent!.id;
+      return {'memberId': d.id, 'patientUid': patientUid, ...d.data()};
+    }).toList();
+  }
+
+  /// Claims a pending invite for the signed-in [linkedUid] — the real
+  /// counterpart to the old fake "adds them directly" behavior. Writes both
+  /// the claim itself (documentReviews-style narrow update, see
+  /// firestore.rules) and the family member's own `familyLinks` entry,
+  /// which is what every other delegated-access rule (bookings, care
+  /// journal) checks against. Also replaces the placeholder `name` (the
+  /// email typed at invite time) with the invitee's real registered name,
+  /// now that their account is known.
+  static Future<void> acceptFamilyInvite({
+    required String memberId,
+    required String patientUid,
+    required String linkedUid,
+    required String role,
+    required String patientName,
+  }) async {
+    String? realName;
+    try {
+      final userSnap = await _firestore.collection('users').doc(linkedUid).get();
+      realName = (userSnap.data()?['name'] as String?)?.trim();
+    } catch (_) {}
+
+    final memberRef = _collection.doc(patientUid).collection('familyMembers').doc(memberId);
+    await memberRef.set({
+      'status': 'accepted',
+      'linkedUid': linkedUid,
+      'acceptedAt': FieldValue.serverTimestamp(),
+      if (realName != null && realName.isNotEmpty) 'name': realName,
+    }, SetOptions(merge: true));
+
+    await _firestore
+        .collection('familyLinks')
+        .doc(linkedUid)
+        .collection('patients')
+        .doc(patientUid)
+        .set({
+      'role': role,
+      'status': 'accepted',
+      'memberId': memberId,
+      'patientName': patientName,
+      'acceptedAt': FieldValue.serverTimestamp(),
+    });
+
+    await logActivity(patientUid, '${realName ?? 'A family member'} joined the care circle', icon: 'person_add');
+  }
+
+  static Future<void> declineFamilyInvite({
+    required String memberId,
+    required String patientUid,
+  }) {
+    return _collection.doc(patientUid).collection('familyMembers').doc(memberId).set({
+      'status': 'declined',
+    }, SetOptions(merge: true));
+  }
+
+  /// Every patient this account has accepted delegated family access to —
+  /// used by the "Your care circles" list and the post-login routing check
+  /// (an account with no patient/caregiver role of its own but at least one
+  /// accepted link goes straight here instead of role selection).
+  static Stream<List<Map<String, dynamic>>> streamAcceptedFamilyLinks(String uid) {
+    return _firestore
+        .collection('familyLinks')
+        .doc(uid)
+        .collection('patients')
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => {'patientUid': d.id, ...d.data()}).toList());
   }
 
   /// Real events only (member added, booking created) — no fabricated
