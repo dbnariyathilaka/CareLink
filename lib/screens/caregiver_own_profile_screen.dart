@@ -350,10 +350,6 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // No verification-status field exists anywhere in the
-                  // schema (see the admin verification-queue work), so an
-                  // "Identity verified" badge was removed here rather than
-                  // shown unconditionally regardless of real status.
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -370,6 +366,36 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
                       ),
                     ),
                   ),
+                  // Real, automatic status — NicVerificationService, not an
+                  // admin decision. Only shown once we actually know it's
+                  // true; an unverified caregiver sees why on their own
+                  // Verification status screen instead of a badge here.
+                  if (_profile?['nicVerified'] == true) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4ADE80).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified_rounded, color: Color(0xFF16803C), size: 13),
+                          SizedBox(width: 4),
+                          Text(
+                            'Verified (NIC)',
+                            style: TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Color(0xFF16803C),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],

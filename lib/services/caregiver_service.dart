@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'nic_verification_service.dart';
+
 /// Thin wrapper around the `caregiverProfiles` Firestore collection.
 class CaregiverService {
   CaregiverService._();
@@ -33,11 +35,20 @@ class CaregiverService {
 
   /// Plain, unscored lookup of caregivers — no matching/ranking logic.
   /// Optionally narrows by care type or city if provided.
+  ///
+  /// Every patient-facing surface (matching wizard, dashboard, emergency,
+  /// direct search, saved caregivers) goes through this one method, so the
+  /// `nicVerified` filter lives here rather than being repeated in each
+  /// screen — a caregiver whose NIC hasn't passed automatic verification
+  /// (NicVerificationService) is simply invisible to patients, matching,
+  /// ranking, and booking requests alike. Admin screens read caregivers via
+  /// streamAllCaregivers() instead, which deliberately does NOT filter,
+  /// since admins need to see everyone regardless of verification status.
   static Future<List<Map<String, dynamic>>> searchCaregivers({
     String? careType,
     String? city,
   }) async {
-    Query<Map<String, dynamic>> query = _collection;
+    Query<Map<String, dynamic>> query = _collection.where('nicVerified', isEqualTo: true);
     if (careType != null && careType.isNotEmpty) {
       query = query.where('careTypes', arrayContains: careType);
     }
@@ -87,9 +98,15 @@ class CaregiverService {
   /// removed and re-added could shift these, a known limitation of keying
   /// by array index rather than a persisted per-file id). Written by the
   /// admin verification-queue screen, read by the caregiver's own
-  /// verification-status screen. Uses dot-path addressing so this only
-  /// touches the one key inside `documentReviews`, never clobbering
-  /// sibling decisions.
+  /// verification-status screen.
+  ///
+  /// Nests `docKey` as a real Map key rather than a `'documentReviews.$docKey'`
+  /// dot-path string — `set(..., merge: true)` already deep-merges nested
+  /// maps (verified: sibling decisions survive), and unlike the dot-path
+  /// form this is actually compatible with Firestore security rules —
+  /// `affectedKeys()` throws a genuine evaluation error against a dotted
+  /// field-name key, which was silently denying every admin
+  /// approve/reject/verify-count write as a permission-denied crash.
   static Future<void> setDocumentReviewStatus({
     required String uid,
     required String docKey,
@@ -97,11 +114,13 @@ class CaregiverService {
     String? note,
   }) {
     return _collection.doc(uid).set({
-      'documentReviews.$docKey': {
-        'status': status,
-        if (note != null && note.isNotEmpty) 'note': note,
-        'decidedAt': FieldValue.serverTimestamp(),
-        'decidedBy': 'CareLink verification team',
+      'documentReviews': {
+        docKey: {
+          'status': status,
+          if (note != null && note.isNotEmpty) 'note': note,
+          'decidedAt': FieldValue.serverTimestamp(),
+          'decidedBy': 'CareLink verification team',
+        },
       },
     }, SetOptions(merge: true));
   }
@@ -117,11 +136,13 @@ class CaregiverService {
   static Future<void> setReferenceCount(String uid, int count) {
     return _collection.doc(uid).set({
       'referenceCount': count,
-      'documentReviews.reference': {
-        'status': 'approved',
-        'count': count,
-        'decidedAt': FieldValue.serverTimestamp(),
-        'decidedBy': 'CareLink verification team',
+      'documentReviews': {
+        'reference': {
+          'status': 'approved',
+          'count': count,
+          'decidedAt': FieldValue.serverTimestamp(),
+          'decidedBy': 'CareLink verification team',
+        },
       },
     }, SetOptions(merge: true));
   }
@@ -156,7 +177,52 @@ class CaregiverService {
       }
     }
     await _collection.doc(uid).set({
-      'documentReviews.$docKey': FieldValue.delete(),
+      'documentReviews': {docKey: FieldValue.delete()},
     }, SetOptions(merge: true));
+  }
+
+  /// One-time backfill for caregivers who registered before automatic NIC
+  /// verification existed. They have no `age` field on file, so unlike the
+  /// real onboarding/edit-profile flow this can only honestly cross-check
+  /// NIC format + gender (both already real, caregiver-provided fields) —
+  /// see the `age` parameter on NicVerificationService.check. Only touches
+  /// docs that have never been through a real check (no `nicVerified` field
+  /// yet at all), so it's safe to run more than once and will never
+  /// overwrite a decision the real per-caregiver path already made.
+  static Future<({int checked, int verified})> backfillNicVerification() async {
+    final snap = await _collection.get();
+    var checked = 0;
+    var verified = 0;
+    var batch = _firestore.batch();
+    var batchSize = 0;
+
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      if (data.containsKey('nicVerified')) continue;
+      final nic = (data['nic'] as String?)?.trim() ?? '';
+      if (nic.isEmpty) continue;
+
+      final gender = (data['gender'] as String?)?.trim() ?? '';
+      final result = NicVerificationService.check(nic: nic, gender: gender);
+      checked++;
+      if (result.isValid) verified++;
+
+      batch.set(doc.reference, {
+        'nicVerified': result.isValid,
+        'nicVerificationReason': result.reason,
+        'nicVerifiedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      batchSize++;
+
+      // Firestore caps a single batch at 500 writes.
+      if (batchSize == 400) {
+        await batch.commit();
+        batch = _firestore.batch();
+        batchSize = 0;
+      }
+    }
+    if (batchSize > 0) await batch.commit();
+
+    return (checked: checked, verified: verified);
   }
 }

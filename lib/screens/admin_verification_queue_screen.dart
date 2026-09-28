@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/status_bar.dart';
 import '../services/caregiver_service.dart';
@@ -81,6 +82,23 @@ class _AdminVerificationQueueScreenState
 
   final Set<String> _expandedUids = {};
 
+  /// Every Firestore write this screen triggers (approve/reject/verify &
+  /// count) used to fire-and-forget straight from onTap — a real
+  /// permission-denied write (see CaregiverService.setReferenceCount's
+  /// doc comment) surfaced as an unhandled async exception instead of a
+  /// message, which read as the app crashing. Routes every write through
+  /// here so a failure always ends as a SnackBar, never a crash.
+  Future<void> _runWrite(Future<void> Function() write) async {
+    try {
+      await write();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save: $e'), backgroundColor: Colors.red.shade700),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -118,14 +136,24 @@ class _AdminVerificationQueueScreenState
     return _imageExtensions.any(path.contains);
   }
 
+  bool _looksLikePdf(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    return path.contains('.pdf');
+  }
+
   /// Opens a submitted document so the admin can actually inspect it before
-  /// approving/rejecting — images render in-app (zoomable); anything else
-  /// (PDFs, etc.) opens in the device's own viewer/browser, since this app
-  /// doesn't bundle a PDF renderer.
+  /// approving/rejecting — images and PDFs both render in-app (the former
+  /// zoomable, the latter paginated); anything else opens in the device's
+  /// own viewer/browser, since this app doesn't bundle a renderer for it.
   Future<void> _openDocument(String label, String url) async {
     if (_looksLikeImage(url)) {
       if (!mounted) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) => _DocumentImageViewer(title: label, url: url)));
+      return;
+    }
+    if (_looksLikePdf(url)) {
+      if (!mounted) return;
+      Navigator.push(context, MaterialPageRoute(builder: (_) => _DocumentPdfViewer(title: label, url: url)));
       return;
     }
     try {
@@ -152,10 +180,12 @@ class _AdminVerificationQueueScreenState
     final reviews = (caregiver['documentReviews'] as Map?)?.cast<String, dynamic>() ?? const {};
     final docs = <DocumentEntry>[];
 
-    final nic = (caregiver['nic'] as String?)?.trim();
-    if (nic != null && nic.isNotEmpty) {
-      docs.add(DocumentEntry(key: 'nic', label: 'NIC — $nic', review: reviews['nic'] as Map<String, dynamic>?));
-    }
+    // NIC is deliberately NOT listed here — it's no longer an admin-
+    // reviewable document. NicVerificationService checks it automatically
+    // against the caregiver's own claimed age/gender the moment they submit
+    // it (onboarding or edit-profile), so there's nothing left for an admin
+    // to approve/reject. See CaregiverService.searchCaregivers for where
+    // `nicVerified` actually gates visibility.
     final police = (caregiver['policeClearanceUrl'] as String?) ?? '';
     if (police.isNotEmpty) {
       docs.add(DocumentEntry(
@@ -520,7 +550,7 @@ class _AdminVerificationQueueScreenState
                 GestureDetector(
                   onTap: doc.key == 'reference'
                       ? () => _showReferenceCountDialog(uid, doc)
-                      : () => CaregiverService.setDocumentReviewStatus(uid: uid, docKey: doc.key, status: 'approved'),
+                      : () => _runWrite(() => CaregiverService.setDocumentReviewStatus(uid: uid, docKey: doc.key, status: 'approved')),
                   child: Text(
                     doc.key == 'reference' ? 'Verify & count' : 'Approve',
                     style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4ADE80)),
@@ -758,12 +788,12 @@ class _AdminVerificationQueueScreenState
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(dialogCtx);
-              CaregiverService.setDocumentReviewStatus(
-                uid: uid,
-                docKey: doc.key,
-                status: 'rejected',
-                note: controller.text.trim(),
-              );
+              _runWrite(() => CaregiverService.setDocumentReviewStatus(
+                    uid: uid,
+                    docKey: doc.key,
+                    status: 'rejected',
+                    note: controller.text.trim(),
+                  ));
             },
             child: const Text('Reject'),
           ),
@@ -810,7 +840,7 @@ class _AdminVerificationQueueScreenState
               final count = int.tryParse(controller.text.trim());
               if (count == null || count < 0) return;
               Navigator.pop(dialogCtx);
-              CaregiverService.setReferenceCount(uid, count);
+              _runWrite(() => CaregiverService.setReferenceCount(uid, count));
             },
             child: const Text('Save'),
           ),
@@ -820,9 +850,102 @@ class _AdminVerificationQueueScreenState
   }
 }
 
+/// Full-screen, paginated viewer for a submitted PDF document (police
+/// clearance letter, reference letter, etc.), loaded straight from its
+/// Cloudinary URL — no external browser hop.
+class _DocumentPdfViewer extends StatefulWidget {
+  final String title;
+  final String url;
+  const _DocumentPdfViewer({required this.title, required this.url});
+
+  @override
+  State<_DocumentPdfViewer> createState() => _DocumentPdfViewerState();
+}
+
+class _DocumentPdfViewerState extends State<_DocumentPdfViewer> {
+  String? _loadError;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(widget.title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14)),
+      ),
+      body: _loadError != null
+          ? _DocumentLoadFailure(url: widget.url, detail: _loadError!)
+          : SfPdfViewer.network(
+              widget.url,
+              onDocumentLoadFailed: (details) {
+                setState(() => _loadError = details.description);
+              },
+            ),
+    );
+  }
+}
+
+/// Shown when a submitted document's URL won't actually load — most often a
+/// PDF/ZIP uploaded before storage_service.dart started routing non-image
+/// files through Cloudinary's `raw` delivery type; Cloudinary blocks direct
+/// delivery of PDFs stored under `image` (401 "deny or ACL failure"), and
+/// there's no client-side URL fix for an asset already stored that way — it
+/// needs either the Cloudinary account's PDF/ZIP delivery restriction lifted,
+/// or the caregiver to re-submit the document so it uploads correctly.
+/// "Open in browser" is offered anyway since it also recovers from ordinary
+/// transient network failures, which use the same failure path.
+class _DocumentLoadFailure extends StatelessWidget {
+  final String url;
+  final String detail;
+  const _DocumentLoadFailure({required this.url, required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white70, size: 32),
+            const SizedBox(height: 12),
+            const Text(
+              'Could not load this document.',
+              style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'It may have been uploaded before this file type was supported, or the '
+              'upload never finished. Try opening it directly, or reject the document '
+              'and ask the caregiver to re-upload it.\n\n$detail',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white38)),
+              onPressed: () async {
+                try {
+                  await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                } catch (_) {
+                  // Best-effort — the viewer already explains the failure above.
+                }
+              },
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Open in browser'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Full-screen, zoomable viewer for a submitted image document (photo of a
-/// certificate/police clearance/etc.) — real image data from Firebase
-/// Storage, not a placeholder.
+/// certificate/police clearance/etc.) — real image data from Cloudinary,
+/// not a placeholder.
 class _DocumentImageViewer extends StatelessWidget {
   final String title;
   final String url;
@@ -848,14 +971,8 @@ class _DocumentImageViewer extends StatelessWidget {
               if (progress == null) return child;
               return const CircularProgressIndicator(color: Colors.white);
             },
-            errorBuilder: (context, error, stackTrace) => const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Could not load this image.',
-                style: TextStyle(color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
-            ),
+            errorBuilder: (context, error, stackTrace) =>
+                _DocumentLoadFailure(url: url, detail: error.toString()),
           ),
         ),
       ),

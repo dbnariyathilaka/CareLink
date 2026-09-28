@@ -18,6 +18,7 @@ Map<String, dynamic> _caregiver({
   bool referenceVerified = false,
   bool currentlyBusy = false,
   double? adjustedRating = 4.5,
+  bool nicVerified = true,
 }) {
   return {
     'uid': uid,
@@ -26,6 +27,7 @@ Map<String, dynamic> _caregiver({
     'skills': skills,
     'careTypes': careTypes,
     'gender': gender,
+    'nicVerified': nicVerified,
     'languagesSpoken': languagesSpoken,
     'yearsExperience': yearsExperience,
     'educationalQualification': educationalQualification,
@@ -112,6 +114,11 @@ void main() {
   });
 
   group('Stage 1 — hard filters', () {
+    test('excludes a caregiver whose NIC has not been automatically verified', () {
+      final caregiver = _caregiver(nicVerified: false);
+      expect(MatchingService.isEligible(caregiver, _ctx()), isFalse);
+    });
+
     test('excludes a caregiver with none of the required skills', () {
       final caregiver = _caregiver(skills: ['Bathing assistance']);
       expect(MatchingService.isEligible(caregiver, _ctx()), isFalse);

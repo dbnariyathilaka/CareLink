@@ -258,7 +258,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     final uid = AuthService.currentUser?.uid;
     if (uid == null) return;
     final ids = await PatientService.getFavoriteCaregiverIds(uid);
-    if (ids.isEmpty) return;
+    if (ids.isEmpty) {
+      if (mounted) setState(() => _savedCaregivers = []);
+      return;
+    }
     final all = await CaregiverService.searchCaregivers();
     final saved = all.where((c) => ids.contains(c['uid'] as String?)).toList();
     if (mounted) setState(() => _savedCaregivers = saved);
@@ -1533,7 +1536,17 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
           }),
           // Add button
           GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/search'),
+            onTap: () async {
+              // No <bool> type argument here: routes registered via
+              // MaterialApp's `routes:` map are built as
+              // MaterialPageRoute<dynamic>, so pushNamed<bool> throws a
+              // cast exception at runtime trying to treat it as Route<bool>.
+              final changed = await Navigator.pushNamed(
+                context,
+                '/select-saved-caregivers',
+              );
+              if (changed == true) _loadSavedCaregivers();
+            },
             child: Column(
               children: [
                 Container(

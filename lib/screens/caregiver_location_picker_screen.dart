@@ -440,6 +440,7 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
       children: [
         if (_searchResults.isNotEmpty)
           Container(
+            key: const ValueKey('search_results'),
             constraints: const BoxConstraints(maxHeight: 220),
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
@@ -468,7 +469,8 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
             ),
           ),
         Container(
-          decoration: BoxDecoration(color: _searchFieldBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: _azure27)),
+          key: const ValueKey('search_field'),
+          decoration: BoxDecoration(color: _searchFieldBg, borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
           child: Row(
             children: [
@@ -483,7 +485,14 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
                     filled: false,
                     hintText: 'Search city or district…',
                     hintStyle: TextStyle(fontFamily: 'Open Sans', color: _azure65, fontSize: 13, fontWeight: FontWeight.w700),
+                    // The app's ambient theme defines a colored
+                    // focusedBorder — without repeating InputBorder.none for
+                    // every border state (not just the default `border`),
+                    // Flutter falls back to that theme default the moment
+                    // this field is focused, painting an unwanted outline.
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),

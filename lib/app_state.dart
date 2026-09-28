@@ -93,6 +93,10 @@ class CaregiverOnboardingDraft {
   int yearsExperience = 5;
   Set<String> careTypes = {'Part-time', 'Full-time'};
   String nic = '';
+  // Whole years as of today — the only input NicVerificationService has to
+  // cross-check the NIC's own encoded birth year against, since this app
+  // doesn't collect an exact date of birth.
+  int age = 30;
   String referencePhone = '';
   String educationalQualification = 'Diploma';
   bool formalTraining = false;
@@ -137,6 +141,7 @@ class CaregiverOnboardingDraft {
     yearsExperience = 5;
     careTypes = {'Part-time', 'Full-time'};
     nic = '';
+    age = 30;
     referencePhone = '';
     educationalQualification = 'Diploma';
     formalTraining = false;
@@ -169,6 +174,7 @@ class CaregiverOnboardingDraft {
       'yearsExperience': yearsExperience,
       'careTypes': careTypes.toList(),
       'nic': nic,
+      'age': age,
       'referencePhone': referencePhone,
       'educationalQualification': educationalQualification,
       'formalTraining': formalTraining,

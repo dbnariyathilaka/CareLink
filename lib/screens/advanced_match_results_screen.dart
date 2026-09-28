@@ -65,6 +65,12 @@ class _AdvancedMatchResultsScreenState
   List<MatchResult> _matches = const [];
   Map<String, dynamic> _bookingArgs = {};
   bool _startedLoading = false;
+  // Set on any load failure (e.g. Firestore rejecting a query that needs a
+  // composite index that hasn't been created yet) so the screen can show an
+  // actionable error instead of spinning forever — _loadMatches has no
+  // caller to propagate an exception to, since it's fired from
+  // didChangeDependencies rather than awaited.
+  String? _loadError;
 
   @override
   void initState() {
@@ -127,54 +133,70 @@ class _AdvancedMatchResultsScreenState
   }
 
   Future<void> _loadMatches() async {
-    final uid = AuthService.currentUser?.uid;
-    final patientProfile =
-        uid != null ? await PatientService.getPatientProfile(uid) : null;
-
-    // AppState holds the patient's standing care-requirement defaults;
-    // patientProfile (when present) and _bookingArgs (this specific
-    // request) each take precedence over it in MatchContext's getters, in
-    // that order, so this only fills the gaps rather than overriding them.
-    final effectiveProfile = <String, dynamic>{
-      'careType': AppState.careType.value,
-      'careLevel': AppState.careSchedule.value,
-      'city': AppState.careLocation.value,
-      'preferredCaregiverGender': AppState.preferredGender.value,
-      ...?patientProfile,
-    };
-
-    final matchContext = MatchContext(
-      patientProfile: effectiveProfile,
-      requestArgs: _bookingArgs,
-    );
-
-    final caregivers = await CaregiverService.searchCaregivers();
-
-    // Availability is a real-time hard filter on every advanced-match
-    // request now (not just emergency ones) — stamped onto each candidate
-    // before eligibility filtering so MatchingService (pure Dart, no
-    // Firestore access) can read it.
-    final ids = caregivers.map((c) => c['uid'] as String?).whereType<String>().toList();
-    final busy = await BookingService.currentlyBusyCaregiverIds(ids);
-    for (final c in caregivers) {
-      c['currentlyBusy'] = busy.contains(c['uid']);
-    }
-
-    final eligible = caregivers
-        .where((c) => MatchingService.isEligible(c, matchContext))
-        .toList();
-    await ReviewService.stampAdjustedRatings(eligible);
-
-    final ranked = MatchingService.rankCaregivers(
-      caregivers: eligible,
-      context: matchContext,
-    );
-
-    if (!mounted) return;
     setState(() {
-      _matches = ranked.take(5).toList();
-      _loading = false;
+      _loading = true;
+      _loadError = null;
     });
+    try {
+      final uid = AuthService.currentUser?.uid;
+      final patientProfile =
+          uid != null ? await PatientService.getPatientProfile(uid) : null;
+
+      // AppState holds the patient's standing care-requirement defaults;
+      // patientProfile (when present) and _bookingArgs (this specific
+      // request) each take precedence over it in MatchContext's getters, in
+      // that order, so this only fills the gaps rather than overriding them.
+      final effectiveProfile = <String, dynamic>{
+        'careType': AppState.careType.value,
+        'careLevel': AppState.careSchedule.value,
+        'city': AppState.careLocation.value,
+        'preferredCaregiverGender': AppState.preferredGender.value,
+        ...?patientProfile,
+      };
+
+      final matchContext = MatchContext(
+        patientProfile: effectiveProfile,
+        requestArgs: _bookingArgs,
+      );
+
+      final caregivers = await CaregiverService.searchCaregivers();
+
+      // Availability is a real-time hard filter on every advanced-match
+      // request now (not just emergency ones) — stamped onto each candidate
+      // before eligibility filtering so MatchingService (pure Dart, no
+      // Firestore access) can read it.
+      final ids = caregivers.map((c) => c['uid'] as String?).whereType<String>().toList();
+      final busy = await BookingService.currentlyBusyCaregiverIds(ids);
+      for (final c in caregivers) {
+        c['currentlyBusy'] = busy.contains(c['uid']);
+      }
+
+      final eligible = caregivers
+          .where((c) => MatchingService.isEligible(c, matchContext))
+          .toList();
+      await ReviewService.stampAdjustedRatings(eligible);
+
+      final ranked = MatchingService.rankCaregivers(
+        caregivers: eligible,
+        context: matchContext,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _matches = ranked.take(5).toList();
+        _loading = false;
+      });
+    } catch (e) {
+      // Without this, an unhandled error here (e.g. Firestore rejecting the
+      // currentlyBusy query because its composite index hasn't been created
+      // yet) leaves _loading true forever — the spinner never resolves and
+      // the screen looks hung.
+      if (!mounted) return;
+      setState(() {
+        _loadError = e.toString();
+        _loading = false;
+      });
+    }
   }
 
   @override
@@ -250,6 +272,17 @@ class _AdvancedMatchResultsScreenState
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(color: darkGreen),
+      );
+    }
+    if (_loadError != null) {
+      return EmptyState(
+        icon: Icons.error_outline_rounded,
+        message: 'Something went wrong while finding your matches. '
+            'Please check your connection and try again.\n\n${_loadError!}',
+        iconColor: cardBorderBrown,
+        textColor: const Color(0xFF5C5A5A),
+        actionLabel: 'Try again',
+        onAction: _loadMatches,
       );
     }
     if (_matches.isEmpty) {

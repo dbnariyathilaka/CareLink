@@ -79,12 +79,10 @@ class _CaregiverVerificationStatusScreenState extends State<CaregiverVerificatio
     }
   }
 
+  // NIC is deliberately NOT one of these — it's no longer admin-reviewed,
+  // see _buildNicStatusCard for its own real, automatic status instead.
   List<({String key, String label, String? uploadPathFor})> _documents(Map<String, dynamic> profile) {
     final docs = <({String key, String label, String? uploadPathFor})>[];
-    final nic = (profile['nic'] as String?)?.trim();
-    if (nic != null && nic.isNotEmpty) {
-      docs.add((key: 'nic', label: 'NIC — $nic', uploadPathFor: null));
-    }
     final police = (profile['policeClearanceUrl'] as String?) ?? '';
     if (police.isNotEmpty) {
       docs.add((key: 'policeClearance', label: _labelForUrl(police, 'Police clearance certificate'), uploadPathFor: 'policeClearance'));
@@ -179,6 +177,8 @@ class _CaregiverVerificationStatusScreenState extends State<CaregiverVerificatio
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _buildNicStatusCard(profile),
+                          const SizedBox(height: 20),
                           if (totalCount == 0)
                             Container(
                               width: double.infinity,
@@ -326,6 +326,81 @@ class _CaregiverVerificationStatusScreenState extends State<CaregiverVerificatio
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Real, automatic status from NicVerificationService — never an admin
+  /// decision. Shown unconditionally (unlike the uploaded-document list
+  /// below) since NIC verification doesn't depend on having submitted any
+  /// other document.
+  Widget _buildNicStatusCard(Map<String, dynamic> profile) {
+    final nic = (profile['nic'] as String?)?.trim() ?? '';
+    if (nic.isEmpty) return const SizedBox.shrink();
+
+    final verified = profile['nicVerified'] == true;
+    final reason = profile['nicVerificationReason'] as String?;
+
+    if (verified) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: docCardBg, borderRadius: BorderRadius.circular(14)),
+        child: Row(
+          children: [
+            const Icon(Icons.verified_rounded, color: Color(0xFF4ADE80), size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('NIC — $nic', style: const TextStyle(fontFamily: 'Open Sans', color: docNameApproved, fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  const Text('Verified automatically', style: TextStyle(fontFamily: 'Open Sans', color: docSub, fontSize: 11, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: rejectedCardBg, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.error_rounded, color: rejectedTitle, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('NIC — $nic', style: const TextStyle(fontFamily: 'Open Sans', color: rejectedTitle, fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Padding(
+            padding: const EdgeInsets.only(left: 26),
+            child: Text(
+              reason ?? 'Could not be verified — update it in Edit profile.',
+              style: const TextStyle(fontFamily: 'Open Sans', color: rejectedTitle, fontSize: 11, fontWeight: FontWeight.w500),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(left: 26),
+            child: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/caregiver-edit-profile'),
+              child: const Text(
+                'Update in Edit profile',
+                style: TextStyle(fontFamily: 'Open Sans', color: rejectedTitle, fontSize: 12, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

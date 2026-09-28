@@ -110,7 +110,13 @@ class ConfirmBookingScreen extends StatelessWidget {
                             future: CaregiverService.getCaregiverProfile(caregiverId),
                             builder: (context, snap) {
                               final rate = (snap.data?['hourlyRate'] as num?)?.toDouble();
-                              return _buildPricingCard(isAdvanced: isAdvanced, hourlyRate: rate);
+                              return _buildPricingCard(
+                                isAdvanced: isAdvanced,
+                                hourlyRate: rate,
+                                careType: careType,
+                                startTime: startTime,
+                                endTime: endTime,
+                              );
                             },
                           ),
                         ],
@@ -293,14 +299,71 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Pricing card ─────────────────────────────────────────────────────────
-  Widget _buildPricingCard({required bool isAdvanced, double? hourlyRate}) {
+  // Figma node 208-58: shows the actual cost of the booking, not just the
+  // bare rate. Only computable for a single flexible-schedule day, since
+  // that's the only case where the shift is defined by a start/end time —
+  // a multi-day booking's length is a free-text duration ("1 month") with
+  // no structured hour count to multiply against, so that case still shows
+  // just the hourly rate rather than guessing a total.
+  Widget _buildPricingCard({
+    required bool isAdvanced,
+    required String careType,
+    required String startTime,
+    required String endTime,
+    double? hourlyRate,
+  }) {
+    final isFlexible = careType.contains('Flexible');
+    final hours = isFlexible ? _hoursBetween(startTime, endTime) : null;
+
     final rows = [
       _BookingRow(
         'Hourly rate',
         hourlyRate == null ? 'Not yet assigned' : 'Rs.${hourlyRate.toStringAsFixed(0)} / hour',
       ),
+      if (hours != null)
+        _BookingRow('Duration', '${_formatHours(hours)} hrs'),
+      if (hourlyRate != null && hours != null)
+        _BookingRow('Total', 'Rs.${_formatAmount(hourlyRate * hours)}'),
     ];
-    return _buildSummaryCardContainer(rows, isAdvanced: isAdvanced);
+    return _buildSummaryCardContainer(rows, isAdvanced: isAdvanced, highlightLastRow: hours != null);
+  }
+
+  /// Parses "9:00 AM" / "17:00" style strings into hours-since-midnight, and
+  /// returns the shift length — wrapping past midnight for an overnight
+  /// shift (end time earlier than start time means it runs into the next
+  /// day, not a negative duration).
+  double? _hoursBetween(String startTime, String endTime) {
+    final start = _parseMinutesSinceMidnight(startTime);
+    final end = _parseMinutesSinceMidnight(endTime);
+    if (start == null || end == null) return null;
+    var minutes = end - start;
+    if (minutes <= 0) minutes += 24 * 60;
+    return minutes / 60.0;
+  }
+
+  int? _parseMinutesSinceMidnight(String value) {
+    final match = RegExp(r'(\d{1,2}):(\d{2})\s*([AaPp][Mm])?').firstMatch(value);
+    if (match == null) return null;
+    var hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2)!);
+    final meridiem = match.group(3)?.toLowerCase();
+    if (meridiem == 'pm' && hour != 12) hour += 12;
+    if (meridiem == 'am' && hour == 12) hour = 0;
+    return hour * 60 + minute;
+  }
+
+  String _formatHours(double hours) =>
+      hours == hours.roundToDouble() ? hours.toStringAsFixed(0) : hours.toStringAsFixed(1);
+
+  String _formatAmount(double amount) {
+    final rounded = amount.round();
+    final digits = rounded.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
   }
 
   // ── Qualifications card ────────────────────────────────────────────────────
@@ -386,10 +449,18 @@ class ConfirmBookingScreen extends StatelessWidget {
   }
 
   // ── Generic summary card ───────────────────────────────────────────────────
-  Widget _buildSummaryCardContainer(List<_BookingRow> rows, {required bool isAdvanced}) {
+  // [highlightLastRow] bolds/enlarges the final row's label+value — used for
+  // the pricing card's "Total" row so it reads as the headline figure rather
+  // than another plain line item.
+  Widget _buildSummaryCardContainer(
+    List<_BookingRow> rows, {
+    required bool isAdvanced,
+    bool highlightLastRow = false,
+  }) {
     final Color rowBorder = isAdvanced ? cardRowBorderDark : cardRowBorderLight;
     final Color labelColor = isAdvanced ? cardLabelDark : Colors.black;
     final Color valueColor = isAdvanced ? cardValueDark : cardValueLight;
+    final Color highlightColor = isAdvanced ? _accentAdvanced : darkGreen;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -402,6 +473,7 @@ class ConfirmBookingScreen extends StatelessWidget {
         children: List.generate(rows.length, (index) {
           final row    = rows[index];
           final isLast = index == rows.length - 1;
+          final isHighlighted = highlightLastRow && isLast;
           return Container(
             constraints: const BoxConstraints(minHeight: 45),
             padding: const EdgeInsets.symmetric(vertical: 13),
@@ -419,9 +491,9 @@ class ConfirmBookingScreen extends StatelessWidget {
                   row.label,
                   style: TextStyle(
                     fontFamily: 'Open Sans',
-                    color: labelColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    color: isHighlighted ? highlightColor : labelColor,
+                    fontSize: isHighlighted ? 14.5 : 13,
+                    fontWeight: isHighlighted ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
                 const SizedBox(width: 20),
@@ -430,9 +502,9 @@ class ConfirmBookingScreen extends StatelessWidget {
                     row.value,
                     textAlign: TextAlign.end,
                     style: TextStyle(
-                      color: valueColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      color: isHighlighted ? highlightColor : valueColor,
+                      fontSize: isHighlighted ? 16 : 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),

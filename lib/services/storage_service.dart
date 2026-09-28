@@ -14,8 +14,28 @@ class StorageService {
 
   static const String _cloudName = 'ov1bmnqf';
   static const String _uploadPreset = 'Care_Match';
-  static final Uri _uploadUrl =
-      Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/auto/upload');
+
+  // Cloudinary's "auto" resource-type detection files a PDF under `image`,
+  // which this Cloudinary account (ov1bmnqf) is configured to block direct
+  // delivery of (401 "deny or ACL failure" — a security restriction against
+  // PDF-based XSS). Routing PDFs through `raw` instead does NOT avoid this —
+  // confirmed by hand: a PDF uploaded via `raw` still 401s with the exact
+  // same X-Cld-Error. This account's "Restricted media types" security
+  // setting evidently blocks PDF/ZIP delivery account-wide, independent of
+  // resource_type, so there's no upload-side fix for it — it can only be
+  // lifted from the Cloudinary console (Settings → Security). Non-image
+  // files still go through `raw` here since it's otherwise the correct
+  // resource type for a non-transformable document, but it does not by
+  // itself make PDFs viewable while that account setting is on.
+  static const Set<String> _imageExtensions = {
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp',
+  };
+
+  static Uri _uploadUrlFor(String filename) {
+    final ext = _extOf(filename);
+    final resourceType = _imageExtensions.contains(ext) ? 'auto' : 'raw';
+    return Uri.parse('https://api.cloudinary.com/v1_1/$_cloudName/$resourceType/upload');
+  }
 
   static Future<String> uploadBytes({
     required String storagePath,
@@ -26,7 +46,7 @@ class StorageService {
     final folder = slash == -1 ? '' : storagePath.substring(0, slash);
     final filename = slash == -1 ? storagePath : storagePath.substring(slash + 1);
 
-    final request = http.MultipartRequest('POST', _uploadUrl)
+    final request = http.MultipartRequest('POST', _uploadUrlFor(filename))
       ..fields['upload_preset'] = _uploadPreset
       ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
     if (folder.isNotEmpty) {

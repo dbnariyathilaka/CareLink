@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/nic_verification_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/remote_or_local_image.dart';
@@ -41,6 +42,7 @@ class _CaregiverEditProfileScreenState
   final _nameController = NoUnderlineTextEditingController();
   final _emailController = NoUnderlineTextEditingController();
   final List<TextEditingController> _phoneControllers = [];
+  final _ageController = NoUnderlineTextEditingController();
   final _nicController = NoUnderlineTextEditingController();
   final _refPhoneController = NoUnderlineTextEditingController();
   final _cityController = NoUnderlineTextEditingController();
@@ -87,6 +89,7 @@ class _CaregiverEditProfileScreenState
   String? _emailError;
   String? _phoneError;
   String? _extraPhonesError;
+  String? _ageError;
   String? _nicError;
   String? _refPhoneError;
   String? _cityError;
@@ -120,6 +123,7 @@ class _CaregiverEditProfileScreenState
     _nameController.text = (merged['name'] as String?)?.trim() ?? user.displayName ?? '';
     _emailController.text = (merged['email'] as String?)?.trim() ?? user.email ?? '';
     _nicController.text = (merged['nic'] as String?)?.trim() ?? '';
+    _ageController.text = (merged['age'] as num?)?.toInt().toString() ?? '';
     _cityController.text = (merged['city'] as String?)?.trim() ?? '';
     _bioController.text = (merged['bio'] as String?)?.trim() ?? '';
 
@@ -210,6 +214,16 @@ class _CaregiverEditProfileScreenState
     return 'Enter 9 digits + V/X (e.g. 972345678V) or 12 digits';
   }
 
+  /// Age feeds NicVerificationService (birth year = current year - age), so
+  /// it's required and bounded to a plausible working-adult range.
+  String? _validateAge(String val) {
+    final v = val.trim();
+    if (v.isEmpty) return 'Age is required';
+    final age = int.tryParse(v);
+    if (age == null || age < 18 || age > 100) return 'Enter an age between 18 and 100';
+    return null;
+  }
+
   String? _validateRefPhone(String val) {
     final v = val.trim();
     if (v.isEmpty) return null; // Optional
@@ -245,6 +259,7 @@ class _CaregiverEditProfileScreenState
         ? _validatePhone(_phoneControllers[0].text)
         : 'Phone number is required';
     final extraPhonesErr = _extraPhonesValid() ? null : 'Additional phone numbers must be exactly 9 digits';
+    final ageErr = _validateAge(_ageController.text);
     final nicErr = _validateNic(_nicController.text);
     final refPhoneErr = _validateRefPhone(_refPhoneController.text);
     final cityErr = _validateCity(_cityController.text);
@@ -257,6 +272,7 @@ class _CaregiverEditProfileScreenState
       _emailError = emailErr;
       _phoneError = phoneErr;
       _extraPhonesError = extraPhonesErr;
+      _ageError = ageErr;
       _nicError = nicErr;
       _refPhoneError = refPhoneErr;
       _cityError = cityErr;
@@ -269,6 +285,7 @@ class _CaregiverEditProfileScreenState
         emailErr == null &&
         phoneErr == null &&
         extraPhonesErr == null &&
+        ageErr == null &&
         nicErr == null &&
         refPhoneErr == null &&
         cityErr == null &&
@@ -303,11 +320,21 @@ class _CaregiverEditProfileScreenState
       final refDigits = _refPhoneController.text.trim();
       final fullRefPhone = refDigits.isNotEmpty ? '+94$refDigits' : '';
 
+      final age = int.parse(_ageController.text.trim());
+      final nic = _nicController.text.trim().toUpperCase();
+      // Re-checked on every save — not just when the NIC field itself
+      // changes — since age/gender edits alone can flip the verdict too.
+      final nicCheck = NicVerificationService.check(nic: nic, gender: _gender, age: age);
+
       final caregiverData = <String, dynamic>{
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'gender': _gender,
-        'nic': _nicController.text.trim().toUpperCase(),
+        'nic': nic,
+        'age': age,
+        'nicVerified': nicCheck.isValid,
+        'nicVerificationReason': nicCheck.reason,
+        'nicVerifiedAt': FieldValue.serverTimestamp(),
         'yearsExperience': _yearsExperience,
         'educationalQualification': _educationalQualification,
         'formalTraining': _formalTraining,
@@ -371,6 +398,7 @@ class _CaregiverEditProfileScreenState
     for (final c in _phoneControllers) {
       c.dispose();
     }
+    _ageController.dispose();
     _nicController.dispose();
     _refPhoneController.dispose();
     _cityController.dispose();
@@ -529,6 +557,23 @@ class _CaregiverEditProfileScreenState
                           _buildLabel('Gender'),
                           const SizedBox(height: 8),
                           _buildGenderSelector(),
+                          const SizedBox(height: 18),
+
+                          _buildLabel('Age'),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            _ageController,
+                            hintText: 'e.g. 34',
+                            keyboardType: TextInputType.number,
+                            errorText: _ageError,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(3),
+                            ],
+                            onChanged: (_) {
+                              if (_ageError != null) setState(() => _ageError = null);
+                            },
+                          ),
                           const SizedBox(height: 18),
 
                           _buildLabel('NIC number'),

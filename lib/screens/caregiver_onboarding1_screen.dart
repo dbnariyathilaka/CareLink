@@ -40,8 +40,10 @@ class _CaregiverOnboarding1ScreenState
 
   String? _selectedCareType = 'Part-time';
 
+  final _ageController = NoUnderlineTextEditingController();
   final _nicController = NoUnderlineTextEditingController();
   final _refPhoneController = NoUnderlineTextEditingController();
+  String? _ageError;
   String? _nicError;
   String? _phoneError;
   String? _careTypeError;
@@ -54,6 +56,7 @@ class _CaregiverOnboarding1ScreenState
 
   @override
   void dispose() {
+    _ageController.dispose();
     _nicController.dispose();
     _refPhoneController.dispose();
     super.dispose();
@@ -104,6 +107,16 @@ class _CaregiverOnboarding1ScreenState
     });
   }
 
+  /// Age feeds NicVerificationService (birth year = current year - age), so
+  /// it's required and bounded to a plausible working-adult range.
+  String? _validateAge(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return 'Age is required';
+    final age = int.tryParse(trimmed);
+    if (age == null || age < 18 || age > 100) return 'Enter an age between 18 and 100';
+    return null;
+  }
+
   /// Returns null if valid, or an error message string if invalid.
   String? _validateNic(String value) {
     final trimmed = value.trim().toUpperCase();
@@ -125,6 +138,7 @@ class _CaregiverOnboarding1ScreenState
 
   bool _runValidation() {
     final careErr = _selectedCareType == null ? 'Please select a care type' : null;
+    final ageErr = _validateAge(_ageController.text);
     final nicErr = _validateNic(_nicController.text);
     String? phoneErr = _validatePhone(_refPhoneController.text);
 
@@ -139,10 +153,11 @@ class _CaregiverOnboarding1ScreenState
 
     setState(() {
       _careTypeError = careErr;
+      _ageError = ageErr;
       _nicError = nicErr;
       _phoneError = phoneErr;
     });
-    return careErr == null && nicErr == null && phoneErr == null;
+    return careErr == null && ageErr == null && nicErr == null && phoneErr == null;
   }
 
   @override
@@ -222,6 +237,22 @@ class _CaregiverOnboarding1ScreenState
                             ],
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 26),
+                      _buildLabel('Age'),
+                      const SizedBox(height: 12),
+                      _buildTextField(
+                        controller: _ageController,
+                        hintText: 'e.g. 34',
+                        keyboardType: TextInputType.number,
+                        errorText: _ageError,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
+                        ],
+                        onChanged: (_) {
+                          if (_ageError != null) setState(() => _ageError = null);
+                        },
                       ),
                       const SizedBox(height: 26),
                       _buildLabel('Years of experience'),
@@ -364,6 +395,7 @@ class _CaregiverOnboarding1ScreenState
                         if (!_runValidation()) return;
                         final draft = AppState.caregiverOnboardingDraft;
                         draft.gender = _selectedGender;
+                        draft.age = int.parse(_ageController.text.trim());
                         draft.yearsExperience = _yearsExperience;
                         draft.careTypes = _selectedCareType != null ? {_selectedCareType!} : {};
                         // Store phone with +94 prefix

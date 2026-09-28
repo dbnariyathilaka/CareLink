@@ -19,6 +19,7 @@ import 'screens/caregiver_profile_screen.dart';
 import 'screens/add_review_screen.dart';
 import 'screens/my_bookings_screen.dart';
 import 'screens/patient_search_screen.dart';
+import 'screens/select_saved_caregivers_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/caregiver_onboarding1_screen.dart';
 import 'screens/caregiver_onboarding2_screen.dart';
@@ -125,6 +126,7 @@ class CareMatchApp extends StatelessWidget {
         '/add-review': (context) => const AddReviewScreen(),
         '/my-bookings': (context) => const MyBookingsScreen(),
         '/search': (context) => const PatientSearchScreen(),
+        '/select-saved-caregivers': (context) => const SelectSavedCaregiversScreen(),
         '/notifications': (context) => const NotificationsScreen(),
         '/caregiver-onboarding-1': (context) =>
             const CaregiverOnboarding1Screen(),

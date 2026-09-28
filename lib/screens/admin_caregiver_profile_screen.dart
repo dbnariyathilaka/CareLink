@@ -22,6 +22,7 @@ class AdminCaregiverProfileData {
   final String phone;
   final String location;
   final String nic;
+  final bool nicVerified; // NicVerificationService — automatic, not an admin decision
   final String email;
   final String experience;
   final String careType;
@@ -43,6 +44,7 @@ class AdminCaregiverProfileData {
     required this.phone,
     required this.location,
     required this.nic,
+    required this.nicVerified,
     required this.email,
     required this.experience,
     required this.careType,
@@ -375,7 +377,11 @@ class _AdminCaregiverProfileScreenState extends State<AdminCaregiverProfileScree
         children: [
           _buildDetailRow('Phone No', data.phone, hasDivider: true),
           _buildDetailRow('Location', data.location, hasDivider: true),
-          _buildDetailRow('NIC', data.nic, hasDivider: true),
+          _buildDetailRow(
+            'NIC',
+            '${data.nic}${data.nic == 'Not provided' ? '' : (data.nicVerified ? ' · Verified' : ' · Not verified')}',
+            hasDivider: true,
+          ),
           _buildDetailRow('Email', data.email, hasDivider: false),
         ],
       ),

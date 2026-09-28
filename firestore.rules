@@ -25,16 +25,43 @@ service cloud.firestore {
 
     // caregiverProfiles/{uid} — any signed-in user can read (needed for
     // patient search/profile view); only the owner can write their own
-    // profile. Admins get one narrow exception: updating only the
-    // documentReviews field, which is how CaregiverService.
-    // setDocumentReviewStatus records a real approve/reject decision from
-    // the admin verification-queue screen — restricted via affectedKeys()
-    // so an admin write can never touch any other field on the profile.
+    // profile. Admins get one narrow exception: updating only a fixed set
+    // of admin-written fields — restricted via affectedKeys() so an admin
+    // write can never touch any other field on the profile:
+    //   - documentReviews (CaregiverService.setDocumentReviewStatus, the
+    //     admin verification-queue screen's real approve/reject decisions)
+    //   - referenceCount (CaregiverService.setReferenceCount, written
+    //     alongside documentReviews.reference in the same call — a write
+    //     touching both top-level fields needs both listed here)
+    //   - nicVerified / nicVerifiedAt / nicVerificationReason
+    //     (CaregiverService.backfillNicVerification, the one-time
+    //     admin-triggered backfill for caregivers who registered before
+    //     automatic NIC verification existed)
+    //   - hourlyRate / hourlyRateAssignedAt (CaregiverService.setHourlyRate,
+    //     both the per-caregiver "Assign" button on the admin profile
+    //     screen and the bulk "Apply hourly rates" action on the admin
+    //     caregivers list)
+    //
+    // IMPORTANT: affectedKeys() throws a genuine evaluation error (not just
+    // `false`) when the incoming write updates a nested field via a
+    // 'documentReviews.$docKey'-style DOTTED STRING KEY in a set(merge:true)
+    // call, rather than a real nested Map — this silently denied every
+    // admin approve/reject/verify-count/rate-assign write as an unhandled
+    // permission-denied crash. set(merge:true) already deep-merges real
+    // nested Maps correctly on its own (verified: sibling keys survive), so
+    // CaregiverService writes a proper nested Map (e.g.
+    // {'documentReviews': {docKey: {...}}}) instead — never a dotted key —
+    // which is both simpler and the only form affectedKeys() evaluates
+    // cleanly here.
     match /caregiverProfiles/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
       allow update: if isAdmin() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['documentReviews']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'documentReviews', 'referenceCount',
+          'nicVerified', 'nicVerifiedAt', 'nicVerificationReason',
+          'hourlyRate', 'hourlyRateAssignedAt',
+        ]);
     }
 
     // patientProfiles/{uid} — owner-only for write; any signed-in user can
@@ -71,16 +98,19 @@ service cloud.firestore {
     }
 
     // bookingRequests/{bookingId} — created by a patient when they send a
-    // care request. Readable/updatable by the patient who owns it, the
-    // caregiver it's addressed to, or an admin (the admin bookings screen
-    // and dashboard stats stream every booking, unfiltered); the
-    // patientUid on create must match the caller so patients can only
-    // create bookings for themselves.
+    // care request. Read by any signed-in user, same tradeoff as
+    // caregiverProfiles/patientProfiles above: BookingService.
+    // currentlyBusyCaregiverIds() (real-time availability, checked on every
+    // advanced-match request and on the emergency flow) runs a `whereIn`
+    // query across many caregivers' bookings at once, which Firestore can
+    // only allow when the rule doesn't depend on resource.data at all — a
+    // narrower per-relationship rule would reject that query outright with
+    // permission-denied (a live bug this fixes), and there's no backend to
+    // compute a smaller availability-only signal instead. Writes stay
+    // owner-scoped below; the patientUid on create must match the caller so
+    // patients can only create bookings for themselves.
     match /bookingRequests/{bookingId} {
-      allow read: if request.auth != null &&
-        (request.auth.uid == resource.data.patientUid ||
-         request.auth.uid == resource.data.caregiverId ||
-         isAdmin());
+      allow read: if request.auth != null;
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.patientUid;
       allow update: if request.auth != null &&

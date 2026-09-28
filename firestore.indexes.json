@@ -1,4 +1,30 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "bookingRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caregiverId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "arrivalConfirmed", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "caregiverProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "nicVerified", "order": "ASCENDING" },
+        { "fieldPath": "careTypes", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
+      "collectionGroup": "caregiverProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "nicVerified", "order": "ASCENDING" },
+        { "fieldPath": "city", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

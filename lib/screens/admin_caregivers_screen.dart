@@ -26,11 +26,10 @@ enum _CgStatus { active, pending, suspended }
 /// Every individually-reviewable document key on a caregiver profile —
 /// mirrors AdminVerificationQueueScreen._documentsFor exactly so the
 /// pending/active split here always agrees with the real verification
-/// queue.
+/// queue. NIC is deliberately excluded — it's auto-verified by
+/// NicVerificationService, not admin-reviewed (see `nicVerified` below).
 List<String> _documentKeysFor(Map<String, dynamic> profile) {
   final keys = <String>[];
-  final nic = (profile['nic'] as String?)?.trim();
-  if (nic != null && nic.isNotEmpty) keys.add('nic');
   final police = (profile['policeClearanceUrl'] as String?) ?? '';
   if (police.isNotEmpty) keys.add('policeClearance');
   final certs = (profile['certificateUrls'] as List?) ?? const [];
@@ -97,6 +96,10 @@ class AdminCaregiverData {
     final n = profile['nic'] as String?;
     return (n != null && n.trim().isNotEmpty) ? n.trim() : 'Not provided';
   }
+
+  /// Set automatically by NicVerificationService (onboarding, edit-profile,
+  /// and the one-time legacy backfill) — never by an admin decision.
+  bool get nicVerified => profile['nicVerified'] == true;
 
   String get phone {
     final p = user?['phone'] as String?;
@@ -234,9 +237,10 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
 
   /// Derived verification status — there is no stored status field, so this
   /// reads the same real `documentReviews` data the verification queue
-  /// writes. A submitted document with no decision yet, or a rejected
-  /// decision, means 'pending'; suspension is the existing session-local
-  /// flag and always wins.
+  /// writes, plus the real `nicVerified` flag NicVerificationService sets
+  /// automatically. A submitted document with no decision yet, a rejected
+  /// decision, or an unverified NIC all mean 'pending'; suspension is the
+  /// existing session-local flag and always wins.
   _CgStatus _statusFor(AdminCaregiverData cg) {
     if (_locallySuspended.contains(cg.uid)) return _CgStatus.suspended;
     final reviews = (cg.profile['documentReviews'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -245,7 +249,8 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
       final review = reviews[k] as Map<String, dynamic>?;
       return review != null && review['status'] == 'approved';
     });
-    return allApproved ? _CgStatus.active : _CgStatus.pending;
+    final nicVerified = cg.profile['nicVerified'] == true;
+    return (allApproved && nicVerified) ? _CgStatus.active : _CgStatus.pending;
   }
 
   List<AdminCaregiverData> get _filteredCaregivers {
@@ -359,6 +364,160 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
     );
   }
 
+  bool _backfillRunning = false;
+
+  /// One-time action for caregivers who registered before automatic NIC
+  /// verification existed (see CaregiverService.backfillNicVerification) —
+  /// there's no backend/cron in this app to run it automatically, so like
+  /// setHourlyRate this is a real admin-triggered write, not a fabricated
+  /// button. Safe to tap more than once; it only ever touches caregivers
+  /// that have never been checked before.
+  Future<void> _runNicBackfill() async {
+    if (_backfillRunning) return;
+    setState(() => _backfillRunning = true);
+    try {
+      final result = await CaregiverService.backfillNicVerification();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.checked == 0
+                ? 'No caregivers needed a NIC backfill — everyone has already been checked.'
+                : 'Checked ${result.checked} caregiver${result.checked == 1 ? '' : 's'} — ${result.verified} verified.',
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('NIC backfill failed: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) setState(() => _backfillRunning = false);
+    }
+  }
+
+  bool _rateApplyRunning = false;
+
+  /// Bulk-runs PaymentService.calculateHourlyRate for every caregiver
+  /// currently loaded and writes the result via CaregiverService.
+  /// setHourlyRate. The formula itself already lives on the per-caregiver
+  /// admin profile screen (_AdminCaregiverProfileScreenState._assignRate) —
+  /// this is the same two-phase rule (flat LKR 150 until 5 completed
+  /// services, then scaled by the Bayesian-adjusted rating, floored at
+  /// base, capped at 1.5x, rounded to the nearest LKR 5), just applied
+  /// across every caregiver in one pass instead of one profile at a time.
+  /// There's still no backend/cron in this app, so — like the NIC
+  /// backfill above — this is the real admin-triggered stand-in for one,
+  /// safe to re-run any time ratings/completed-job counts change.
+  Future<void> _runHourlyRateApply() async {
+    if (_rateApplyRunning) return;
+    setState(() => _rateApplyRunning = true);
+    try {
+      final platform = ReviewService.platformAverageOrNeutral(
+        await ReviewService.fetchPlatformAverage(),
+      );
+      var applied = 0;
+      await Future.wait(_caregivers.map((cg) async {
+        final completedServices = await BookingService.countCompletedBookingsForCaregiver(cg.uid);
+        final adjusted = ReviewService.adjustedRating(
+          average: cg.rating,
+          count: cg.reviewCount,
+          platformAverage: platform,
+        );
+        final rate = PaymentService.calculateHourlyRate(
+          completedServices: completedServices,
+          adjustedRating: adjusted,
+        );
+        await CaregiverService.setHourlyRate(cg.uid, rate);
+        applied++;
+      }));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Applied hourly rates for $applied caregiver${applied == 1 ? '' : 's'}.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hourly rate apply failed: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      if (mounted) setState(() => _rateApplyRunning = false);
+    }
+  }
+
+  void _confirmHourlyRateApply() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C251D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Apply hourly rates to all caregivers?',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Recalculates and assigns every caregiver\'s hourly rate from their current '
+          'completed-services count and Bayesian-adjusted rating: flat LKR 150 until 5 '
+          'completed services, then scaled by rating (floor LKR 150, cap LKR 225). '
+          'Overwrites any rate already assigned.',
+          style: TextStyle(color: Color(0xFFC4BBAC), fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFBBC05), foregroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              _runHourlyRateApply();
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmNicBackfill() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF2C251D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Run NIC verification backfill?',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Checks every existing caregiver who has never been through automatic '
+          'NIC verification, and marks their NIC verified or unverified based on '
+          'NIC format and gender (their age isn\'t on file for these older '
+          'profiles, so birth year can\'t be cross-checked for them). '
+          'Already-checked caregivers are left untouched.',
+          style: TextStyle(color: Color(0xFFC4BBAC), fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFBBC05), foregroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              _runNicBackfill();
+            },
+            child: const Text('Run'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatMonthYear(DateTime d) => '${_months[d.month - 1]} ${d.year}';
 
   /// Builds a filename/label for a certificate/document URL — falls back to
@@ -425,6 +584,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
       phone: cg.phone,
       location: cg.city,
       nic: cg.nic,
+      nicVerified: cg.nicVerified,
       email: (user?['email'] as String?)?.trim().isNotEmpty == true
           ? (user!['email'] as String).trim()
           : 'Not provided',
@@ -495,6 +655,39 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                       _showSortMenu();
                     },
                     tooltip: 'Sort',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 14),
+                  // One-time NIC verification backfill for pre-existing
+                  // caregivers (see CaregiverService.backfillNicVerification).
+                  IconButton(
+                    icon: _backfillRunning
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: titleColor),
+                          )
+                        : const Icon(Icons.fact_check_outlined, color: titleColor, size: 24),
+                    onPressed: _backfillRunning ? null : _confirmNicBackfill,
+                    tooltip: 'Backfill NIC verification',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 14),
+                  // Bulk hourly-rate apply (see _runHourlyRateApply above) —
+                  // the same formula the per-caregiver profile screen already
+                  // uses, just run across everyone at once.
+                  IconButton(
+                    icon: _rateApplyRunning
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: titleColor),
+                          )
+                        : const Icon(Icons.payments_outlined, color: titleColor, size: 24),
+                    onPressed: _rateApplyRunning ? null : _confirmHourlyRateApply,
+                    tooltip: 'Apply hourly rates',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -687,14 +880,27 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
                         ),
                       ),
                       const SizedBox(height: 1),
-                      Text(
-                        'NIC: ${cg.nic}',
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w500,
-                          color: cardSubtitleColor,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'NIC: ${cg.nic}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                                color: cardSubtitleColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Icon(
+                            cg.nicVerified ? Icons.verified_rounded : Icons.error_outline_rounded,
+                            size: 12,
+                            color: cg.nicVerified ? const Color(0xFF2E7D32) : const Color(0xFFB01E1E),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/nic_verification_service.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -53,11 +55,24 @@ class _CaregiverOnboarding7ScreenState
     try {
       final uid = AuthService.currentUser?.uid;
       if (uid != null) {
+        final draft = AppState.caregiverOnboardingDraft;
+        // Automatic NIC verification — no admin involvement. Checked here,
+        // once, against exactly the gender/age/NIC the caregiver just
+        // submitted, and re-checked again by caregiver_edit_profile_screen
+        // whenever any of those three change later.
+        final nicCheck = NicVerificationService.check(
+          nic: draft.nic,
+          gender: draft.gender,
+          age: draft.age,
+        );
         await CaregiverService.saveCaregiverProfile(
           uid: uid,
           data: {
-            ...AppState.caregiverOnboardingDraft.toMap(),
+            ...draft.toMap(),
             'onboardingComplete': true,
+            'nicVerified': nicCheck.isValid,
+            'nicVerificationReason': nicCheck.reason,
+            'nicVerifiedAt': FieldValue.serverTimestamp(),
           },
         );
       }

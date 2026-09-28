@@ -205,12 +205,23 @@ class MatchingService {
 
   // ── Stage 1 — hard filters ──────────────────────────────────────────
   static bool isEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
-    return _skillEligible(caregiver, ctx) &&
+    return _nicVerifiedEligible(caregiver) &&
+        _skillEligible(caregiver, ctx) &&
         _availabilityEligible(caregiver) &&
         _genderEligible(caregiver, ctx) &&
         _scheduleEligible(caregiver, ctx) &&
         _languageEligible(caregiver, ctx) &&
         _travelEligible(caregiver, ctx);
+  }
+
+  /// A caregiver whose NIC hasn't passed automatic verification
+  /// (NicVerificationService, checked at onboarding/edit-profile time) is
+  /// excluded outright — never scored, never shown as a match. Belt-and-
+  /// suspenders alongside CaregiverService.searchCaregivers' own filter,
+  /// for any caller that hands this service a caregiver list from
+  /// elsewhere.
+  static bool _nicVerifiedEligible(Map<String, dynamic> caregiver) {
+    return caregiver['nicVerified'] == true;
   }
 
   static bool _skillEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
