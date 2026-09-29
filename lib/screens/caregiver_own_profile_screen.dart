@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/matching_service.dart' show nvqLabels;
 import '../services/payment_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/caregiver_bottom_nav.dart';
@@ -764,7 +765,8 @@ class _CaregiverOwnProfileScreenState extends State<CaregiverOwnProfileScreen> {
 
   // ── Education & languages card ─────────────────────────────
   Widget _buildEducationCard() {
-    final qual = (_profile?['educationalQualification'] as String?)?.trim() ?? 'Diploma';
+    final nvqLevel = (_profile?['nvqLevel'] as num?)?.toInt();
+    final qual = nvqLevel != null ? (nvqLabels[nvqLevel] ?? 'Not certified') : 'Not certified';
     final formal = _profile?['formalTraining'] == true ? 'Yes' : 'Not set';
     final languages = (_profile?['languagesSpoken'] as List?)?.cast<String>() ?? const [];
     final langStr = languages.isNotEmpty ? languages.join(', ') : 'Not specified';

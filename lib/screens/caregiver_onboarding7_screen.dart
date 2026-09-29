@@ -202,14 +202,14 @@ class _CaregiverOnboarding7ScreenState
                         ),
                         _buildTermSection(
                           '2. Background verification',
-                          'CareLink may verify your identity, certifications, '
+                          'Sathkara may verify your identity, certifications, '
                               'and background check status before activating '
                               'your profile.',
                         ),
                         _buildTermSection(
                           '3. Payments & cancellations',
                           'Bookings, cancellations, and payouts are processed '
-                              'through CareLink per the published fee schedule.',
+                              'through Sathkara per the published fee schedule.',
                         ),
                         _buildTermSection(
                           '4. Data & privacy',

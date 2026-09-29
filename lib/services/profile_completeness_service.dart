@@ -92,9 +92,7 @@ CaregiverCompleteness evaluateCaregiverProfile(
         _isBlank(profile['yearsExperience']) ||
         _isBlank(profile['careTypes']))
       'Basic details',
-    if (_isBlank(profile['educationalQualification']) ||
-        _isBlank(profile['languagesSpoken']) ||
-        _isBlank(profile['skills']))
+    if (_isBlank(profile['languagesSpoken']) || _isBlank(profile['skills']))
       'Qualifications & skills',
     if (_isBlank(profile['city'])) 'Location & bio',
   ];

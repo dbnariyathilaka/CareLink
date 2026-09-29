@@ -279,7 +279,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                       child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Hands cradling a heart — CareLink brand icon
+                        // Hands cradling a heart — Sathkara brand icon
                         Center(
                           child: Image.asset(
                             'assets/images/login_icon.png',

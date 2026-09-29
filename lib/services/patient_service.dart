@@ -106,7 +106,7 @@ class PatientService {
   /// themselves (see [fetchPendingInvitesForEmail] / [acceptFamilyInvite])
   /// once they sign in with this exact email under their own account; there
   /// is still no email/SMS backend to actually deliver a notification, so
-  /// they only discover it by logging into (or registering) CareLink.
+  /// they only discover it by logging into (or registering) Sathkara.
   /// [name] is shown until acceptance, when it's replaced with the real
   /// name from the invitee's own account.
   static Future<String> addFamilyMember({

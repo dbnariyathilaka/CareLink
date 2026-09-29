@@ -177,7 +177,7 @@ class _AccountCreatedScreenState extends State<AccountCreatedScreen>
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Text(
-                          "Welcome to CareLink, $userName. Let's set up your profile so we can find your matches.",
+                          "Welcome to Sathkara, $userName. Let's set up your profile so we can find your matches.",
                           style: const TextStyle(
                             fontFamily: 'Quattrocento Sans',
                             fontSize: 20,

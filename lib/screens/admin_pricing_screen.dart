@@ -46,9 +46,9 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                     const SizedBox(height: 9),
                     _buildInfoCard(
                       icon: Icons.balance_rounded,
-                      title: 'Stage 1–4: hard filters, then a W2-weighted score',
+                      title: 'Hard filters, then a survey-weighted score',
                       body:
-                          'Language, skill match, and work schedule hard-reject; gender preference, certification, and distance filter conditionally/with a fixed 30km system cap plus the patient\'s own optional limit. Survivors are scored on seven criteria — skill match, availability, proximity, feedback/ratings, references, experience, certification — weighted by the stakeholder-derived W2 vector (not equal weighting), with weight redistribution when a caregiver has no References or Certification data on file. Ratings use a Bayesian-adjusted score (own average weighted against review count, pulled toward the live platform average) rather than a raw average.',
+                          'Advanced matching hard-rejects on skill match, availability, gender preference, work schedule, and spoken language. Survivors are ranked on four criteria — rating, proximity, experience, education (NVQ level) — weighted by real average importance ratings from a 103-family survey (thesis Chapter 4.4), not equal shares. An uncertified caregiver is never excluded on education; they score a discounted proxy of their experience instead. Rating drops out of the weighting entirely (redistributed to the rest) for a caregiver with zero reviews. Ratings otherwise use a Bayesian-adjusted score (own average weighted against review count, pulled toward the live platform average) rather than a raw average. Distance is not a hard filter — it only affects the proximity score, capped at 30km for normalization.',
                     ),
                     const SizedBox(height: 16),
                     _buildSectionLabel('HOURLY RATE'),
@@ -66,7 +66,7 @@ class _AdminPricingScreenState extends State<AdminPricingScreen> {
                       icon: Icons.tune_rounded,
                       title: 'No global config screen yet',
                       body:
-                          'Request-expiry window, platform fee, and surcharges are not backed by a configuration system in this app yet. The 30km system distance cap is currently a hardcoded constant (MatchWeights.systemDistanceCapKm), not editable here.',
+                          'Request-expiry window, platform fee, and surcharges are not backed by a configuration system in this app yet. The 30km proximity-score normalization ceiling is currently a hardcoded constant (MatchWeights.systemDistanceCapKm), not editable here.',
                     ),
                   ],
                 ),

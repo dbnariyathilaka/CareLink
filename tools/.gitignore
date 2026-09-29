@@ -1,5 +1,8 @@
 # NEVER commit the service account private key
 serviceAccountKey.json
 
+# NEVER commit Cloudinary API credentials
+cloudinaryConfig.json
+
 # Node modules
 node_modules/

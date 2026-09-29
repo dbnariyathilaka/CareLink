@@ -105,8 +105,8 @@ class CaregiverService {
   /// maps (verified: sibling decisions survive), and unlike the dot-path
   /// form this is actually compatible with Firestore security rules —
   /// `affectedKeys()` throws a genuine evaluation error against a dotted
-  /// field-name key, which was silently denying every admin
-  /// approve/reject/verify-count write as a permission-denied crash.
+  /// field-name key, which was silently denying every admin approve/reject
+  /// write as a permission-denied crash.
   static Future<void> setDocumentReviewStatus({
     required String uid,
     required String docKey,
@@ -119,29 +119,7 @@ class CaregiverService {
           'status': status,
           if (note != null && note.isNotEmpty) 'note': note,
           'decidedAt': FieldValue.serverTimestamp(),
-          'decidedBy': 'CareLink verification team',
-        },
-      },
-    }, SetOptions(merge: true));
-  }
-
-  /// Verifying the references document isn't a plain approve — the admin
-  /// reads the attached letter and records how many references it actually
-  /// lists. `referenceCount` (top-level) is what the onboarding-matching
-  /// algorithm scores; the same number is echoed into the review record so
-  /// the verification queue can display it without a second lookup. An
-  /// unverified (or rejected) reference document has no count at all — the
-  /// caller must NOT fall back to 0, since "unverified" and "verified with
-  /// zero references" are different things.
-  static Future<void> setReferenceCount(String uid, int count) {
-    return _collection.doc(uid).set({
-      'referenceCount': count,
-      'documentReviews': {
-        'reference': {
-          'status': 'approved',
-          'count': count,
-          'decidedAt': FieldValue.serverTimestamp(),
-          'decidedBy': 'CareLink verification team',
+          'decidedBy': 'Sathkara verification team',
         },
       },
     }, SetOptions(merge: true));

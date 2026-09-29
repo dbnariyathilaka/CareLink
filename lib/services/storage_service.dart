@@ -90,9 +90,6 @@ class StorageService {
   static String otherDocumentPath(String uid, String filename) =>
       'caregivers/$uid/other_documents/${DateTime.now().millisecondsSinceEpoch}_$filename';
 
-  static String referenceDocumentPath(String uid, String filename) =>
-      'caregivers/$uid/reference${_extOf(filename)}';
-
   static String reviewMediaPath(String uid, String filename) =>
       'reviews/$uid/${DateTime.now().millisecondsSinceEpoch}_$filename';
 

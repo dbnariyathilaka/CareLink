@@ -97,8 +97,8 @@ class _StartingScreenState extends State<StartingScreen> {
       backgroundColor: const Color(0xFF06402B), // Dark green background
       body: Center(
         child: Image.asset(
-          'assets/images/splash_logo.png',
-          width: 300,
+          'assets/images/splash_logo.jpg',
+          width: 280,
           fit: BoxFit.contain,
         ),
       ),

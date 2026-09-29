@@ -1,6 +1,6 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- *  CareLink — One-Time Incomplete Account Cleanup Script
+ *  Sathkara — One-Time Incomplete Account Cleanup Script
  * ─────────────────────────────────────────────────────────────────────────────
  *
  *  WHAT IT DOES
@@ -82,7 +82,7 @@ async function confirm(question) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('\n' + '\u2550'.repeat(70));
-  console.log('  CareLink \u2014 Incomplete Account Cleanup');
+  console.log('  Sathkara \u2014 Incomplete Account Cleanup');
   console.log('  Mode: ' + (DRY_RUN
     ? '\u26A0\uFE0F  DRY RUN (no changes will be made)'
     : '\uD83D\uDD25 LIVE DELETE'));

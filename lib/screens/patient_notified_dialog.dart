@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 //  "Report submitted" confirmation dialog
 //  Figma node: 355-2813 · shown after submitting the "Report
 //  unavailability" dialog. Figma titles this "Patient notified"
-//  and claims "CareLink support is arranging a replacement" /
+//  and claims "Sathkara support is arranging a replacement" /
 //  "Support will confirm reassignment within 30 minutes" — none
 //  of that exists (no notification pipeline, no support queue),
 //  so the copy below says what's actually true: the report was
@@ -78,7 +78,7 @@ class PatientNotifiedDialog extends StatelessWidget {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "CareLink doesn't send this automatically — message or call the patient yourself to let them know.",
+                      "Sathkara doesn't send this automatically — message or call the patient yourself to let them know.",
                       style: TextStyle(fontFamily: 'Open Sans', color: _infoText, fontSize: 12, fontWeight: FontWeight.w600, height: 1.4),
                     ),
                   ),

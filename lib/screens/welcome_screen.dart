@@ -81,11 +81,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 ),
                 const SizedBox(height: 15),
 
-                // Title: Welcome to CareLink
+                // Title: Welcome to Sathkara
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
-                    'Welcome to CareLink',
+                    'Welcome to Sathkara',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Quattrocento Sans',

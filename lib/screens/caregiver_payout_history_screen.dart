@@ -430,8 +430,8 @@ class _CaregiverPayoutHistoryScreenState extends State<CaregiverPayoutHistoryScr
               final docName = _docName(_rejectedDoc!['key'] as String);
               return Text(
                 (note != null && note.isNotEmpty)
-                    ? 'Held by CareLink${dateLabel != null ? ' on $dateLabel' : ''} — $note'
-                    : 'Held by CareLink${dateLabel != null ? ' on $dateLabel' : ''} — your $docName was rejected. Re-upload it to release this payout.',
+                    ? 'Held by Sathkara${dateLabel != null ? ' on $dateLabel' : ''} — $note'
+                    : 'Held by Sathkara${dateLabel != null ? ' on $dateLabel' : ''} — your $docName was rejected. Re-upload it to release this payout.',
                 style: const TextStyle(fontFamily: 'Open Sans', color: Color(0xFF6E6F72), fontSize: 11, fontWeight: FontWeight.w500, height: 1.4),
               );
             }),

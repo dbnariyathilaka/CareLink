@@ -115,7 +115,7 @@ class _PatientRefundDetailScreenState extends State<PatientRefundDetailScreen> {
         _submitting = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dispute submitted — CareLink support will review it.'), duration: Duration(seconds: 3)),
+        const SnackBar(content: Text('Dispute submitted — Sathkara support will review it.'), duration: Duration(seconds: 3)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -263,7 +263,7 @@ class _PatientRefundDetailScreenState extends State<PatientRefundDetailScreen> {
                           _buildProgressStep(
                             done: approvedDone,
                             active: false,
-                            title: 'Approved by CareLink support',
+                            title: 'Approved by Sathkara support',
                             subtitle: approvedAtDate != null
                                 ? '${_formatDateTime(approvedAtDate)}${refundApprovedNote != null ? ' · $refundApprovedNote' : ''}'
                                 : 'Awaiting review',
@@ -316,7 +316,7 @@ class _PatientRefundDetailScreenState extends State<PatientRefundDetailScreen> {
                                 children: [
                                   Text('Dispute submitted: ${_selectedReason ?? ''}', style: const TextStyle(fontFamily: 'Open Sans', color: Colors.black, fontSize: 13, fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 2),
-                                  const Text('CareLink support will review this and follow up.', style: TextStyle(fontFamily: 'Open Sans', color: Color(0xFF3A332A), fontSize: 11)),
+                                  const Text('Sathkara support will review this and follow up.', style: TextStyle(fontFamily: 'Open Sans', color: Color(0xFF3A332A), fontSize: 11)),
                                 ],
                               ),
                             ),

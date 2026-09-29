@@ -37,7 +37,7 @@ class CaregiverFilters {
   final Set<String> languages;
   final Set<String> skills;
   final String experience; // 'Any' | '1+ yrs' | '3+ yrs' | '5+ yrs'
-  final String education; // 'Any' | 'Certificate / diploma' | 'Degree or higher'
+  final String education; // 'Any' | 'NVQ 3+ (Certified)' | 'NVQ 5+ (Diploma or higher)'
   final bool trainedOnly;
   final String gender; // 'Any' | 'Female' | 'Male'
 
@@ -95,12 +95,11 @@ class CaregiverFilters {
       if (years < minYears) return false;
     }
 
-    if (education == 'Certificate / diploma' &&
-        caregiver['educationalQualification'] != 'Diploma') {
+    final nvqLevel = (caregiver['nvqLevel'] as num?)?.toInt();
+    if (education == 'NVQ 3+ (Certified)' && nvqLevel == null) {
       return false;
     }
-    if (education == 'Degree or higher' &&
-        caregiver['educationalQualification'] != 'Degree or higher') {
+    if (education == 'NVQ 5+ (Diploma or higher)' && (nvqLevel == null || nvqLevel < 5)) {
       return false;
     }
 
@@ -885,7 +884,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
   static const _languageOptions = ['Sinhala', 'English', 'Tamil'];
   static const _skillOptions = ['Dementia care', 'Medication', 'Mobility support', 'Cooking', 'First aid'];
   static const _experienceOptions = ['Any', '1+ yrs', '3+ yrs', '5+ yrs'];
-  static const _educationOptions = ['Any', 'Certificate / diploma', 'Degree or higher'];
+  static const _educationOptions = ['Any', 'NVQ 3+ (Certified)', 'NVQ 5+ (Diploma or higher)'];
 
   final Set<String> _careTypes = {'Elder care'};
   _Schedule? _schedule = _Schedule.fullTime;
@@ -894,7 +893,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
   final Set<String> _languages = {'Sinhala', 'English'};
   final Set<String> _skills = {'Dementia care'};
   String _experience = '3+ yrs';
-  String _education = 'Certificate / diploma';
+  String _education = 'NVQ 3+ (Certified)';
   String _training = 'No preference';
   String _gender = 'Any';
 
@@ -1121,7 +1120,7 @@ class _FiltersSheetState extends State<FiltersSheet> {
                           .toList(),
                     ),
                     const SizedBox(height: 18),
-                    _sectionLabel('EDUCATION LEVEL'),
+                    _sectionLabel('NVQ CERTIFICATION'),
                     const SizedBox(height: 9),
                     ..._educationOptions.expand((o) => [
                           _radioRow(o, _education == o, () => setState(() => _education = o),

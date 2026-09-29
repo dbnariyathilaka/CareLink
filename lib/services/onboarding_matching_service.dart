@@ -4,38 +4,43 @@ import '../data/sri_lankan_cities.dart';
 // ─────────────────────────────────────────────────────────────────────────
 //  OnboardingMatchingService — the algorithm behind the "top match" preview
 //  shown right after onboarding, before any specific booking request
-//  exists. Deliberately kept SEPARATE from MatchingService (the advanced-
-//  match wizard's algorithm) — different filters, different ranking
-//  criteria, different weighting — so a change to one can never silently
-//  change the other. Do not merge these two services.
+//  exists. Implements the thesis's "Normal Matching" mode (Chapter 4.4).
+//  Deliberately kept SEPARATE from MatchingService (the advanced-match
+//  wizard's algorithm) — different filters, different ranking criteria,
+//  different weighting. Do not merge these two services.
 //
 //  Stage 1 — hard filters (exclude only, never scored):
 //    - Skill match: the caregiver must offer at least one of the skills the
 //      patient's requested care type maps to (care_type_skill_map.dart) —
 //      a patient names a care need, a caregiver can list many skills, and
-//      it's a binary match(1)/no-match(0) with no partial credit.
+//      it's a binary match(1)/no-match(0) with no partial credit. Also
+//      stands in for "care type" as a filter, same reasoning as
+//      MatchingService.
 //    - Gender: only filters when the patient states Male/Female; ignored
 //      entirely on "No preference".
 //    - Work schedule: the caregiver must offer the patient's exact
 //      preferred schedule — no "Flexible" wildcard exception either way.
-//    - Proximity: a hard 30km cap (same ceiling the advanced-match flow
-//      also happens to use, independently defined here rather than
-//      imported, so the two stay decoupled).
 //
-//  Stage 2 — ranking, five criteria, equally weighted (1/5 each), with
-//  weight redistribution when a caregiver has no data for one:
-//    rating (Bayesian-adjusted), proximity, references, experience,
-//    education.
+//  Distance is deliberately NOT a hard filter — the thesis's must-have-rule
+//  tables never list it as one. `distanceCapKm` is kept purely as the
+//  proximity formula's normalization ceiling.
+//
+//  Stage 2 — ranking, two criteria — proximity and rating — weighted by
+//  real average importance ratings from the same 103-family survey
+//  MatchingService uses (proximity and feedback happen to average almost
+//  identically, so this lands close to 50/50). Rating's weight
+//  redistributes entirely to proximity when the caregiver has zero
+//  reviews.
 //
 //  Pure logic only: takes plain `Map<String, dynamic>` caregiver data (the
 //  same shape Firestore hands back elsewhere) plus a small context record —
 //  no Firestore access here. Callers must pre-fetch and stamp
-//  `adjustedRating` onto each caregiver map first (ReviewService.
-//  stampAdjustedRatings), the same way the advanced-match flow already does
-//  for its own Feedback/ratings criterion.
+//  `adjustedRating`/`reviewCount` onto each caregiver map first
+//  (ReviewService.stampAdjustedRatings), the same way the advanced-match
+//  flow already does for its own Rating criterion.
 // ─────────────────────────────────────────────────────────────────────────
 
-enum OnboardingMatchCriterion { rating, proximity, references, experience, education }
+enum OnboardingMatchCriterion { rating, proximity }
 
 class OnboardingMatchWeights {
   OnboardingMatchWeights._();
@@ -44,40 +49,18 @@ class OnboardingMatchWeights {
 
   static const List<OnboardingMatchCriterion> all = OnboardingMatchCriterion.values;
 
-  static double get equalShare => 1.0 / all.length;
+  /// Same source survey MatchingService.surveyAverages draws from —
+  /// duplicated rather than shared, on purpose, so the two services stay
+  /// decoupled (matches distanceCapKm's existing precedent below).
+  static const Map<OnboardingMatchCriterion, double> surveyAverages = {
+    OnboardingMatchCriterion.proximity: 3.43,
+    OnboardingMatchCriterion.rating: 3.44,
+  };
 
-  /// References is the only criterion that can be genuinely absent — a
-  /// caregiver whose reference letter was never verified (or was rejected)
-  /// has no count at all, which is different from a verified count of 0.
-  /// Experience/education are required onboarding fields and always have a
-  /// value in practice, so they're scored directly rather than excluded.
-  static const structurallyAbsentEligible = {OnboardingMatchCriterion.references};
-}
-
-/// Caregiver-declared years of experience, bucketed 1–4 — the same
-/// boundaries used elsewhere in this app (<1yr=1, 1–3=2, 4–6=3, 6+=4).
-int _experienceLevel(num years) {
-  if (years < 1) return 1;
-  if (years <= 3) return 2;
-  if (years <= 6) return 3;
-  return 4;
-}
-
-/// Ordinal caregiver education levels, normalised to 0..1.
-const Map<String, double> _educationLevel = {
-  'Primary': 0.25,
-  'Secondary': 0.5,
-  'Diploma': 0.75,
-  'Degree or higher': 1.0,
-};
-
-/// Admin-verified reference count, bucketed 1–4 per the declared scale:
-/// 1–2 references → 1, 3–5 → 2, 6–10 → 3, 10+ → 4.
-int _referenceLevel(int count) {
-  if (count <= 2) return 1;
-  if (count <= 5) return 2;
-  if (count <= 10) return 3;
-  return 4;
+  /// Rating is the only criterion that can be genuinely absent — a
+  /// caregiver with zero reviews has nothing to average. Proximity is
+  /// always resolvable (or neutral-fallback scored, never excluded).
+  static const structurallyAbsentEligible = {OnboardingMatchCriterion.rating};
 }
 
 /// Minimal patient-side inputs this algorithm needs — deliberately smaller
@@ -133,9 +116,6 @@ class OnboardingMatchingService {
   static const Map<OnboardingMatchCriterion, String> labels = {
     OnboardingMatchCriterion.rating: 'Rating',
     OnboardingMatchCriterion.proximity: 'Proximity',
-    OnboardingMatchCriterion.references: 'References',
-    OnboardingMatchCriterion.experience: 'Experience',
-    OnboardingMatchCriterion.education: 'Education',
   };
 
   // ── Stage 1 — hard filters ──────────────────────────────────────────
@@ -144,8 +124,7 @@ class OnboardingMatchingService {
     return _nicVerifiedEligible(caregiver) &&
         _skillEligible(caregiver, ctx) &&
         _genderEligible(caregiver, ctx) &&
-        _scheduleEligible(caregiver, ctx) &&
-        _proximityEligible(caregiver, ctx);
+        _scheduleEligible(caregiver, ctx);
   }
 
   /// A caregiver whose NIC hasn't passed automatic verification
@@ -172,12 +151,6 @@ class OnboardingMatchingService {
   static bool _scheduleEligible(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {
     final caregiverTypes = (caregiver['careTypes'] as List?)?.cast<String>() ?? const [];
     return caregiverTypes.contains(ctx.preferredSchedule);
-  }
-
-  static bool _proximityEligible(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {
-    final distanceKm = _distanceKm(caregiver, ctx);
-    if (distanceKm == null) return true; // fail-open, can't resolve
-    return distanceKm <= OnboardingMatchWeights.distanceCapKm;
   }
 
   static double? _distanceKm(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {
@@ -221,65 +194,44 @@ class OnboardingMatchingService {
     return (1 - distanceKm / OnboardingMatchWeights.distanceCapKm).clamp(0.0, 1.0);
   }
 
-  static double _referencesScore(Map<String, dynamic> caregiver) {
-    final count = caregiver['referenceCount'] as int?;
-    if (count == null) return 0.0; // structural absence handles exclusion
-    return _referenceLevel(count) / 4.0;
-  }
-
-  static double _experienceScore(Map<String, dynamic> caregiver) {
-    final years = (caregiver['yearsExperience'] as num?);
-    if (years == null) return 0.0;
-    return _experienceLevel(years) / 4.0;
-  }
-
-  static double _educationScore(Map<String, dynamic> caregiver) {
-    final level = caregiver['educationalQualification'] as String?;
-    return _educationLevel[level] ?? 0.0;
-  }
-
   // ── Stage 3 — structural absence ────────────────────────────────────
   //
-  // Only counts as verified when the reference document was actually
-  // approved (with a count assigned) by an admin — see
-  // CaregiverService.setReferenceCount and admin_verification_queue_screen.
-  // Rejected, still-pending, or never-submitted all mean the same thing
-  // here: "nothing at all", not a score of 0.
+  // Rating: absent whenever the caregiver has zero reviews (see
+  // ReviewService.stampAdjustedRatings, which stamps `reviewCount`
+  // alongside `adjustedRating`).
   static Set<OnboardingMatchCriterion> structurallyAbsentCriteria(
     Map<String, dynamic> caregiver,
   ) {
     final absent = <OnboardingMatchCriterion>{};
-    final reviews = (caregiver['documentReviews'] as Map?)?.cast<String, dynamic>();
-    final referenceReview = (reviews?['reference'] as Map?)?.cast<String, dynamic>();
-    final verified =
-        referenceReview?['status'] == 'approved' && caregiver['referenceCount'] != null;
-    if (!verified) absent.add(OnboardingMatchCriterion.references);
+    final reviewCount = (caregiver['reviewCount'] as num?)?.toInt() ?? 0;
+    if (reviewCount == 0) absent.add(OnboardingMatchCriterion.rating);
     return absent;
   }
 
-  // ── Scoring (S1: weight redistribution) ─────────────────────────────
+  // ── Scoring — survey-weighted, with redistribution ──────────────────
   static OnboardingMatchResult score({
     required Map<String, dynamic> caregiver,
     required OnboardingMatchContext context,
   }) {
     final absent = structurallyAbsentCriteria(caregiver)
         .intersection(OnboardingMatchWeights.structurallyAbsentEligible);
-    final baseWeight = OnboardingMatchWeights.equalShare;
 
     double raw(OnboardingMatchCriterion c) => switch (c) {
           OnboardingMatchCriterion.rating => _ratingScore(caregiver),
           OnboardingMatchCriterion.proximity => _proximityScore(caregiver, context),
-          OnboardingMatchCriterion.references => _referencesScore(caregiver),
-          OnboardingMatchCriterion.experience => _experienceScore(caregiver),
-          OnboardingMatchCriterion.education => _educationScore(caregiver),
         };
 
-    double weightSum = 0;
+    final presentSum = OnboardingMatchWeights.all
+        .where((c) => !absent.contains(c))
+        .fold(0.0, (sum, c) => sum + OnboardingMatchWeights.surveyAverages[c]!);
+
+    double weightFor(OnboardingMatchCriterion c) =>
+        presentSum == 0 ? 0 : OnboardingMatchWeights.surveyAverages[c]! / presentSum;
+
     double weightedRawSum = 0;
     for (final c in OnboardingMatchWeights.all) {
       if (absent.contains(c)) continue;
-      weightSum += baseWeight;
-      weightedRawSum += baseWeight * raw(c);
+      weightedRawSum += weightFor(c) * raw(c);
     }
 
     final breakdown = <OnboardingCriterionScore>[
@@ -296,15 +248,13 @@ class OnboardingMatchingService {
           OnboardingCriterionScore(
             criterion: c,
             rawValue: raw(c),
-            weight: weightSum == 0 ? 0 : baseWeight / weightSum,
+            weight: weightFor(c),
             structurallyAbsent: false,
-            contributionPoints:
-                weightSum == 0 ? 0 : (baseWeight / weightSum) * raw(c) * 100,
+            contributionPoints: weightFor(c) * raw(c) * 100,
           ),
     ];
 
-    final matchPercent =
-        weightSum == 0 ? 0.0 : ((weightedRawSum / weightSum) * 100).clamp(0.0, 100.0);
+    final matchPercent = (weightedRawSum * 100).clamp(0.0, 100.0);
 
     return OnboardingMatchResult(
       caregiver: caregiver,

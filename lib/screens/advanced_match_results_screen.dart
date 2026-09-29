@@ -18,13 +18,12 @@ import '../widgets/status_bar.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 //  Advanced Match Results Screen  (Figma node 324-471)
 //  Stage 1 hard filters (skill match, real-time availability, gender
-//  preference, exact work schedule, spoken language, and a 30km proximity
-//  cap) run first and exclude only — they carry no ranking weight. The
-//  survivors are then ranked by six equally-weighted criteria: rating,
-//  proximity, references, experience, certification (only when the patient
-//  asked for a certified caregiver), and education — with weight
-//  redistribution for any caregiver whose references/certification data is
-//  structurally absent, rather than scoring it as zero. See
+//  preference, exact work schedule, spoken language) run first and exclude
+//  only — they carry no ranking weight. The survivors are then ranked by
+//  survey-derived weights (thesis Chapter 4.4) across rating, proximity,
+//  experience, and education (NVQ level) — with weight redistribution for a
+//  caregiver with zero reviews, rather than scoring rating as zero.
+//  Distance is not a hard filter; it only affects the proximity score. See
 //  lib/services/matching_service.dart for the full algorithm — a separate,
 //  independent model from the dashboard's "top match" preview
 //  (OnboardingMatchingService) in patient_dashboard_screen.dart.
@@ -291,8 +290,8 @@ class _AdvancedMatchResultsScreenState
         message:
             'No caregivers meet your requirements yet — this can happen if '
             'very few caregivers match your language, gender preference, '
-            'certification, or travel-distance needs. Try searching '
-            'directly, or check back once more caregivers have joined.',
+            'skill, or schedule needs. Try searching directly, or check '
+            'back once more caregivers have joined.',
         iconColor: cardBorderBrown,
         textColor: const Color(0xFF5C5A5A),
         actionLabel: 'Search caregivers',

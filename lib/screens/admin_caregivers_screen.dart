@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/booking_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/matching_service.dart' show nvqLabels;
 import '../services/payment_service.dart';
 import '../services/review_service.dart';
 import '../services/user_directory_service.dart';
@@ -591,7 +592,7 @@ class _AdminCaregiversScreenState extends State<AdminCaregiversScreen> {
       experience: '${cg.yearsExperience} ${cg.yearsExperience == 1 ? 'year' : 'years'}',
       careType: cg.careTypes.isNotEmpty ? cg.careTypes.join(', ') : 'Not specified',
       skills: skills,
-      education: (profile['educationalQualification'] as String?) ?? 'Not provided',
+      education: nvqLabels[(profile['nvqLevel'] as num?)?.toInt()] ?? 'Not certified',
       training: profile['formalTraining'] == true ? 'Yes' : 'No',
       languages: languages,
       bio: (profile['bio'] as String?) ?? '',

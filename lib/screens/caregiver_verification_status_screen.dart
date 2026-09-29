@@ -289,7 +289,7 @@ class _CaregiverVerificationStatusScreenState extends State<CaregiverVerificatio
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          'CareLink verification team${dateLabel.isNotEmpty ? ' · $dateLabel' : ''}',
+                                          'Sathkara verification team${dateLabel.isNotEmpty ? ' · $dateLabel' : ''}',
                                           style: const TextStyle(fontFamily: 'Open Sans', color: docSub, fontSize: 10, fontWeight: FontWeight.w500),
                                         ),
                                       ],

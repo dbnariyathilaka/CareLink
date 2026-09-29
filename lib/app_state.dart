@@ -98,7 +98,11 @@ class CaregiverOnboardingDraft {
   // doesn't collect an exact date of birth.
   int age = 30;
   String referencePhone = '';
-  String educationalQualification = 'Diploma';
+  // NVQ level of the caregiver's formal training certificate (3-6; see
+  // nvqLabels in matching_service.dart) — null means no certificate, i.e.
+  // formalTraining is false. Set together via the certificate-upload
+  // popup (certificate_upload_dialog.dart), never independently.
+  int? nvqLevel;
   bool formalTraining = false;
   Set<String> languagesSpoken = {'Sinhala', 'English'};
   Set<String> skills = {
@@ -121,11 +125,6 @@ class CaregiverOnboardingDraft {
   List<String> certificateUrls = [];
   String policeClearanceUrl = '';
   List<String> otherDocumentUrls = [];
-  // Optional — a single PDF/image of professional references, uploaded
-  // alongside the other qualification documents. Not required; when blank,
-  // matching_service.dart treats References as structurally absent for
-  // this caregiver rather than scoring it 0.
-  String referenceUrl = '';
 
   // Payout details (onboarding step 6) — optional, since "Skip for now" is
   // allowed; blank fields mean the caregiver hasn't set these up yet.
@@ -143,7 +142,7 @@ class CaregiverOnboardingDraft {
     nic = '';
     age = 30;
     referencePhone = '';
-    educationalQualification = 'Diploma';
+    nvqLevel = null;
     formalTraining = false;
     languagesSpoken = {'Sinhala', 'English'};
     skills = {
@@ -159,7 +158,6 @@ class CaregiverOnboardingDraft {
     certificateUrls = [];
     policeClearanceUrl = '';
     otherDocumentUrls = [];
-    referenceUrl = '';
     bankName = '';
     bankCode = '';
     branchName = '';
@@ -176,7 +174,7 @@ class CaregiverOnboardingDraft {
       'nic': nic,
       'age': age,
       'referencePhone': referencePhone,
-      'educationalQualification': educationalQualification,
+      if (nvqLevel != null) 'nvqLevel': nvqLevel,
       'formalTraining': formalTraining,
       'languagesSpoken': languagesSpoken.toList(),
       'skills': skills.toList(),
@@ -188,7 +186,6 @@ class CaregiverOnboardingDraft {
       if (certificateUrls.isNotEmpty) 'certificateUrls': certificateUrls,
       if (policeClearanceUrl.isNotEmpty) 'policeClearanceUrl': policeClearanceUrl,
       if (otherDocumentUrls.isNotEmpty) 'otherDocumentUrls': otherDocumentUrls,
-      if (referenceUrl.isNotEmpty) 'referenceUrl': referenceUrl,
       if (bankName.isNotEmpty) 'bankName': bankName,
       if (bankCode.isNotEmpty) 'bankCode': bankCode,
       if (branchName.isNotEmpty) 'branchName': branchName,

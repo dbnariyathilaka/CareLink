@@ -93,7 +93,7 @@ class CareMatchApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CareLink',
+      title: 'Sathkara',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       navigatorKey: _navigatorKey,

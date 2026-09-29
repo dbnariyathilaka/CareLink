@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/matching_service.dart' show nvqLabels;
 import '../services/storage_service.dart';
 import '../widgets/upload_picker_sheet.dart';
+
+/// What "Submit" returns: the caregiver's real NVQ level (the thesis's S2
+/// proxy strategy only applies when this is genuinely absent, so it's
+/// required here, not optional) plus the uploaded certificate file(s).
+typedef CertificateSubmission = ({int nvqLevel, List<String> urls});
 
 // ─────────────────────────────────────────────────────────────
 //  "Submit training certificates" dialog
 //  Figma node: 355-1659 · shown when a caregiver selects "Yes"
 //  for "Formal caregiving training" during onboarding.
 //
-//  Uploads each picked file to Storage as it's selected and returns
-//  the resulting download URLs on Submit, or null on Cancel.
+//  Uploads each picked file to Storage as it's selected; Submit requires
+//  both an NVQ level and at least one file, and returns both, or null on
+//  Cancel.
 // ─────────────────────────────────────────────────────────────
-Future<List<String>?> showCertificateUploadDialog(BuildContext context) {
-  return showDialog<List<String>>(
+Future<CertificateSubmission?> showCertificateUploadDialog(BuildContext context) {
+  return showDialog<CertificateSubmission>(
     context: context,
     barrierDismissible: false,
     builder: (_) => const CertificateUploadDialog(),
@@ -41,6 +48,7 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
 
   final List<_Certificate> _files = [];
   bool _uploading = false;
+  int? _nvqLevel;
 
   Future<void> _pickCertificate() async {
     final picked = await pickImageOrDocument(context);
@@ -71,13 +79,22 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
   }
 
   void _submit() {
+    if (_nvqLevel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your certificate type.')),
+      );
+      return;
+    }
     if (_files.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload at least one certificate.')),
       );
       return;
     }
-    Navigator.pop(context, _files.map((f) => f.url).toList());
+    Navigator.pop<CertificateSubmission>(
+      context,
+      (nvqLevel: _nvqLevel!, urls: _files.map((f) => f.url).toList()),
+    );
   }
 
   @override
@@ -121,6 +138,40 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
                 height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Certificate type',
+              style: TextStyle(fontFamily: 'Open Sans', color: _subtitle, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                border: Border.all(color: _dialogBorder),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _nvqLevel,
+                  isExpanded: true,
+                  hint: const Text(
+                    'Select your NVQ level',
+                    style: TextStyle(fontFamily: 'Open Sans', color: _dropzoneCaption, fontSize: 13),
+                  ),
+                  items: nvqLabels.entries
+                      .map((e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(
+                              e.value,
+                              style: const TextStyle(fontFamily: 'Open Sans', color: _titleDark, fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(() => _nvqLevel = val),
+                ),
               ),
             ),
             const SizedBox(height: 16),

@@ -27,6 +27,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
@@ -38,3 +39,15 @@ flutter:
         - asset: assets/fonts/QuattrocentoSans-Regular.ttf
         - asset: assets/fonts/QuattrocentoSans-Bold.ttf
           weight: 700
+
+# Run `dart run flutter_launcher_icons` after changing anything here to
+# regenerate every Android mipmap size + iOS AppIcon.appiconset entry from
+# the one source image, rather than hand-placing each size.
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/images/app_icon_master.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#01452D"
+  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+  remove_alpha_ios: true

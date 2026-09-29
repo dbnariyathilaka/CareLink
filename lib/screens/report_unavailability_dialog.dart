@@ -9,7 +9,7 @@ import 'patient_notified_dialog.dart';
 //  schedule when marking a confirmed/on-duty shift as one they
 //  can't attend.
 //
-//  Figma's copy claims "The patient and CareLink support will be
+//  Figma's copy claims "The patient and Sathkara support will be
 //  notified immediately so a replacement caregiver can be
 //  arranged" — there's no notification pipeline or support-ticket
 //  system anywhere in this app, so that's rewritten below to
@@ -240,7 +240,7 @@ class _ReportUnavailabilityDialogState extends State<ReportUnavailabilityDialog>
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "This is saved to your schedule so there's a record of it. CareLink doesn't send the patient an automatic notification — message or call them directly if the shift is soon.",
+                      "This is saved to your schedule so there's a record of it. Sathkara doesn't send the patient an automatic notification — message or call them directly if the shift is soon.",
                       style: TextStyle(fontFamily: 'Inter', color: _infoText, fontSize: 11, fontWeight: FontWeight.w500, height: 1.5),
                     ),
                   ),

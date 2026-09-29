@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../app_state.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/matching_service.dart' show nvqLabels;
 import '../services/nic_verification_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
@@ -53,7 +54,7 @@ class _CaregiverEditProfileScreenState
 
   String _gender = 'Male';
   int _yearsExperience = 5;
-  String _educationalQualification = 'Diploma';
+  int? _nvqLevel;
   bool _formalTraining = false;
 
   static const List<String> _allCareTypes = [
@@ -148,8 +149,7 @@ class _CaregiverEditProfileScreenState
     setState(() {
       _gender = (merged['gender'] as String?)?.trim() ?? 'Male';
       _yearsExperience = merged['yearsExperience'] as int? ?? 5;
-      _educationalQualification =
-          (merged['educationalQualification'] as String?)?.trim() ?? 'Diploma';
+      _nvqLevel = (merged['nvqLevel'] as num?)?.toInt();
       _formalTraining = merged['formalTraining'] == true;
 
       _selectedCareTypes
@@ -336,7 +336,7 @@ class _CaregiverEditProfileScreenState
         'nicVerificationReason': nicCheck.reason,
         'nicVerifiedAt': FieldValue.serverTimestamp(),
         'yearsExperience': _yearsExperience,
-        'educationalQualification': _educationalQualification,
+        if (_nvqLevel != null) 'nvqLevel': _nvqLevel,
         'formalTraining': _formalTraining,
         'city': _cityController.text.trim(),
         'careTypes': _selectedCareTypes.toList(),
@@ -684,14 +684,15 @@ class _CaregiverEditProfileScreenState
                           ),
                           const SizedBox(height: 20),
 
-                          _buildLabel('Educational qualification'),
-                          const SizedBox(height: 8),
-                          _buildEduDropdown(),
-                          const SizedBox(height: 20),
-
                           _buildLabel('Formal caregiving training'),
                           const SizedBox(height: 8),
                           _buildFormalTrainingToggle(),
+                          if (_formalTraining) ...[
+                            const SizedBox(height: 14),
+                            _buildLabel('NVQ certificate level'),
+                            const SizedBox(height: 8),
+                            _buildNvqDropdown(),
+                          ],
                           const SizedBox(height: 20),
 
                           _buildLabel('City / area'),
@@ -965,8 +966,7 @@ class _CaregiverEditProfileScreenState
     );
   }
 
-  Widget _buildEduDropdown() {
-    final options = ["High school", "Diploma", "Bachelor's degree", "Master's degree"];
+  Widget _buildNvqDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
@@ -975,27 +975,32 @@ class _CaregiverEditProfileScreenState
         border: Border.all(color: _fieldBorder, width: 1),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: options.contains(_educationalQualification)
-              ? _educationalQualification
-              : 'Diploma',
+        child: DropdownButton<int>(
+          value: _nvqLevel,
           isExpanded: true,
           dropdownColor: _fieldBg,
+          hint: const Text(
+            'Select your NVQ level',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: _fieldText,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           style: const TextStyle(
             fontFamily: 'Open Sans',
             color: _fieldText,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
-          items: options.map((opt) {
-            return DropdownMenuItem<String>(
-              value: opt,
-              child: Text(opt),
+          items: nvqLabels.entries.map((e) {
+            return DropdownMenuItem<int>(
+              value: e.key,
+              child: Text(e.value),
             );
           }).toList(),
-          onChanged: (val) {
-            if (val != null) setState(() => _educationalQualification = val);
-          },
+          onChanged: (val) => setState(() => _nvqLevel = val),
         ),
       ),
     );
@@ -1030,7 +1035,10 @@ class _CaregiverEditProfileScreenState
         const SizedBox(width: 10),
         Expanded(
           child: GestureDetector(
-            onTap: () => setState(() => _formalTraining = false),
+            onTap: () => setState(() {
+              _formalTraining = false;
+              _nvqLevel = null;
+            }),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(

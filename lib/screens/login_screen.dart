@@ -299,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Hands + heart CareLink icon
+                        // Hands + heart Sathkara icon
                         Center(
                           child: Image.asset(
                             'assets/images/login_icon.png',

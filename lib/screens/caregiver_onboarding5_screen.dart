@@ -44,13 +44,10 @@ class _CaregiverOnboarding5ScreenState
 
   _UploadedDoc? _policeClearance;
   final List<_UploadedDoc> _otherDocuments = [];
-  _UploadedDoc? _reference;
   bool _uploadingPoliceClearance = false;
   bool _uploadingOtherDocument = false;
-  bool _uploadingReference = false;
 
-  bool get _busy =>
-      _uploadingPoliceClearance || _uploadingOtherDocument || _uploadingReference;
+  bool get _busy => _uploadingPoliceClearance || _uploadingOtherDocument;
 
   @override
   void initState() {
@@ -112,33 +109,6 @@ class _CaregiverOnboarding5ScreenState
     }
   }
 
-  Future<void> _pickReference() async {
-    final picked = await pickImageOrDocument(context);
-    if (picked == null || !mounted) return;
-    final uid = AuthService.currentUser?.uid;
-    if (uid == null) return;
-
-    setState(() => _uploadingReference = true);
-    try {
-      final url = await StorageService.uploadBytes(
-        storagePath: StorageService.referenceDocumentPath(uid, picked.name),
-        bytes: picked.bytes,
-        contentType: picked.mimeType,
-      );
-      if (!mounted) return;
-      setState(() {
-        _reference = _UploadedDoc(name: picked.name, url: url);
-        _uploadingReference = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _uploadingReference = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not upload document. Please try again.')),
-      );
-    }
-  }
-
   void _submit() {
     if (_policeClearance == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,7 +122,6 @@ class _CaregiverOnboarding5ScreenState
     final draft = AppState.caregiverOnboardingDraft;
     draft.policeClearanceUrl = _policeClearance?.url ?? '';
     draft.otherDocumentUrls = _otherDocuments.map((d) => d.url).toList();
-    draft.referenceUrl = _reference?.url ?? '';
     Navigator.pushNamed(context, '/caregiver-onboarding-6');
   }
 
@@ -418,94 +387,6 @@ class _CaregiverOnboarding5ScreenState
                             ),
                           );
                         }),
-                      ],
-
-                      const SizedBox(height: 24),
-
-                      const Text(
-                        'References (optional)',
-                        style: TextStyle(
-                          fontFamily: 'Open Sans',
-                          color: titleDark,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Attach a document with your professional references, if '
-                        'you have any. Not required — caregivers without one are '
-                        'simply not scored on this, not penalised for skipping it.',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: dropzoneCaption,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      GestureDetector(
-                        onTap: _busy ? null : _pickReference,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(21),
-                          decoration: BoxDecoration(
-                            color: dropzoneBg,
-                            border: Border.all(color: dropzoneBorder),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: _uploadingReference
-                              ? const Column(
-                                  children: [
-                                    SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(color: continueBg, strokeWidth: 2.5),
-                                    ),
-                                    SizedBox(height: 6),
-                                    Text(
-                                      'Uploading...',
-                                      style: TextStyle(fontFamily: 'Open Sans', color: dropzoneLabel, fontSize: 12, fontWeight: FontWeight.w600),
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  children: [
-                                    const Icon(Icons.cloud_upload_outlined, color: Colors.black54, size: 48),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      _reference == null
-                                          ? 'Tap to attach references'
-                                          : 'Tap to replace references',
-                                      style: const TextStyle(
-                                        fontFamily: 'Open Sans',
-                                        color: dropzoneLabel,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    const Text(
-                                      'PDF, JPG or PNG',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        color: dropzoneCaption,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                      if (_reference != null) ...[
-                        const SizedBox(height: 10),
-                        _buildFileRow(
-                          name: _reference!.name,
-                          onRemove: () => setState(() => _reference = null),
-                        ),
                       ],
 
                       const SizedBox(height: 24),

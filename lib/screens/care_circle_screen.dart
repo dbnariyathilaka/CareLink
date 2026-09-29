@@ -398,7 +398,7 @@ class _CareCircleScreenState extends State<CareCircleScreen> {
                                 ScaffoldMessenger.of(builderCtx).showSnackBar(
                                   const SnackBar(
                                     content: Text(
-                                      'Enter the email address they use to sign in to CareLink.',
+                                      'Enter the email address they use to sign in to Sathkara.',
                                     ),
                                   ),
                                 );

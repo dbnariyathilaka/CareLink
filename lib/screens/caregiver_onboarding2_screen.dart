@@ -30,9 +30,8 @@ class _CaregiverOnboarding2ScreenState
   static const Color skillsTitle = Color(0xFF1E293B);
   static const Color continueBg = Color(0xFF223A5C);
 
-  String _selectedQualification = 'Diploma';
-
   String? _formalTraining; // 'Yes' or 'No'
+  int? _nvqLevel;
   List<String> _certificates = [];
 
   final List<String> _languages = ['Sinhala', 'English', 'Tamil'];
@@ -125,52 +124,6 @@ class _CaregiverOnboarding2ScreenState
                     children: [
                       const SizedBox(height: 18),
 
-                      _buildLabel('Educational qualification'),
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildPillButton(
-                              label: 'Primary',
-                              isSelected: _selectedQualification == 'Primary',
-                              onTap: () => setState(() => _selectedQualification = 'Primary'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildPillButton(
-                              label: 'Secondary',
-                              isSelected: _selectedQualification == 'Secondary',
-                              onTap: () => setState(() => _selectedQualification = 'Secondary'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildPillButton(
-                              label: 'Diploma',
-                              isSelected: _selectedQualification == 'Diploma',
-                              onTap: () => setState(() => _selectedQualification = 'Diploma'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildPillButton(
-                              label: 'Degree or higher',
-                              isSelected: _selectedQualification == 'Degree or higher',
-                              onTap: () =>
-                                  setState(() => _selectedQualification = 'Degree or higher'),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 26),
-
                       _buildLabel('Formal caregiving training'),
                       const SizedBox(height: 12),
 
@@ -190,6 +143,7 @@ class _CaregiverOnboarding2ScreenState
                               isSelected: _formalTraining == 'No',
                               onTap: () => setState(() {
                                 _formalTraining = 'No';
+                                _nvqLevel = null;
                                 _certificates = [];
                               }),
                             ),
@@ -357,7 +311,7 @@ class _CaregiverOnboarding2ScreenState
                           return;
                         }
                         final draft = AppState.caregiverOnboardingDraft;
-                        draft.educationalQualification = _selectedQualification;
+                        draft.nvqLevel = _nvqLevel;
                         draft.formalTraining = _formalTraining == 'Yes';
                         draft.languagesSpoken = _selectedLanguages;
                         draft.skills = _selectedSkills;
@@ -392,12 +346,15 @@ class _CaregiverOnboarding2ScreenState
     setState(() => _formalTraining = 'Yes');
     final result = await showCertificateUploadDialog(context);
     if (!mounted) return;
-    if (result == null || result.isEmpty) {
+    if (result == null) {
       // Cancelled without submitting a certificate — don't leave "Yes"
       // selected without the required verification.
       setState(() => _formalTraining = null);
     } else {
-      setState(() => _certificates = result);
+      setState(() {
+        _nvqLevel = result.nvqLevel;
+        _certificates = result.urls;
+      });
     }
   }
 

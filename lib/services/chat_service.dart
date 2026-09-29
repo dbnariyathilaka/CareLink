@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Real-time chat service for CareLink.
+/// Real-time chat service for Sathkara.
 /// Messages are stored at `chats/{bookingId}/messages/{messageId}`.
 /// Booking request docs at `bookingRequests/{bookingId}` store latest message metadata
 /// and unread counts for fast list rendering.

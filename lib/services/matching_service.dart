@@ -2,74 +2,102 @@ import '../data/care_type_skill_map.dart';
 import '../data/sri_lankan_cities.dart';
 
 // ─────────────────────────────────────────────────────────────────────────
-//  MatchingService — the advanced-match wizard's algorithm. Deliberately
-//  separate from OnboardingMatchingService (the dashboard "top match"
-//  preview) — different filters, different ranking criteria, different
-//  weighting. Do not merge these two services.
+//  MatchingService — the advanced-match wizard's algorithm, implementing
+//  Chapter 4.4 of the thesis this app is built from. Deliberately separate
+//  from OnboardingMatchingService (the dashboard "top match" preview) —
+//  different filters, different ranking criteria, different weighting. Do
+//  not merge these two services.
 //
 //  Stage 1 — hard filters (exclude only, never scored):
 //    - Skill match: any overlap between the caregiver's skills and what the
 //      requested care type needs (care_type_skill_map.dart) — binary,
-//      match(1)/no-match(0), no partial credit.
+//      match(1)/no-match(0), no partial credit. Also stands in for "care
+//      type" as a filter, since a caregiver's skill list is already driven
+//      by the care type they registered to offer.
 //    - Availability: the caregiver must not already be mid-shift on another
 //      confirmed booking right now (`currentlyBusy`, pre-computed by the
-//      caller — this service has no Firestore access). Applies to every
-//      advanced-match request, not just emergency ones.
+//      caller — this service has no Firestore access).
 //    - Gender: only filters when the patient states Male/Female; ignored
 //      on "No preference".
 //    - Work schedule: the caregiver must offer the patient's exact
 //      requested schedule — no "Flexible" wildcard exception either way.
 //    - Spoken language: the caregiver must speak at least one of the
 //      patient's required languages; skipped when none were stated.
-//    - Proximity: MIXED — a hard 30km cap filters first, then the same
-//      distance also feeds the proximity ranking score below.
 //
-//  Stage 2 — ranking, six criteria, equally weighted (1/6 each — 1/5 when
-//  certification is skipped, see below), with weight redistribution when a
-//  caregiver has no data for one:
-//    rating (Bayesian-adjusted), proximity, references, experience,
-//    certification, education.
+//  Distance is deliberately NOT a hard filter — the thesis's must-have-rule
+//  tables never list it as one, only as a ranking formula input. A far-away
+//  caregiver still appears in results, just scored low on proximity.
+//  `systemDistanceCapKm` is kept purely as that formula's normalization
+//  ceiling.
 //
-//  Certification/formal training is conditional, not structural: it's only
-//  included in the weighted average at all when the patient's qualifications
-//  quiz asked for a certified caregiver. When they didn't ask, it's skipped
-//  entirely (weight redistributed among the rest) rather than penalising
-//  every caregiver for a preference nobody stated.
+//  Stage 2 — ranking, four criteria — rating, proximity, experience,
+//  education — weighted by real average importance ratings from a survey
+//  of 103 Sri Lankan patients/family members (surveyAverages below), not
+//  equal shares. Weights redistribute when rating is structurally absent
+//  (a caregiver with zero reviews); proximity/experience/education are
+//  never absent — education in particular always has a value via the S2
+//  proxy (see _education), which is the thesis's whole point in Step 4.
 //
 //  Pure logic only: every function here takes plain `Map<String, dynamic>`
 //  caregiver/patient data and a MatchContext, and returns typed results —
 //  no Firestore or Flutter imports. Criteria that need data this service
-//  can't fetch itself (a caregiver's Bayesian-adjusted rating, whether
-//  they're currently on an active booking) must be pre-computed by the
-//  caller and stamped onto each caregiver map before calling in — see
-//  `adjustedRating` and `currentlyBusy` below.
+//  can't fetch itself (a caregiver's Bayesian-adjusted rating and review
+//  count, whether they're currently on an active booking) must be
+//  pre-computed by the caller and stamped onto each caregiver map before
+//  calling in — see `adjustedRating`/`reviewCount` (ReviewService.
+//  stampAdjustedRatings) and `currentlyBusy` below.
 // ─────────────────────────────────────────────────────────────────────────
 
-enum MatchCriterion { rating, proximity, references, experience, certification, education }
+enum MatchCriterion { rating, proximity, experience, education }
+
+/// NVQ certificate levels this app collects (3–6, Sri Lanka's vocational
+/// framework runs 1–7; only the levels relevant to caregiving are offered
+/// here), and the caregiver-facing label for each — shown wherever a
+/// caregiver picks or displays their certification.
+const Map<int, String> nvqLabels = {
+  3: 'Basic certificate (NVQ 3)',
+  4: 'Advanced certificate (NVQ 4)',
+  5: 'Diploma (NVQ 5)',
+  6: 'Higher National Diploma (NVQ 6)',
+};
 
 class MatchWeights {
   MatchWeights._();
 
   static const List<MatchCriterion> all = MatchCriterion.values;
 
-  static double get equalShare => 1.0 / all.length;
-
-  /// References (admin-verified count) and certification (conditional on
-  /// the patient actually asking for one) are the two criteria that can be
-  /// excluded from a given caregiver's score entirely, rather than merely
-  /// scored low. Experience/education are required onboarding fields and
-  /// always have a value in practice, so they're scored directly.
-  static const structurallyAbsentEligible = {
-    MatchCriterion.references,
-    MatchCriterion.certification,
+  /// Real average importance ratings (1–4 scale) from the thesis's survey
+  /// of 103 families — NOT equal shares. A criterion's weight is its own
+  /// average divided by the sum of every *currently present* criterion's
+  /// average (see MatchingService.score's weightFor), which reproduces
+  /// both the thesis's full-criteria weights (0.29/0.29/0.13/0.29) and its
+  /// cold-start weights (0.405/0.413/0.182 when rating is absent) from
+  /// this one source table, instead of needing a second hardcoded set of
+  /// numbers for the redistributed case.
+  static const Map<MatchCriterion, double> surveyAverages = {
+    MatchCriterion.proximity: 3.43,
+    MatchCriterion.experience: 3.50,
+    MatchCriterion.education: 1.54,
+    MatchCriterion.rating: 3.44,
   };
 
-  /// Hard distance cap (km) for the mixed proximity filter — administrator-
-  /// set, hardcoded rather than a live setting since there's no admin-
-  /// settings screen for it yet. Independently defined from
-  /// OnboardingMatchWeights.distanceCapKm (same value today, but the two
-  /// services are kept decoupled on purpose).
+  /// Rating is the only criterion that can be genuinely absent — a
+  /// caregiver with zero reviews has nothing to average, which is
+  /// different from a real rating that happens to be low. Experience is a
+  /// required onboarding field, always present. Education is never absent
+  /// either: an uncertified caregiver gets the S2 proxy score instead of
+  /// exclusion (see _education).
+  static const structurallyAbsentEligible = {MatchCriterion.rating};
+
+  /// Normalization ceiling for the proximity score only — not a hard
+  /// filter (see class doc comment above).
   static const double systemDistanceCapKm = 30;
+
+  /// S2 proxy discount (δ) — an uncertified caregiver's education score is
+  /// this fraction of their experience score, since experience is weaker
+  /// evidence of competence than a certificate but not nothing. From the
+  /// thesis's own worked example (δ = 0.5).
+  static const double trainingProxyDiscount = 0.5;
 }
 
 /// Caregiver-declared years of experience, bucketed 1–4 — the same
@@ -78,24 +106,6 @@ int experienceLevel(num years) {
   if (years < 1) return 1;
   if (years <= 3) return 2;
   if (years <= 6) return 3;
-  return 4;
-}
-
-/// Ordinal caregiver education levels, normalised to 0..1.
-const Map<String, double> _educationLevel = {
-  'Primary': 0.25,
-  'Secondary': 0.5,
-  'Diploma': 0.75,
-  'Degree or higher': 1.0,
-};
-
-/// Admin-verified reference count, bucketed 1–4: 1–2 references → 1,
-/// 3–5 → 2, 6–10 → 3, 10+ → 4. Same scale onboarding matching uses — it's
-/// the same underlying caregiver data, not a separately-collected number.
-int _referenceLevel(int count) {
-  if (count <= 2) return 1;
-  if (count <= 5) return 2;
-  if (count <= 10) return 3;
   return 4;
 }
 
@@ -123,12 +133,6 @@ class MatchContext {
   /// Only ever populated by the wizard's qualifications quiz.
   List<String> get requiredLanguages =>
       (requestArgs['languages'] as List?)?.cast<String>() ?? const [];
-
-  /// From the qualifications quiz's "Have you received formal caregiving
-  /// training?" question — whether the patient actually asked for a
-  /// certified caregiver. Gates certification both as a ranking criterion
-  /// (skipped entirely when false) — certification is never a hard filter.
-  bool get certificationRequested => requestArgs['training'] == 'Yes';
 
   String get preferredGender =>
       (patientProfile?['preferredCaregiverGender'] as String?) ??
@@ -183,25 +187,9 @@ class MatchingService {
   static const Map<MatchCriterion, String> labels = {
     MatchCriterion.rating: 'Rating',
     MatchCriterion.proximity: 'Proximity',
-    MatchCriterion.references: 'References',
     MatchCriterion.experience: 'Experience',
-    MatchCriterion.certification: 'Certification / training',
     MatchCriterion.education: 'Education',
   };
-
-  static bool isProfessional(Map<String, dynamic> caregiver) {
-    return caregiver['formalTraining'] == true ||
-        ((caregiver['certificateUrls'] as List?)?.isNotEmpty ?? false);
-  }
-
-  /// A reference count only counts once an admin has actually verified it
-  /// (CaregiverService.setReferenceCount) — rejected, still-pending, or
-  /// never-submitted all mean "nothing at all", not a count of 0.
-  static bool _hasVerifiedReferenceCount(Map<String, dynamic> caregiver) {
-    final reviews = (caregiver['documentReviews'] as Map?)?.cast<String, dynamic>();
-    final referenceReview = (reviews?['reference'] as Map?)?.cast<String, dynamic>();
-    return referenceReview?['status'] == 'approved' && caregiver['referenceCount'] != null;
-  }
 
   // ── Stage 1 — hard filters ──────────────────────────────────────────
   static bool isEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
@@ -210,8 +198,7 @@ class MatchingService {
         _availabilityEligible(caregiver) &&
         _genderEligible(caregiver, ctx) &&
         _scheduleEligible(caregiver, ctx) &&
-        _languageEligible(caregiver, ctx) &&
-        _travelEligible(caregiver, ctx);
+        _languageEligible(caregiver, ctx);
   }
 
   /// A caregiver whose NIC hasn't passed automatic verification
@@ -259,16 +246,6 @@ class MatchingService {
     return ctx.requiredLanguages.any(spoken.contains);
   }
 
-  /// Proximity — MIXED: a hard 30km cap filters here; the same distance
-  /// also feeds the proximity ranking score below. Fail-open when distance
-  /// can't be resolved at all (unrecognised city, no coordinates anywhere)
-  /// rather than excluding on missing data.
-  static bool _travelEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
-    final distanceKm = _distanceKm(caregiver, ctx);
-    if (distanceKm == null) return true;
-    return distanceKm <= MatchWeights.systemDistanceCapKm;
-  }
-
   // ── Shared geo helpers ─────────────────────────────────────────────────
 
   static double? _distanceKm(Map<String, dynamic> caregiver, MatchContext ctx) {
@@ -305,8 +282,6 @@ class MatchingService {
 
   /// Bayesian-adjusted rating (ReviewService.adjustedRating), pre-computed
   /// by the caller and stamped onto the caregiver map as `adjustedRating`.
-  /// That formula already resolves a brand-new caregiver to exactly the
-  /// platform average, so no separate cold-start override is needed here.
   static double _rating(Map<String, dynamic> caregiver) {
     final adjusted = (caregiver['adjustedRating'] as num?)?.toDouble();
     if (adjusted == null) return 0.5; // caller didn't stamp one — neutral
@@ -319,70 +294,78 @@ class MatchingService {
     return (1 - distanceKm / MatchWeights.systemDistanceCapKm).clamp(0.0, 1.0);
   }
 
-  static double _references(Map<String, dynamic> caregiver) {
-    final count = caregiver['referenceCount'] as int?;
-    if (count == null) return 0.0; // structural absence handles exclusion
-    return _referenceLevel(count) / 4.0;
-  }
-
   static double _experience(Map<String, dynamic> caregiver) {
     final years = (caregiver['yearsExperience'] as num?);
     if (years == null) return 0.0;
     return experienceLevel(years) / 4.0;
   }
 
-  static double _certification(Map<String, dynamic> caregiver) {
-    return isProfessional(caregiver) ? 1.0 : 0.0;
-  }
-
+  /// The thesis's S2 strategy (Step 4): a caregiver's real NVQ certificate
+  /// scores by its ordinal position among the 4 levels this app offers
+  /// (Basic = 1st .. Higher National Diploma = 4th, i.e. position/4 — the
+  /// same shape the old Primary/Secondary/Diploma/Degree scale used). An
+  /// uncertified caregiver — `nvqLevel` absent — is NOT scored 0 and is
+  /// NOT excluded from this criterion; they get a discounted proxy of
+  /// their experience score instead, since the certificate structurally
+  /// cannot exist for many informal caregivers and zero-filling it would
+  /// unfairly bury them (the thesis's own S0 comparison, which it improves
+  /// on).
   static double _education(Map<String, dynamic> caregiver) {
-    final level = caregiver['educationalQualification'] as String?;
-    return _educationLevel[level] ?? 0.0;
+    final level = (caregiver['nvqLevel'] as num?)?.toInt();
+    if (level != null) {
+      final position = (level - 2).clamp(1, 4);
+      return position / 4.0;
+    }
+    return MatchWeights.trainingProxyDiscount * _experience(caregiver);
   }
 
-  // ── Stage 3 — structural / conditional absence ─────────────────────────
+  // ── Stage 3 — structural absence ─────────────────────────────────────
   //
-  // References: absent whenever no admin-verified count exists.
-  // Certification: absent either because the patient never asked for a
-  // certified caregiver (skipped as a matter of relevance — [ctx] decides
-  // this), or because they did ask and this particular caregiver has no
-  // certification signal on file (data absence, same as before).
+  // Rating: absent whenever the caregiver has zero reviews (see
+  // ReviewService.stampAdjustedRatings, which stamps `reviewCount`
+  // alongside `adjustedRating`) — a real Bayesian-smoothed value still
+  // exists on the map even then, but the thesis's cold-start handling
+  // excludes the criterion entirely rather than trusting a value backed by
+  // no actual feedback.
   static Set<MatchCriterion> structurallyAbsentCriteria(
     Map<String, dynamic> caregiver,
-    MatchContext ctx,
   ) {
     final absent = <MatchCriterion>{};
-    if (!_hasVerifiedReferenceCount(caregiver)) absent.add(MatchCriterion.references);
-    if (!ctx.certificationRequested || !isProfessional(caregiver)) {
-      absent.add(MatchCriterion.certification);
-    }
+    final reviewCount = (caregiver['reviewCount'] as num?)?.toInt() ?? 0;
+    if (reviewCount == 0) absent.add(MatchCriterion.rating);
     return absent;
   }
 
-  // ── Scoring (S1: weight redistribution) ────────────────────────────────
+  // ── Scoring — survey-weighted, with redistribution ─────────────────────
   static MatchResult score({
     required Map<String, dynamic> caregiver,
     required MatchContext context,
   }) {
-    final absent = structurallyAbsentCriteria(caregiver, context)
+    final absent = structurallyAbsentCriteria(caregiver)
         .intersection(MatchWeights.structurallyAbsentEligible);
-    final baseWeight = MatchWeights.equalShare;
 
     double raw(MatchCriterion c) => switch (c) {
           MatchCriterion.rating => _rating(caregiver),
           MatchCriterion.proximity => _proximity(caregiver, context),
-          MatchCriterion.references => _references(caregiver),
           MatchCriterion.experience => _experience(caregiver),
-          MatchCriterion.certification => _certification(caregiver),
           MatchCriterion.education => _education(caregiver),
         };
 
-    double weightSum = 0;
+    // Each present criterion's weight is its own survey average divided by
+    // the sum of every *present* criterion's average — the thesis's own
+    // "weight = average ÷ sum of averages" rule (Step 3), generalised to
+    // whichever subset of criteria actually has data this time.
+    final presentSum = MatchWeights.all
+        .where((c) => !absent.contains(c))
+        .fold(0.0, (sum, c) => sum + MatchWeights.surveyAverages[c]!);
+
+    double weightFor(MatchCriterion c) =>
+        presentSum == 0 ? 0 : MatchWeights.surveyAverages[c]! / presentSum;
+
     double weightedRawSum = 0;
     for (final c in MatchWeights.all) {
       if (absent.contains(c)) continue;
-      weightSum += baseWeight;
-      weightedRawSum += baseWeight * raw(c);
+      weightedRawSum += weightFor(c) * raw(c);
     }
 
     final breakdown = <CriterionScore>[
@@ -399,14 +382,13 @@ class MatchingService {
           CriterionScore(
             criterion: c,
             rawValue: raw(c),
-            weight: weightSum == 0 ? 0 : baseWeight / weightSum,
+            weight: weightFor(c),
             structurallyAbsent: false,
-            contributionPoints: weightSum == 0 ? 0 : (baseWeight / weightSum) * raw(c) * 100,
+            contributionPoints: weightFor(c) * raw(c) * 100,
           ),
     ];
 
-    final matchPercent =
-        weightSum == 0 ? 0.0 : ((weightedRawSum / weightSum) * 100).clamp(0.0, 100.0);
+    final matchPercent = (weightedRawSum * 100).clamp(0.0, 100.0);
 
     return MatchResult(
       caregiver: caregiver,

@@ -1,7 +1,7 @@
 {
-  "name": "carelink-admin-tools",
+  "name": "sathkara-admin-tools",
   "version": "1.0.0",
-  "description": "One-time Firebase Admin scripts for CareLink maintenance",
+  "description": "One-time Firebase Admin scripts for Sathkara maintenance",
   "scripts": {
     "dry-run": "node cleanup_incomplete_accounts.js",
     "delete": "node cleanup_incomplete_accounts.js --delete"

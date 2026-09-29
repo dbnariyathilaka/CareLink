@@ -82,12 +82,12 @@ class _AdminVerificationQueueScreenState
 
   final Set<String> _expandedUids = {};
 
-  /// Every Firestore write this screen triggers (approve/reject/verify &
-  /// count) used to fire-and-forget straight from onTap — a real
-  /// permission-denied write (see CaregiverService.setReferenceCount's
-  /// doc comment) surfaced as an unhandled async exception instead of a
-  /// message, which read as the app crashing. Routes every write through
-  /// here so a failure always ends as a SnackBar, never a crash.
+  /// Every Firestore write this screen triggers (approve/reject) used to
+  /// fire-and-forget straight from onTap — a real permission-denied write
+  /// (see CaregiverService.setDocumentReviewStatus's doc comment) surfaced
+  /// as an unhandled async exception instead of a message, which read as
+  /// the app crashing. Routes every write through here so a failure always
+  /// ends as a SnackBar, never a crash.
   Future<void> _runWrite(Future<void> Function() write) async {
     try {
       await write();
@@ -213,15 +213,6 @@ class _AdminVerificationQueueScreenState
         label: _labelForUrl(other[i], 'Other document ${i + 1}'),
         review: reviews[key] as Map<String, dynamic>?,
         url: other[i],
-      ));
-    }
-    final reference = (caregiver['referenceUrl'] as String?) ?? '';
-    if (reference.isNotEmpty) {
-      docs.add(DocumentEntry(
-        key: 'reference',
-        label: _labelForUrl(reference, 'References'),
-        review: reviews['reference'] as Map<String, dynamic>?,
-        url: reference,
       ));
     }
     return docs;
@@ -465,14 +456,8 @@ class _AdminVerificationQueueScreenState
   Widget _buildDocumentRow(String uid, DocumentEntry doc) {
     final status = doc.review?['status'] as String?; // null | 'approved' | 'rejected'
     final note = doc.review?['note'] as String?;
-    final referenceCount = doc.review?['count'] as int?;
     final (statusLabel, statusColor) = switch (status) {
-      'approved' => (
-          doc.key == 'reference' && referenceCount != null
-              ? 'VERIFIED · $referenceCount'
-              : 'APPROVED',
-          const Color(0xFF4ADE80),
-        ),
+      'approved' => ('APPROVED', const Color(0xFF4ADE80)),
       'rejected' => ('REJECTED', const Color(0xFFEF4444)),
       _ => ('AWAITING REVIEW', docStatusColor),
     };
@@ -548,12 +533,10 @@ class _AdminVerificationQueueScreenState
                   const SizedBox(width: 16),
                 ],
                 GestureDetector(
-                  onTap: doc.key == 'reference'
-                      ? () => _showReferenceCountDialog(uid, doc)
-                      : () => _runWrite(() => CaregiverService.setDocumentReviewStatus(uid: uid, docKey: doc.key, status: 'approved')),
-                  child: Text(
-                    doc.key == 'reference' ? 'Verify & count' : 'Approve',
-                    style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4ADE80)),
+                  onTap: () => _runWrite(() => CaregiverService.setDocumentReviewStatus(uid: uid, docKey: doc.key, status: 'approved')),
+                  child: const Text(
+                    'Approve',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4ADE80)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -802,56 +785,10 @@ class _AdminVerificationQueueScreenState
     );
   }
 
-  // ── Reference verification — the admin reads the attached letter and
-  // records how many references it lists (CaregiverService.setReferenceCount),
-  // rather than a plain approve/reject; that count is what the
-  // onboarding-matching algorithm actually scores.
-  void _showReferenceCountDialog(String uid, DocumentEntry doc) {
-    final controller = TextEditingController();
-    showDialog<void>(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: const Color(0xFF2C251D),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'How many references?',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: Colors.white, fontSize: 13),
-          decoration: const InputDecoration(
-            hintText: 'Count of references listed in the letter',
-            hintStyle: TextStyle(color: Color(0xFFB5ADA2), fontSize: 12),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF4A4032))),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFFFBBC05))),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4ADE80), foregroundColor: Colors.black),
-            onPressed: () {
-              final count = int.tryParse(controller.text.trim());
-              if (count == null || count < 0) return;
-              Navigator.pop(dialogCtx);
-              _runWrite(() => CaregiverService.setReferenceCount(uid, count));
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Full-screen, paginated viewer for a submitted PDF document (police
-/// clearance letter, reference letter, etc.), loaded straight from its
+/// clearance letter, certificate, etc.), loaded straight from its
 /// Cloudinary URL — no external browser hop.
 class _DocumentPdfViewer extends StatefulWidget {
   final String title;

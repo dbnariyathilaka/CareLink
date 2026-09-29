@@ -148,10 +148,14 @@ class ReviewService {
     return platform.count == 0 ? 3.0 : platform.avg;
   }
 
-  /// Stamps a real `adjustedRating` onto each caregiver map in place —
-  /// MatchingService is pure Dart with no Firestore access, so callers
-  /// building a candidate list for it must do this first, or its
-  /// Feedback/ratings criterion falls back to a neutral 0.5.
+  /// Stamps a real `adjustedRating` **and** `reviewCount` onto each
+  /// caregiver map in place — MatchingService/OnboardingMatchingService are
+  /// pure Dart with no Firestore access, so callers building a candidate
+  /// list for either must do this first. `reviewCount` (added alongside the
+  /// pre-existing `adjustedRating` stamp) is what lets those services tell
+  /// "0 reviews" — the thesis's cold-start case, where rating is
+  /// structurally absent and its weight redistributes — from "some reviews
+  /// that happen to average close to the smoothed value."
   static Future<void> stampAdjustedRatings(
     List<Map<String, dynamic>> caregivers,
   ) async {
@@ -171,6 +175,7 @@ class ReviewService {
         count: r?.count ?? 0,
         platformAverage: platform,
       );
+      c['reviewCount'] = r?.count ?? 0;
     }
   }
 }
