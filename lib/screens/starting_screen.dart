@@ -94,7 +94,7 @@ class _StartingScreenState extends State<StartingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF06402B), // Dark green background
+      backgroundColor: const Color(0xFF014932), // Matches splash_logo.jpg's own background exactly
       body: Center(
         child: Image.asset(
           'assets/images/splash_logo.jpg',

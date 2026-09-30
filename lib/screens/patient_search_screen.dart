@@ -556,12 +556,11 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                         ],
                       ),
                     const SizedBox(height: 6),
-                    if (careTypes.isNotEmpty || yearsExperience != null || hourlyRate != null)
+                    if (careTypes.isNotEmpty || yearsExperience != null)
                       Text(
                         [
                           if (careTypes.isNotEmpty) careTypes.join(', '),
                           if (yearsExperience != null) '$yearsExperience yrs exp',
-                          if (hourlyRate != null) 'Rs.${hourlyRate.toStringAsFixed(0)}/hr',
                         ].join(' · '),
                         style: const TextStyle(
                           fontFamily: 'Open Sans',
@@ -598,6 +597,25 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
                   ],
                 ),
               ),
+              if (hourlyRate != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8F6E52),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Rs.${hourlyRate.toStringAsFixed(0)}/hr',
+                    style: const TextStyle(
+                      fontFamily: 'Open Sans',
+                      color: Color(0xFF613310),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 14),
