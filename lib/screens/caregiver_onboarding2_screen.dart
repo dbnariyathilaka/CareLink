@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../data/care_categories.dart';
 import 'certificate_upload_dialog.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Caregiver Onboarding — Step 2 of 7
-//  Figma node: 425-215 · "Education & languages" + "Your skills"
+//  Figma node: 425-215 · "Education & languages" + "Your skills" + "Care Type"
 // ─────────────────────────────────────────────────────────────
 class CaregiverOnboarding2Screen extends StatefulWidget {
   const CaregiverOnboarding2Screen({super.key});
@@ -37,28 +38,21 @@ class _CaregiverOnboarding2ScreenState
   final List<String> _languages = ['Sinhala', 'English', 'Tamil'];
   final Set<String> _selectedLanguages = {'Sinhala', 'English'};
 
-  final List<String> _skills = [
-    'Mobility assistance',
-    'Medication management',
-    'Dementia care',
-    'Wound care',
-    'Rehabilitation',
-    'Physiotherapy',
-    'Mental health support',
-    'Pediatric care',
-    'Sign language',
-  ];
+  final List<String> _skills = careSkills;
 
-  final Set<String> _selectedSkills = {
-    'Mobility assistance',
-    'Medication management',
-    'Dementia care',
-  };
+  final Set<String> _selectedSkills = {'Feeding assistance'};
+
+  // Single-select: the one care category (see ../data/care_categories.dart)
+  // this caregiver serves — a hard constraint in both matching algorithms,
+  // must exactly match a patient's own requested care type.
+  final List<String> _careTypeOptions = careCategories;
+  String? _careCategory;
 
   // Validation error messages
   String? _trainingError;
   String? _languagesError;
   String? _skillsError;
+  String? _careCategoryError;
 
   @override
   void initState() {
@@ -124,7 +118,7 @@ class _CaregiverOnboarding2ScreenState
                     children: [
                       const SizedBox(height: 18),
 
-                      _buildLabel('Formal caregiving training'),
+                      _buildLabel('Certified?'),
                       const SizedBox(height: 12),
 
                       Row(
@@ -278,6 +272,48 @@ class _CaregiverOnboarding2ScreenState
                         ),
 
                       const SizedBox(height: 32),
+
+                      const Text(
+                        'Care Type',
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: skillsTitle,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _careTypeOptions.map((type) {
+                          final isSelected = _careCategory == type;
+                          return _buildSingleSelectChip(
+                            label: type,
+                            isSelected: isSelected,
+                            onTap: () => setState(() {
+                              _careCategory = type;
+                              if (_careCategoryError != null) _careCategoryError = null;
+                            }),
+                          );
+                        }).toList(),
+                      ),
+                      if (_careCategoryError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, left: 4),
+                          child: Text(
+                            _careCategoryError!,
+                            style: const TextStyle(
+                              fontFamily: 'Open Sans',
+                              color: Colors.redAccent,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
@@ -302,11 +338,18 @@ class _CaregiverOnboarding2ScreenState
                         final skillsErr = _selectedSkills.isEmpty
                             ? 'Please select at least one skill'
                             : null;
-                        if (trainingErr != null || langErr != null || skillsErr != null) {
+                        final careCategoryErr = _careCategory == null
+                            ? 'Please select a care type'
+                            : null;
+                        if (trainingErr != null ||
+                            langErr != null ||
+                            skillsErr != null ||
+                            careCategoryErr != null) {
                           setState(() {
                             _trainingError = trainingErr;
                             _languagesError = langErr;
                             _skillsError = skillsErr;
+                            _careCategoryError = careCategoryErr;
                           });
                           return;
                         }
@@ -315,6 +358,7 @@ class _CaregiverOnboarding2ScreenState
                         draft.formalTraining = _formalTraining == 'Yes';
                         draft.languagesSpoken = _selectedLanguages;
                         draft.skills = _selectedSkills;
+                        draft.careCategory = _careCategory;
                         draft.certificateUrls = _certificates;
                         Navigator.pushNamed(context, '/caregiver-onboarding-3');
                       },
@@ -409,6 +453,38 @@ class _CaregiverOnboarding2ScreenState
         child: Text(
           label,
           textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Open Sans',
+            color: isSelected ? chipSelectedText : chipUnselectedText,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Single-select chip, no checkmark (wrap layout) — care type
+  Widget _buildSingleSelectChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? chipSelectedBg : chipUnselectedBg,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: fieldBorder,
+            width: isSelected ? 1 : 1.5,
+          ),
+        ),
+        child: Text(
+          label,
           style: TextStyle(
             fontFamily: 'Open Sans',
             color: isSelected ? chipSelectedText : chipUnselectedText,

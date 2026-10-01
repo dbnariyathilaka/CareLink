@@ -5,6 +5,7 @@ Map<String, dynamic> _caregiver({
   String uid = 'pro-1',
   String city = 'Negombo',
   List<String> skills = const ['Mobility assistance', 'Medication management'],
+  String? careCategory = 'Elder care',
   List<String> careTypes = const ['Full-time'],
   String gender = 'Female',
   double? adjustedRating = 4.5,
@@ -15,6 +16,7 @@ Map<String, dynamic> _caregiver({
     'uid': uid,
     'city': city,
     'skills': skills,
+    'careCategory': careCategory,
     'careTypes': careTypes,
     'gender': gender,
     'nicVerified': nicVerified,
@@ -24,18 +26,20 @@ Map<String, dynamic> _caregiver({
 }
 
 // Same city as the caregiver's default (Negombo), an exact schedule match,
-// and a care type whose required skills the default caregiver covers.
+// and a care type the default caregiver's own careCategory matches.
 OnboardingMatchContext _ctx({
   String preferredGender = 'No preference',
   String preferredSchedule = 'Full-time',
   String careType = 'Elder care',
   String cityName = 'Negombo',
+  List<String> requiredSkills = const [],
 }) {
   return OnboardingMatchContext(
     careType: careType,
     preferredSchedule: preferredSchedule,
     preferredGender: preferredGender,
     cityName: cityName,
+    requiredSkills: requiredSkills,
   );
 }
 
@@ -46,9 +50,43 @@ void main() {
       expect(OnboardingMatchingService.isEligible(caregiver, _ctx()), isFalse);
     });
 
-    test('excludes a caregiver with none of the required skills', () {
-      final caregiver = _caregiver(skills: ['Bathing assistance']);
+    test('excludes a caregiver whose care category does not match the request', () {
+      final caregiver = _caregiver(careCategory: 'Child care');
       expect(OnboardingMatchingService.isEligible(caregiver, _ctx()), isFalse);
+    });
+
+    test('excludes a caregiver with no care category declared', () {
+      final caregiver = _caregiver(careCategory: null);
+      expect(OnboardingMatchingService.isEligible(caregiver, _ctx()), isFalse);
+    });
+
+    test('passes when the caregiver\'s care category exactly matches the request', () {
+      final caregiver = _caregiver(careCategory: 'Elder care');
+      expect(OnboardingMatchingService.isEligible(caregiver, _ctx()), isTrue);
+    });
+
+    test('passes when no care type is requested', () {
+      final caregiver = _caregiver(careCategory: null);
+      expect(OnboardingMatchingService.isEligible(caregiver, _ctx(careType: '')), isTrue);
+    });
+
+    test('excludes a caregiver missing one of the patient\'s required skills', () {
+      final caregiver = _caregiver(skills: const ['Mobility assistance']);
+      final ctx = _ctx(requiredSkills: const ['Mobility assistance', 'Medication management']);
+      expect(OnboardingMatchingService.isEligible(caregiver, ctx), isFalse);
+    });
+
+    test('passes when the caregiver has every one of the patient\'s required skills', () {
+      final caregiver = _caregiver(
+        skills: const ['Mobility assistance', 'Medication management', 'Basic first aid'],
+      );
+      final ctx = _ctx(requiredSkills: const ['Mobility assistance', 'Medication management']);
+      expect(OnboardingMatchingService.isEligible(caregiver, ctx), isTrue);
+    });
+
+    test('passes when no skills are required', () {
+      final caregiver = _caregiver(skills: const []);
+      expect(OnboardingMatchingService.isEligible(caregiver, _ctx()), isTrue);
     });
 
     test('excludes a caregiver of the wrong gender when a preference is stated', () {

@@ -109,6 +109,7 @@ class _PatientOnboarding3ScreenState extends State<PatientOnboarding3Screen>
           'address': AppState.patientAddress.value,
           'careType': AppState.careType.value,
           'careLevel': AppState.careSchedule.value,
+          'requiredSkills': AppState.requiredSkills.value.toList(),
           'medicalConditions': AppState.additionalCareNotes.value,
           'preferredCaregiverGender': AppState.preferredGender.value,
           'city': AppState.careLocation.value,

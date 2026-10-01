@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/admin_bottom_nav.dart';
 import '../widgets/status_bar.dart';
-import '../data/care_type_skill_map.dart';
+import '../data/care_categories.dart';
 import '../services/caregiver_service.dart';
 
 class ShiftType {
@@ -65,10 +65,10 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
 
   static const Color publishBtnBg = Color(0xFF44331C);
 
-  // Sourced from the app's real canonical care-type list (careTypeSkillMap in
-  // ../data/care_type_skill_map.dart) rather than a separate hardcoded list,
-  // so this stays in sync with the taxonomy MatchingService actually uses.
-  final List<String> _careTypes = List<String>.from(careTypeSkillMap.keys);
+  // Sourced from the app's real canonical care-category list
+  // (../data/care_categories.dart) rather than a separate hardcoded list,
+  // so this stays in sync with the taxonomy both matching services use.
+  final List<String> _careTypes = List<String>.from(careCategories);
 
   final List<ShiftType> _shifts = [
     ShiftType(id: 'day', icon: Icons.wb_sunny_rounded, timeRange: '8:00 AM – 5:00 PM', label: 'Day shift'),
@@ -388,11 +388,11 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
   // ── Tag usage: real counts from live caregiver profiles ─────────────────
   //
   // caregiverProfiles.careTypes actually stores employment type ('Part-time'
-  // / 'Full-time'), not a specialisation tag — so it can't tell us how many
-  // caregivers cover "Elder care" etc. The real specialisation data lives in
-  // caregiverProfiles.skills (see MatchingService's skill-match criterion),
-  // so usage per care type is computed by intersecting each caregiver's
-  // skills with the skill set careTypeSkillMap maps that care type to.
+  // / 'Full-time'), not a specialisation tag. The real specialisation now
+  // lives in caregiverProfiles.careCategory (see MatchingService's
+  // _careCategoryEligible) — a caregiver declares this directly at
+  // onboarding, so usage per care type is a direct equality count, not a
+  // skills-overlap proxy.
   Widget _buildTagUsageSection() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: CaregiverService.streamAllCaregivers(),
@@ -405,11 +405,7 @@ class _AdminContentTaxonomyScreenState extends State<AdminContentTaxonomyScreen>
         }
         final caregivers = snapshot.data!;
         final stats = _careTypes.map((careType) {
-          final requiredSkills = careTypeSkillMap[careType] ?? const <String>{};
-          final count = caregivers.where((c) {
-            final skills = (c['skills'] as List?)?.cast<String>().toSet() ?? const <String>{};
-            return skills.intersection(requiredSkills).isNotEmpty;
-          }).length;
+          final count = caregivers.where((c) => c['careCategory'] == careType).length;
           return TagUsageStat(label: careType, count: count, isLow: count > 0 && count < 5);
         }).toList()
           ..sort((a, b) => b.count.compareTo(a.count));

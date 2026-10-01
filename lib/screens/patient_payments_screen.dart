@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../data/care_type_skill_map.dart';
+import '../data/care_categories.dart';
 import '../services/auth_service.dart';
 import '../services/payment_service.dart';
 import '../widgets/remote_or_local_image.dart';
@@ -353,7 +353,7 @@ class _PatientPaymentsScreenState extends State<PatientPaymentsScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final c in careTypeSkillMap.keys)
+                          for (final c in careCategories)
                             choiceChip(
                               c,
                               draftCareTypes.contains(c),

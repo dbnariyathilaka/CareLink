@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_application_1/data/care_type_skill_map.dart';
 import 'package:flutter_application_1/services/matching_service.dart';
 
 Map<String, dynamic> _caregiver({
@@ -7,6 +6,7 @@ Map<String, dynamic> _caregiver({
   String name = 'Priya Professional',
   String city = 'Negombo',
   List<String> skills = const ['Mobility assistance', 'Medication management'],
+  String? careCategory = 'Elder care',
   List<String> careTypes = const ['Full-time'],
   String gender = 'Female',
   List<String> languagesSpoken = const ['Sinhala', 'English'],
@@ -24,6 +24,7 @@ Map<String, dynamic> _caregiver({
     'name': name,
     'city': city,
     'skills': skills,
+    'careCategory': careCategory,
     'careTypes': careTypes,
     'gender': gender,
     'nicVerified': nicVerified,
@@ -46,6 +47,7 @@ Map<String, dynamic> _uncertifiedExperiencedCaregiver({
   String uid = 'informal-1',
   String city = 'Negombo',
   List<String> skills = const ['Mobility assistance', 'Medication management'],
+  String? careCategory = 'Elder care',
   List<String> careTypes = const ['Full-time'],
   String gender = 'Female',
   List<String> languagesSpoken = const ['Sinhala', 'English'],
@@ -55,6 +57,7 @@ Map<String, dynamic> _uncertifiedExperiencedCaregiver({
     name: 'Ishara Informal',
     city: city,
     skills: skills,
+    careCategory: careCategory,
     careTypes: careTypes,
     gender: gender,
     languagesSpoken: languagesSpoken,
@@ -66,10 +69,10 @@ Map<String, dynamic> _uncertifiedExperiencedCaregiver({
 }
 
 // Base advanced-match context: same district as the default caregiver's
-// city (Negombo), an exact schedule match, and a care type whose required
-// skills the default caregiver covers in full — so a test overriding a
-// single field via [extraRequestArgs] (or [gender]) exercises only the one
-// hard filter or ranking criterion it's naming, not several at once.
+// city (Negombo), an exact schedule match, and a care type the default
+// caregiver's own careCategory matches — so a test overriding a single
+// field via [extraRequestArgs] (or [gender]) exercises only the one hard
+// filter or ranking criterion it's naming, not several at once.
 MatchContext _ctx({
   String gender = 'No preference',
   Map<String, dynamic> extraRequestArgs = const {},
@@ -86,43 +89,53 @@ MatchContext _ctx({
 }
 
 void main() {
-  group('careTypeSkillMap', () {
-    const patientCareTypes = [
-      'Elder care',
-      'Pediatric',
-      'Post-surgery',
-      'Physical disability',
-      'Mental health',
-      'Dementia',
-      'Mobility assistance',
-      'Medication management',
-      'Wound care',
-      'Rehabilitation',
-      'Physiotherapy',
-      'Child care', // alias used by edit_care_requirements_screen.dart
-    ];
-
-    for (final type in patientCareTypes) {
-      test('"$type" resolves to a non-empty skill set', () {
-        expect(careTypeSkillMap[type], isNotNull, reason: '$type has no map entry');
-        expect(careTypeSkillMap[type], isNotEmpty, reason: '$type maps to an empty set');
-      });
-    }
-  });
-
   group('Stage 1 — hard filters', () {
     test('excludes a caregiver whose NIC has not been automatically verified', () {
       final caregiver = _caregiver(nicVerified: false);
       expect(MatchingService.isEligible(caregiver, _ctx()), isFalse);
     });
 
-    test('excludes a caregiver with none of the required skills', () {
-      final caregiver = _caregiver(skills: ['Bathing assistance']);
+    test('excludes a caregiver whose care category does not match the request', () {
+      final caregiver = _caregiver(careCategory: 'Child care');
       expect(MatchingService.isEligible(caregiver, _ctx()), isFalse);
     });
 
-    test('passes when the caregiver covers at least one required skill', () {
-      final caregiver = _caregiver(skills: ['Medication management']);
+    test('excludes a caregiver with no care category declared', () {
+      final caregiver = _caregiver(careCategory: null);
+      expect(MatchingService.isEligible(caregiver, _ctx()), isFalse);
+    });
+
+    test('passes when the caregiver\'s care category exactly matches the request', () {
+      final caregiver = _caregiver(careCategory: 'Elder care');
+      expect(MatchingService.isEligible(caregiver, _ctx()), isTrue);
+    });
+
+    test('passes when no care type is requested', () {
+      final caregiver = _caregiver(careCategory: null);
+      final ctx = _ctx(extraRequestArgs: {'careType': ''});
+      expect(MatchingService.isEligible(caregiver, ctx), isTrue);
+    });
+
+    test('excludes a caregiver missing one of the patient\'s required skills', () {
+      final caregiver = _caregiver(skills: const ['Mobility assistance']);
+      final ctx = _ctx(extraRequestArgs: {
+        'requiredSkills': ['Mobility assistance', 'Medication management'],
+      });
+      expect(MatchingService.isEligible(caregiver, ctx), isFalse);
+    });
+
+    test('passes when the caregiver has every one of the patient\'s required skills', () {
+      final caregiver = _caregiver(
+        skills: const ['Mobility assistance', 'Medication management', 'Basic first aid'],
+      );
+      final ctx = _ctx(extraRequestArgs: {
+        'requiredSkills': ['Mobility assistance', 'Medication management'],
+      });
+      expect(MatchingService.isEligible(caregiver, ctx), isTrue);
+    });
+
+    test('passes when no skills are required', () {
+      final caregiver = _caregiver(skills: const []);
       expect(MatchingService.isEligible(caregiver, _ctx()), isTrue);
     });
 

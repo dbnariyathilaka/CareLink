@@ -1,4 +1,3 @@
-import '../data/care_type_skill_map.dart';
 import '../data/sri_lankan_cities.dart';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -9,11 +8,13 @@ import '../data/sri_lankan_cities.dart';
 //  not merge these two services.
 //
 //  Stage 1 — hard filters (exclude only, never scored):
-//    - Skill match: any overlap between the caregiver's skills and what the
-//      requested care type needs (care_type_skill_map.dart) — binary,
-//      match(1)/no-match(0), no partial credit. Also stands in for "care
-//      type" as a filter, since a caregiver's skill list is already driven
-//      by the care type they registered to offer.
+//    - Care category: the caregiver's own declared `careCategory` (see
+//      ../data/care_categories.dart) must exactly equal the patient's
+//      requested care type — a direct field comparison now that caregivers
+//      declare this themselves at onboarding, not a skill-overlap proxy.
+//    - Required skills: the caregiver must have EVERY skill the patient
+//      asked for in their own `skills` list, not just an overlap — a
+//      stricter all-must-match constraint, independent of care category.
 //    - Availability: the caregiver must not already be mid-shift on another
 //      confirmed booking right now (`currentlyBusy`, pre-computed by the
 //      caller — this service has no Firestore access).
@@ -134,6 +135,15 @@ class MatchContext {
   List<String> get requiredLanguages =>
       (requestArgs['languages'] as List?)?.cast<String>() ?? const [];
 
+  /// The specific skills the patient ticked on onboarding step 2 ("What
+  /// kind of skills needed?") — see ../data/care_categories.dart. A
+  /// caregiver must have every one of these to be eligible, not just an
+  /// overlap (see MatchingService._requiredSkillsEligible).
+  List<String> get requiredSkills =>
+      (requestArgs['requiredSkills'] as List?)?.cast<String>() ??
+      (patientProfile?['requiredSkills'] as List?)?.cast<String>() ??
+      const [];
+
   String get preferredGender =>
       (patientProfile?['preferredCaregiverGender'] as String?) ??
       'No preference';
@@ -194,7 +204,8 @@ class MatchingService {
   // ── Stage 1 — hard filters ──────────────────────────────────────────
   static bool isEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
     return _nicVerifiedEligible(caregiver) &&
-        _skillEligible(caregiver, ctx) &&
+        _careCategoryEligible(caregiver, ctx) &&
+        _requiredSkillsEligible(caregiver, ctx) &&
         _availabilityEligible(caregiver) &&
         _genderEligible(caregiver, ctx) &&
         _scheduleEligible(caregiver, ctx) &&
@@ -211,11 +222,19 @@ class MatchingService {
     return caregiver['nicVerified'] == true;
   }
 
-  static bool _skillEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
-    final required = careTypeSkillMap[ctx.careType] ?? const <String>{};
-    if (required.isEmpty) return true; // no specific requirement to fail
+  /// Exact match against the caregiver's own declared care category — no
+  /// requirement to fail when the patient's care type is empty.
+  static bool _careCategoryEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
+    if (ctx.careType.isEmpty) return true;
+    return caregiver['careCategory'] == ctx.careType;
+  }
+
+  /// The caregiver must have every skill the patient asked for — not just
+  /// an overlap.
+  static bool _requiredSkillsEligible(Map<String, dynamic> caregiver, MatchContext ctx) {
+    if (ctx.requiredSkills.isEmpty) return true;
     final has = (caregiver['skills'] as List?)?.cast<String>().toSet() ?? const {};
-    return required.intersection(has).isNotEmpty;
+    return ctx.requiredSkills.every(has.contains);
   }
 
   /// `currentlyBusy` is pre-computed by the caller (BookingService.

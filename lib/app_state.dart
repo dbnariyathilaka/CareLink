@@ -20,6 +20,12 @@ class AppState {
   static final careLocation = ValueNotifier<String>('Negombo, Western Province');
   static final preferredGender = ValueNotifier<String>('No preference');
   static final additionalCareNotes = ValueNotifier<String>('');
+  // Specific skills the patient ticked on onboarding step 2 ("What kind of
+  // skills needed?") — a hard constraint in both matching algorithms: an
+  // eligible caregiver must have every one of these in their own `skills`
+  // list, not just an overlap (see MatchingService/OnboardingMatchingService
+  // "_requiredSkillsEligible").
+  static final requiredSkills = ValueNotifier<Set<String>>({});
 
   // Patient identity fields — filled in during onboarding (the
   // patient-details step), written to patientProfiles/{uid} alongside the
@@ -61,6 +67,7 @@ class AppState {
     careLocation.value = 'Negombo, Western Province';
     preferredGender.value = 'No preference';
     additionalCareNotes.value = '';
+    requiredSkills.value = {};
     patientName.value = '';
     patientGenderSelf.value = 'Female';
     patientAge.value = '';
@@ -105,11 +112,12 @@ class CaregiverOnboardingDraft {
   int? nvqLevel;
   bool formalTraining = false;
   Set<String> languagesSpoken = {'Sinhala', 'English'};
-  Set<String> skills = {
-    'Mobility assistance',
-    'Medication management',
-    'Dementia care',
-  };
+  Set<String> skills = {'Feeding assistance', 'Mobility assistance'};
+  // The single care category (see ../data/care_categories.dart) this
+  // caregiver declares they serve — null until they actively pick one on
+  // onboarding step 2. A hard constraint in both matching algorithms: it
+  // must exactly match the patient's own requested `careType`.
+  String? careCategory;
   String city = 'Negombo, Western Province';
   // Exact coordinates from the map picker (caregiver_onboarding3_screen /
   // CaregiverLocationPickerScreen) — null until the caregiver actually
@@ -145,11 +153,8 @@ class CaregiverOnboardingDraft {
     nvqLevel = null;
     formalTraining = false;
     languagesSpoken = {'Sinhala', 'English'};
-    skills = {
-      'Mobility assistance',
-      'Medication management',
-      'Dementia care',
-    };
+    skills = {'Feeding assistance', 'Mobility assistance'};
+    careCategory = null;
     city = 'Negombo, Western Province';
     locationLat = null;
     locationLng = null;
@@ -178,6 +183,7 @@ class CaregiverOnboardingDraft {
       'formalTraining': formalTraining,
       'languagesSpoken': languagesSpoken.toList(),
       'skills': skills.toList(),
+      if (careCategory != null) 'careCategory': careCategory,
       'city': city,
       if (locationLat != null) 'locationLat': locationLat,
       if (locationLng != null) 'locationLng': locationLng,

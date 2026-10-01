@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_state.dart';
+import '../data/care_categories.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -26,22 +27,16 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
   static const Color progressInactive = Color(0xFFD9D9D9);
   static const Color creamButtonText = Color(0xFFF6F0E2);
 
-  // ── Options ── (single-select: exactly one care type may be chosen)
-  final List<String> _careTypes = [
-    'Elder care',
-    'Pediatric',
-    'Post-surgery',
-    'Physical disability',
-    'Mental health',
-    'Dementia',
-    'Mobility assistance',
-    'Medication management',
-    'Wound care',
-    'Rehabilitation',
-    'Physiotherapy',
-  ];
+  // ── Options ── (single-select: exactly one care category may be chosen)
+  final List<String> _careTypes = careCategories;
 
   String? _selectedCareType;
+
+  // Multi-select: the patient may ask for any number of specific skills — a
+  // caregiver must have every one selected here to be eligible (see
+  // MatchingService/OnboardingMatchingService "_requiredSkillsEligible").
+  final List<String> _skills = careSkills;
+  final Set<String> _selectedSkills = {};
 
   final List<String> _careLevels = [
     'Full-time',
@@ -178,7 +173,44 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
 
                       const SizedBox(height: 34),
 
-                      // Section 2: Care level (single-select grid)
+                      // Section 2: Skills needed (multi-select)
+                      const Text(
+                        'What kind of skills needed?',
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: titleGreen,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Skill chips - wrap layout, any number selectable
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _skills.map((skill) {
+                          final isSelected = _selectedSkills.contains(skill);
+                          return _buildChip(
+                            label: skill,
+                            isSelected: isSelected,
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedSkills.remove(skill);
+                                } else {
+                                  _selectedSkills.add(skill);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 34),
+
+                      // Section 3: Care level (single-select grid)
                       const Text(
                         'How much care is needed?',
                         style: TextStyle(
@@ -246,6 +278,12 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                           );
                           return;
                         }
+                        if (_selectedSkills.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select at least one skill needed.')),
+                          );
+                          return;
+                        }
                         if (_selectedCareLevel == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Please select how much care is needed.')),
@@ -253,6 +291,7 @@ class _PatientOnboarding1ScreenState extends State<PatientOnboarding1Screen>
                           return;
                         }
                         AppState.careType.value = _selectedCareType!;
+                        AppState.requiredSkills.value = Set.of(_selectedSkills);
                         AppState.careSchedule.value = _selectedCareLevel!;
                         Navigator.pushNamed(context, '/patient-onboarding-3');
                       },

@@ -234,6 +234,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
       preferredGender:
           (profile['preferredCaregiverGender'] as String?) ?? AppState.preferredGender.value,
       cityName: (profile['city'] as String?) ?? AppState.careLocation.value,
+      requiredSkills: (profile['requiredSkills'] as List?)?.cast<String>() ??
+          AppState.requiredSkills.value.toList(),
     );
     final caregivers = await CaregiverService.searchCaregivers();
     final eligible = caregivers

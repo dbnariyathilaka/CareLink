@@ -1,4 +1,3 @@
-import '../data/care_type_skill_map.dart';
 import '../data/sri_lankan_cities.dart';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -10,12 +9,11 @@ import '../data/sri_lankan_cities.dart';
 //  different weighting. Do not merge these two services.
 //
 //  Stage 1 — hard filters (exclude only, never scored):
-//    - Skill match: the caregiver must offer at least one of the skills the
-//      patient's requested care type maps to (care_type_skill_map.dart) —
-//      a patient names a care need, a caregiver can list many skills, and
-//      it's a binary match(1)/no-match(0) with no partial credit. Also
-//      stands in for "care type" as a filter, same reasoning as
-//      MatchingService.
+//    - Care category: the caregiver's own declared `careCategory` (see
+//      ../data/care_categories.dart) must exactly equal the patient's
+//      requested care type — same reasoning as MatchingService.
+//    - Required skills: the caregiver must have EVERY skill the patient
+//      asked for in their own `skills` list, not just an overlap.
 //    - Gender: only filters when the patient states Male/Female; ignored
 //      entirely on "No preference".
 //    - Work schedule: the caregiver must offer the patient's exact
@@ -72,12 +70,17 @@ class OnboardingMatchContext {
     required this.preferredSchedule,
     required this.preferredGender,
     required this.cityName,
+    this.requiredSkills = const [],
   });
 
   final String careType;
   final String preferredSchedule;
   final String preferredGender; // 'No preference' | 'Male' | 'Female'
   final String cityName;
+  // The specific skills the patient ticked on onboarding step 2 — see
+  // ../data/care_categories.dart. A caregiver must have every one of these
+  // to be eligible (see OnboardingMatchingService._requiredSkillsEligible).
+  final List<String> requiredSkills;
 }
 
 class OnboardingCriterionScore {
@@ -122,7 +125,8 @@ class OnboardingMatchingService {
 
   static bool isEligible(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {
     return _nicVerifiedEligible(caregiver) &&
-        _skillEligible(caregiver, ctx) &&
+        _careCategoryEligible(caregiver, ctx) &&
+        _requiredSkillsEligible(caregiver, ctx) &&
         _genderEligible(caregiver, ctx) &&
         _scheduleEligible(caregiver, ctx);
   }
@@ -136,11 +140,19 @@ class OnboardingMatchingService {
     return caregiver['nicVerified'] == true;
   }
 
-  static bool _skillEligible(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {
-    final required = careTypeSkillMap[ctx.careType] ?? const <String>{};
-    if (required.isEmpty) return true; // no specific requirement to fail
+  /// Exact match against the caregiver's own declared care category — no
+  /// requirement to fail when the patient's care type is empty.
+  static bool _careCategoryEligible(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {
+    if (ctx.careType.isEmpty) return true;
+    return caregiver['careCategory'] == ctx.careType;
+  }
+
+  /// The caregiver must have every skill the patient asked for — not just
+  /// an overlap.
+  static bool _requiredSkillsEligible(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {
+    if (ctx.requiredSkills.isEmpty) return true;
     final has = (caregiver['skills'] as List?)?.cast<String>().toSet() ?? const {};
-    return required.intersection(has).isNotEmpty;
+    return ctx.requiredSkills.every(has.contains);
   }
 
   static bool _genderEligible(Map<String, dynamic> caregiver, OnboardingMatchContext ctx) {

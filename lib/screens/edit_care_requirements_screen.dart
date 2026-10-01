@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../app_state.dart';
+import '../data/care_categories.dart';
 import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/patient_service.dart';
@@ -13,8 +14,9 @@ import '../widgets/status_bar.dart';
 //
 //  Covers all editable patient parameters:
 //    • Personal: name, email, age, gender
-//    • Care: care type (all 11 options), schedule (all 4 options),
-//            location, preferred caregiver gender, additional notes
+//    • Care: care category (all 5 options), required skills (all 5
+//            options, multi-select), schedule (all 4 options), location,
+//            preferred caregiver gender, additional notes
 //
 //  On save: writes to Firestore patientProfiles/{uid} and users/{uid},
 //  and updates AppState so that all screens (dashboard, profile, etc.)
@@ -39,20 +41,10 @@ class _EditCareRequirementsScreenState
   static const Color chipUnselected = Color(0xFF06402B);
   static const Color notesFieldBg = Color.fromRGBO(168, 156, 126, 0.3);
 
-  // ── All 11 Care Types from Onboarding ─────────────────────────
-  static const List<String> _careTypes = [
-    'Elder care',
-    'Pediatric',
-    'Post-surgery',
-    'Physical disability',
-    'Mental health',
-    'Dementia',
-    'Mobility assistance',
-    'Medication management',
-    'Wound care',
-    'Rehabilitation',
-    'Physiotherapy',
-  ];
+  // ── Care categories — same canonical list as onboarding, kept in sync
+  // via ../data/care_categories.dart so this screen can never write a
+  // stale care type the matching algorithms no longer recognise ─────────
+  static const List<String> _careTypes = careCategories;
 
   // ── All 4 Care Schedules from Onboarding ──────────────────────
   static const List<String> _careSchedules = [
@@ -77,6 +69,7 @@ class _EditCareRequirementsScreenState
 
   String _selectedGender = 'Female';
   String _selectedCareType = 'Elder care';
+  final Set<String> _selectedSkills = {'Feeding assistance'};
   String _selectedSchedule = 'Full-time';
   String _selectedPreferredGender = 'No preference';
   String _location = '';
@@ -143,6 +136,12 @@ class _EditCareRequirementsScreenState
           (profile?['careType'] as String?) ??
           AppState.careType.value;
 
+      final loadedSkills = (profile?['requiredSkills'] as List?)?.cast<String>() ??
+          AppState.requiredSkills.value.toList();
+      _selectedSkills
+        ..clear()
+        ..addAll(loadedSkills.isNotEmpty ? loadedSkills : ['Feeding assistance']);
+
       _selectedSchedule =
           (profile?['careLevel'] as String?) ??
           AppState.careSchedule.value;
@@ -195,6 +194,7 @@ class _EditCareRequirementsScreenState
           'gender': _selectedGender,
           'patientGender': _selectedGender,
           'careType': _selectedCareType,
+          'requiredSkills': _selectedSkills.toList(),
           'careLevel': _selectedSchedule,
           'preferredCaregiverGender': _selectedPreferredGender,
           'city': _location,
@@ -223,6 +223,7 @@ class _EditCareRequirementsScreenState
       AppState.patientAge.value = age;
       AppState.patientGenderSelf.value = _selectedGender;
       AppState.careType.value = _selectedCareType;
+      AppState.requiredSkills.value = Set.of(_selectedSkills);
       AppState.careSchedule.value = _selectedSchedule;
       AppState.preferredGender.value = _selectedPreferredGender;
       AppState.careLocation.value = _location;
@@ -426,7 +427,7 @@ class _EditCareRequirementsScreenState
                     _sectionTitle('Care requirements'),
                     const SizedBox(height: 16),
 
-                    _buildLabel('Type of care needed (All 11 Types)'),
+                    _buildLabel('Type of care needed'),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
@@ -443,7 +444,29 @@ class _EditCareRequirementsScreenState
                     ),
 
                     const SizedBox(height: 22),
-                    _buildLabel('Care schedule (All 4 Options)'),
+                    _buildLabel('Skills needed'),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: careSkills.map((skill) {
+                        final isSelected = _selectedSkills.contains(skill);
+                        return _buildPillChip(
+                          label: skill,
+                          isSelected: isSelected,
+                          onTap: () => setState(() {
+                            if (isSelected) {
+                              _selectedSkills.remove(skill);
+                            } else {
+                              _selectedSkills.add(skill);
+                            }
+                          }),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 22),
+                    _buildLabel('Work schedule'),
                     const SizedBox(height: 10),
                     // 2×2 grid for all 4 schedule options including Flexible
                     GridView.builder(

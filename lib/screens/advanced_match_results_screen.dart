@@ -150,6 +150,7 @@ class _AdvancedMatchResultsScreenState
         'careLevel': AppState.careSchedule.value,
         'city': AppState.careLocation.value,
         'preferredCaregiverGender': AppState.preferredGender.value,
+        'requiredSkills': AppState.requiredSkills.value.toList(),
         ...?patientProfile,
       };
 
@@ -329,6 +330,21 @@ class _AdvancedMatchResultsScreenState
       if (m.distanceKm != null) '${m.distanceKm!.toStringAsFixed(1)} km',
     ];
     return parts.isEmpty ? 'Caregiver' : parts.join(' · ');
+  }
+
+  // Real per-criterion scores (0-100, rounded), keyed by MatchCriterion.name
+  // — what caregiver_profile_screen.dart's "Your match breakdown" card reads
+  // when reached from here (see the two '/caregiver-profile' pushes below).
+  // A structurally-absent criterion (e.g. a brand-new caregiver's rating)
+  // reports 0, same honest "excluded, not scored as zero" distinction the
+  // "Why this match?" sheet below makes — the recipient just has no way to
+  // show that nuance in a single percent, unlike the sheet's own UI.
+  Map<String, dynamic> _breakdownArgs(MatchResult m) {
+    return {
+      'overall': m.matchPercent.round(),
+      for (final row in m.breakdown)
+        row.criterion.name: ((row.rawValue ?? 0) * 100).round(),
+    };
   }
 
   // Opens a bottom sheet showing the per-criterion breakdown behind a
@@ -620,7 +636,7 @@ class _AdvancedMatchResultsScreenState
                     onTap: () => Navigator.pushNamed(
                       context,
                       '/caregiver-profile',
-                      arguments: {'caregiverId': uid},
+                      arguments: {'caregiverId': uid, 'matchBreakdown': _breakdownArgs(m)},
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -835,7 +851,7 @@ class _AdvancedMatchResultsScreenState
                       onTap: () => Navigator.pushNamed(
                         context,
                         '/caregiver-profile',
-                        arguments: {'caregiverId': uid},
+                        arguments: {'caregiverId': uid, 'matchBreakdown': _breakdownArgs(m)},
                       ),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 9),

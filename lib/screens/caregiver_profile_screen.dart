@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/caregiver_service.dart';
 import '../services/patient_service.dart';
@@ -25,10 +24,12 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
   static const Color matchCardBorder = Color(0xFF334155);
   static const Color barTrack = Color(0xFF0F172A);
   static const Color barFill = Color(0xFFFBBC05);
-  static const Color chipBg = Color(0xFF1E293B);
-  static const Color chipBorder = Color(0xFF334155);
-  static const Color chipText = Color(0xFFCBD5E1);
+  static const Color chipBg = Color(0xFF44331C);
+  static const Color chipBorder = Color(0xFF44331C);
+  static const Color chipText = Color(0xFFC5A16F);
   static const Color bodyText = Color.fromRGBO(0, 0, 0, 0.58);
+  static const Color fieldRowBorder = Color.fromRGBO(68, 51, 28, 0.3);
+  static const Color fieldRowLabel = Color.fromRGBO(0, 0, 0, 0.5);
 
   String? _caregiverId;
   Map<String, dynamic>? _caregiver;
@@ -104,6 +105,8 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                                         const SizedBox(height: 16),
                                         _buildMatchBreakdownCard(),
                                       ],
+                                      const SizedBox(height: 16),
+                                      _buildGenderRow(),
                                       const SizedBox(height: 20),
                                       _buildSkillsSection(),
                                       const SizedBox(height: 20),
@@ -172,10 +175,10 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
             .join()
             .toUpperCase();
     final city = _caregiver?['city'] as String?;
-    final careTypes = (_caregiver?['careTypes'] as List?)?.cast<String>() ?? [];
+    final careCategory = (_caregiver?['careCategory'] as String?)?.trim();
     final distanceKm = _caregiver?['distanceKm'];
     final subtitle = [
-      if (careTypes.isNotEmpty) careTypes.join(', '),
+      if (careCategory != null && careCategory.isNotEmpty) '$careCategory specialist',
       if (city != null && city.isNotEmpty) city,
       if (distanceKm != null) '$distanceKm km',
     ].join(' · ');
@@ -374,16 +377,17 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
     );
   }
 
-  // ── Match breakdown card (only when scoring data is passed in) ─
+  // ── Match breakdown card (only when scoring data is passed in from
+  // advanced_match_results_screen.dart — see MatchCriterion/MatchResult in
+  // matching_service.dart for what actually produces these numbers) ─
   Widget _buildMatchBreakdownCard() {
     final breakdown = _matchBreakdown!;
     final overall = breakdown['overall'] ?? 0;
     const metrics = [
-      ('skillMatch', 'Skill match'),
       ('experience', 'Experience'),
-      ('availability', 'Availability'),
+      ('rating', 'Ratings'),
       ('proximity', 'Proximity'),
-      ('feedback', 'Feedback'),
+      ('education', 'Education'),
     ];
     return Container(
       width: double.infinity,
@@ -464,6 +468,42 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Gender row ─────────────────────────────────────────────
+  Widget _buildGenderRow() {
+    final gender = (_caregiver?['gender'] as String?)?.trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        border: Border.all(color: fieldRowBorder),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Gender',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: fieldRowLabel,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            (gender == null || gender.isEmpty) ? 'Not specified' : gender,
+            style: const TextStyle(
+              fontFamily: 'Open Sans',
+              color: Colors.black,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -583,9 +623,9 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                     arguments: {'caregiverId': _caregiverId},
                   );
                 },
-                child: const Text(
-                  'See all',
-                  style: TextStyle(
+                child: Text(
+                  'See all (${reviews.length})',
+                  style: const TextStyle(
                     color: darkGreen,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -711,7 +751,7 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Color(0xFF94A3B8),
+                color: Color(0xFFC9B89C),
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 height: 1.4,

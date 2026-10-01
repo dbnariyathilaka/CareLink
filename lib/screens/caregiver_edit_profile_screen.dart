@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../app_state.dart';
+import '../data/care_categories.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
 import '../services/matching_service.dart' show nvqLabels;
@@ -65,18 +66,16 @@ class _CaregiverEditProfileScreenState
   ];
   final Set<String> _selectedCareTypes = {'Part-time', 'Full-time'};
 
-  static const List<String> _skills = [
-    'Mobility assistance',
-    'Medication management',
-    'Dementia care',
-    'Wound care',
-    'Rehabilitation',
-    'Physiotherapy',
-    'Mental health support',
-    'Sign language',
-    'Pediatric care',
-  ];
+  static const List<String> _skills = careSkills;
   final Set<String> _selectedSkills = {};
+
+  // Single-select: the one care category (see ../data/care_categories.dart)
+  // this caregiver serves — a hard constraint in both matching algorithms.
+  // Labeled "Care category" in this screen's UI (rather than the Figma's
+  // "Care Type") to avoid colliding with _allCareTypes above, which is
+  // actually the caregiver's schedule (Part-time/Full-time/etc), already
+  // labeled "Care type" further down this same form.
+  String? _careCategory;
 
   static const List<String> _languages = ['Sinhala', 'English', 'Tamil'];
   final Set<String> _selectedLanguages = {};
@@ -96,6 +95,7 @@ class _CaregiverEditProfileScreenState
   String? _cityError;
   String? _careTypeError;
   String? _skillsError;
+  String? _careCategoryError;
   String? _languagesError;
 
   @override
@@ -151,6 +151,7 @@ class _CaregiverEditProfileScreenState
       _yearsExperience = merged['yearsExperience'] as int? ?? 5;
       _nvqLevel = (merged['nvqLevel'] as num?)?.toInt();
       _formalTraining = merged['formalTraining'] == true;
+      _careCategory = merged['careCategory'] as String?;
 
       _selectedCareTypes
         ..clear()
@@ -158,11 +159,7 @@ class _CaregiverEditProfileScreenState
 
       _selectedSkills
         ..clear()
-        ..addAll((merged['skills'] as List?)?.cast<String>() ?? const [
-          'Mobility assistance',
-          'Medication management',
-          'Dementia care',
-        ]);
+        ..addAll((merged['skills'] as List?)?.cast<String>() ?? const ['Feeding assistance']);
 
       _selectedLanguages
         ..clear()
@@ -265,6 +262,7 @@ class _CaregiverEditProfileScreenState
     final cityErr = _validateCity(_cityController.text);
     final careErr = _selectedCareTypes.isEmpty ? 'Select at least one care type' : null;
     final skillsErr = _selectedSkills.isEmpty ? 'Select at least one skill' : null;
+    final careCategoryErr = _careCategory == null ? 'Select a care category' : null;
     final langErr = _selectedLanguages.isEmpty ? 'Select at least one language' : null;
 
     setState(() {
@@ -278,6 +276,7 @@ class _CaregiverEditProfileScreenState
       _cityError = cityErr;
       _careTypeError = careErr;
       _skillsError = skillsErr;
+      _careCategoryError = careCategoryErr;
       _languagesError = langErr;
     });
 
@@ -291,6 +290,7 @@ class _CaregiverEditProfileScreenState
         cityErr == null &&
         careErr == null &&
         skillsErr == null &&
+        careCategoryErr == null &&
         langErr == null;
   }
 
@@ -341,6 +341,7 @@ class _CaregiverEditProfileScreenState
         'city': _cityController.text.trim(),
         'careTypes': _selectedCareTypes.toList(),
         'skills': _selectedSkills.toList(),
+        if (_careCategory != null) 'careCategory': _careCategory,
         'languagesSpoken': _selectedLanguages.toList(),
         'bio': _bioController.text.trim(),
         'certificateUrls': _certificateUrls,
@@ -714,6 +715,11 @@ class _CaregiverEditProfileScreenState
                           _buildLabel('Skills'),
                           const SizedBox(height: 10),
                           _buildSkillsWrap(),
+                          const SizedBox(height: 20),
+
+                          _buildLabel('Care category'),
+                          const SizedBox(height: 10),
+                          _buildCareCategoryWrap(),
                           const SizedBox(height: 20),
 
                           _buildLabel('Languages spoken'),
@@ -1135,6 +1141,47 @@ class _CaregiverEditProfileScreenState
             padding: const EdgeInsets.only(top: 6, left: 4),
             child: Text(
               _skillsError!,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Single-select — the one care category this caregiver serves (see
+  /// ../data/care_categories.dart), a hard constraint in both matching
+  /// algorithms.
+  Widget _buildCareCategoryWrap() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: careCategories.map((category) {
+            final isSelected = _careCategory == category;
+            return _buildCheckChip(
+              label: category,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() {
+                  _careCategory = category;
+                  if (_careCategoryError != null) _careCategoryError = null;
+                });
+              },
+            );
+          }).toList(),
+        ),
+        if (_careCategoryError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              _careCategoryError!,
               style: const TextStyle(
                 fontFamily: 'Open Sans',
                 color: Colors.redAccent,

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../app_state.dart';
+import '../data/care_categories.dart';
 import '../data/sri_lankan_cities.dart';
 import '../services/auth_service.dart';
 import '../services/caregiver_service.dart';
+import '../services/matching_service.dart' show nvqLabels;
 import '../services/patient_service.dart';
 import '../services/profile_gate.dart';
+import '../services/review_service.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/no_underline_text_editing_controller.dart';
 import '../widgets/patient_notification_badge.dart';
@@ -13,51 +16,38 @@ import '../widgets/remote_or_local_image.dart';
 import '../widgets/status_bar.dart';
 
 // ─────────────────────────────────────────────────────────────
-//  Caregiver search filters — real fields only. "Care type" (Elder/Child/
-//  Disability/Post-surgery) and "Minimum rating" stay in the sheet's UI to
-//  match Figma, but aren't applied here: caregiver profiles never store a
-//  care-category field (that's only ever collected on the patient side),
-//  and there's no cached average-rating field on the profile doc — same
-//  "don't fake it" call already made for star ratings/availability badges
-//  in advanced_match_results_screen.dart.
+//  Caregiver search filters — every field here is a real, applied filter.
+//  `careType` checks the caregiver's own declared `careCategory` (see
+//  ../data/care_categories.dart) directly; `minRating` reads `adjustedRating`,
+//  which the caller must stamp onto each caregiver map first
+//  (ReviewService.stampAdjustedRatings) since CaregiverService.
+//  searchCaregivers' raw Firestore docs don't carry it.
 class CaregiverFilters {
   const CaregiverFilters({
+    this.careType,
     this.schedule,
     this.maxDistanceKm = 30,
+    this.minRating = 0,
     this.languages = const {},
     this.skills = const {},
-    this.experience = 'Any',
-    this.education = 'Any',
-    this.trainedOnly = false,
+    this.minExperienceYears = 0,
+    this.minNvqLevel,
     this.gender = 'Any',
   });
 
-  final String? schedule; // 'Full-time' | 'Part-time' | 'Live-in'
+  final String? careType; // see ../data/care_categories.dart
+  final String? schedule; // 'Full-time' | 'Part-time' | 'Live-in' | 'Flexible'
   final double maxDistanceKm;
+  final double minRating; // 0 = no filter
   final Set<String> languages;
-  final Set<String> skills;
-  final String experience; // 'Any' | '1+ yrs' | '3+ yrs' | '5+ yrs'
-  final String education; // 'Any' | 'NVQ 3+ (Certified)' | 'NVQ 5+ (Diploma or higher)'
-  final bool trainedOnly;
+  final Set<String> skills; // see ../data/care_categories.dart; ALL must match
+  final int minExperienceYears; // 0 = no filter
+  final int? minNvqLevel; // null = no filter; see nvqLabels
   final String gender; // 'Any' | 'Female' | 'Male'
 
-  // The filter sheet's skill pills don't all correspond 1:1 to the option
-  // strings caregivers actually pick from during onboarding — this maps
-  // the ones that do have a real equivalent. 'Cooking' and 'First aid'
-  // have none, so selecting them honestly matches no one.
-  static const Map<String, String> _skillSynonyms = {
-    'Dementia care': 'Dementia care',
-    'Medication': 'Medication management',
-    'Mobility support': 'Mobility assistance',
-  };
-
-  static const Map<String, int> _experienceYears = {
-    '1+ yrs': 1,
-    '3+ yrs': 3,
-    '5+ yrs': 5,
-  };
-
   bool matches(Map<String, dynamic> caregiver) {
+    if (careType != null && caregiver['careCategory'] != careType) return false;
+
     if (schedule != null) {
       final types = (caregiver['careTypes'] as List?)?.cast<String>() ?? const [];
       if (!types.contains(schedule)) return false;
@@ -78,32 +68,30 @@ class CaregiverFilters {
       }
     }
 
+    if (minRating > 0) {
+      final rating = (caregiver['adjustedRating'] as num?)?.toDouble() ?? 0;
+      if (rating < minRating) return false;
+    }
+
     if (languages.isNotEmpty) {
       final spoken = (caregiver['languagesSpoken'] as List?)?.cast<String>() ?? const [];
       if (!languages.any(spoken.contains)) return false;
     }
 
     if (skills.isNotEmpty) {
-      final has = (caregiver['skills'] as List?)?.cast<String>() ?? const [];
-      final wanted = skills.map((s) => _skillSynonyms[s]).whereType<String>();
-      if (!wanted.any(has.contains)) return false;
+      final has = (caregiver['skills'] as List?)?.cast<String>().toSet() ?? const {};
+      if (!skills.every(has.contains)) return false;
     }
 
-    final minYears = _experienceYears[experience];
-    if (minYears != null) {
+    if (minExperienceYears > 0) {
       final years = caregiver['yearsExperience'] as int? ?? 0;
-      if (years < minYears) return false;
+      if (years < minExperienceYears) return false;
     }
 
-    final nvqLevel = (caregiver['nvqLevel'] as num?)?.toInt();
-    if (education == 'NVQ 3+ (Certified)' && nvqLevel == null) {
-      return false;
+    if (minNvqLevel != null) {
+      final nvqLevel = (caregiver['nvqLevel'] as num?)?.toInt();
+      if (nvqLevel == null || nvqLevel < minNvqLevel!) return false;
     }
-    if (education == 'NVQ 5+ (Diploma or higher)' && (nvqLevel == null || nvqLevel < 5)) {
-      return false;
-    }
-
-    if (trainedOnly && caregiver['formalTraining'] != true) return false;
 
     if (gender != 'Any' && caregiver['gender'] != gender) return false;
 
@@ -185,6 +173,10 @@ class _PatientSearchScreenState extends State<PatientSearchScreen> {
 
   Future<void> _loadCaregivers() async {
     final results = await CaregiverService.searchCaregivers();
+    // Needed for the filter sheet's "Minimum rating" slider — raw Firestore
+    // docs don't carry a cached average, same as every other screen that
+    // scores/filters by rating.
+    await ReviewService.stampAdjustedRatings(results);
     if (mounted) {
       setState(() {
         _caregivers = results;
@@ -863,9 +855,9 @@ class _MatchFabState extends State<_MatchFab> with SingleTickerProviderStateMixi
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Filters bottom sheet  (Figma node 346-1035)
+//  Filters bottom sheet  (Figma node 967-830)
 // ─────────────────────────────────────────────────────────────
-enum _Schedule { fullTime, partTime, liveIn }
+enum _Schedule { fullTime, partTime, liveIn, flexible }
 
 class FiltersSheet extends StatefulWidget {
   const FiltersSheet({super.key, this.initialFilters});
@@ -898,21 +890,16 @@ class _FiltersSheetState extends State<FiltersSheet> {
   static const Color clearAllBorder = Color.fromRGBO(68, 51, 28, 0.3);
   static const Color applyBg = Color(0xFF5C4537);
 
-  static const _careTypeOptions = ['Elder care', 'Child care', 'Disability care', 'Post-surgery'];
   static const _languageOptions = ['Sinhala', 'English', 'Tamil'];
-  static const _skillOptions = ['Dementia care', 'Medication', 'Mobility support', 'Cooking', 'First aid'];
-  static const _experienceOptions = ['Any', '1+ yrs', '3+ yrs', '5+ yrs'];
-  static const _educationOptions = ['Any', 'NVQ 3+ (Certified)', 'NVQ 5+ (Diploma or higher)'];
 
-  final Set<String> _careTypes = {'Elder care'};
+  String? _careType = 'Elder care';
+  final Set<String> _skills = {'Feeding assistance'};
   _Schedule? _schedule = _Schedule.fullTime;
   double _maxDistance = 15;
   double _minRating = 4.0;
+  double _minExperience = 3;
   final Set<String> _languages = {'Sinhala', 'English'};
-  final Set<String> _skills = {'Dementia care'};
-  String _experience = '3+ yrs';
-  String _education = 'NVQ 3+ (Certified)';
-  String _training = 'No preference';
+  int? _nvqLevel = 3;
   String _gender = 'Any';
 
   @override
@@ -920,54 +907,57 @@ class _FiltersSheetState extends State<FiltersSheet> {
     super.initState();
     final initial = widget.initialFilters;
     if (initial == null) return;
+    _careType = initial.careType;
     _schedule = switch (initial.schedule) {
       'Full-time' => _Schedule.fullTime,
       'Part-time' => _Schedule.partTime,
       'Live-in' => _Schedule.liveIn,
+      'Flexible' => _Schedule.flexible,
       _ => null,
     };
     _maxDistance = initial.maxDistanceKm;
+    _minRating = initial.minRating;
+    _minExperience = initial.minExperienceYears.toDouble();
     _languages
       ..clear()
       ..addAll(initial.languages);
     _skills
       ..clear()
       ..addAll(initial.skills);
-    _experience = initial.experience;
-    _education = initial.education;
-    _training = initial.trainedOnly ? 'Trained only' : 'No preference';
+    _nvqLevel = initial.minNvqLevel;
     _gender = initial.gender;
   }
 
   CaregiverFilters _buildFilters() {
     return CaregiverFilters(
+      careType: _careType,
       schedule: switch (_schedule) {
         _Schedule.fullTime => 'Full-time',
         _Schedule.partTime => 'Part-time',
         _Schedule.liveIn => 'Live-in',
+        _Schedule.flexible => 'Flexible',
         null => null,
       },
       maxDistanceKm: _maxDistance,
+      minRating: _minRating,
       languages: Set.of(_languages),
       skills: Set.of(_skills),
-      experience: _experience,
-      education: _education,
-      trainedOnly: _training == 'Trained only',
+      minExperienceYears: _minExperience.round(),
+      minNvqLevel: _nvqLevel,
       gender: _gender,
     );
   }
 
   void _clearAll() {
     setState(() {
-      _careTypes.clear();
+      _careType = null;
       _schedule = null;
       _maxDistance = 30;
       _minRating = 0;
+      _minExperience = 0;
       _languages.clear();
       _skills.clear();
-      _experience = 'Any';
-      _education = 'Any';
-      _training = 'No preference';
+      _nvqLevel = null;
       _gender = 'Any';
     });
   }
@@ -1033,40 +1023,34 @@ class _FiltersSheetState extends State<FiltersSheet> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _careTypeOptions
+                      children: careCategories
                           .map((o) => _pill(
                                 o,
-                                _careTypes.contains(o),
-                                () => setState(() {
-                                  if (_careTypes.contains(o)) {
-                                    _careTypes.remove(o);
-                                  } else {
-                                    _careTypes.add(o);
-                                  }
-                                }),
+                                _careType == o,
+                                () => setState(() => _careType = o),
                                 amber: true,
                               ))
                           .toList(),
                     ),
                     const SizedBox(height: 18),
-                    _sectionLabel('SCHEDULE'),
+                    _sectionLabel('SKILLS'),
                     const SizedBox(height: 9),
-                    _radioRow(
-                      'Full-time only',
-                      _schedule == _Schedule.fullTime,
-                      () => setState(() => _schedule = _Schedule.fullTime),
-                    ),
-                    const SizedBox(height: 9),
-                    _radioRow(
-                      'Part-time only',
-                      _schedule == _Schedule.partTime,
-                      () => setState(() => _schedule = _Schedule.partTime),
-                    ),
-                    const SizedBox(height: 9),
-                    _radioRow(
-                      'Live-in only',
-                      _schedule == _Schedule.liveIn,
-                      () => setState(() => _schedule = _Schedule.liveIn),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: careSkills
+                          .map((o) => _pill(
+                                o,
+                                _skills.contains(o),
+                                () => setState(() {
+                                  if (_skills.contains(o)) {
+                                    _skills.remove(o);
+                                  } else {
+                                    _skills.add(o);
+                                  }
+                                }),
+                              ))
+                          .toList(),
                     ),
                     const SizedBox(height: 18),
                     _sectionLabel('MAXIMUM DISTANCE'),
@@ -1087,8 +1071,48 @@ class _FiltersSheetState extends State<FiltersSheet> {
                       label: '${_minRating.toStringAsFixed(1)} ★',
                       onChanged: (v) => setState(() => _minRating = v),
                     ),
+                    const SizedBox(height: 9),
+                    _sectionLabel('EXPERIENCE'),
+                    _sliderRow(
+                      value: _minExperience,
+                      min: 0,
+                      max: 10,
+                      divisions: 10,
+                      label: _minExperience == 0 ? 'Any' : '${_minExperience.round()}+ yrs',
+                      onChanged: (v) => setState(() => _minExperience = v),
+                    ),
                     const SizedBox(height: 18),
-                    _sectionLabel('LANGUAGE'),
+                    _sectionLabel('SCHEDULE'),
+                    const SizedBox(height: 9),
+                    _radioRow(
+                      'Full-time',
+                      _schedule == _Schedule.fullTime,
+                      () => setState(() => _schedule = _Schedule.fullTime),
+                      labelColor: radioLabelDark,
+                    ),
+                    const SizedBox(height: 9),
+                    _radioRow(
+                      'Part-time',
+                      _schedule == _Schedule.partTime,
+                      () => setState(() => _schedule = _Schedule.partTime),
+                      labelColor: radioLabelDark,
+                    ),
+                    const SizedBox(height: 9),
+                    _radioRow(
+                      'Live-in',
+                      _schedule == _Schedule.liveIn,
+                      () => setState(() => _schedule = _Schedule.liveIn),
+                      labelColor: radioLabelDark,
+                    ),
+                    const SizedBox(height: 9),
+                    _radioRow(
+                      'Flexible',
+                      _schedule == _Schedule.flexible,
+                      () => setState(() => _schedule = _Schedule.flexible),
+                      labelColor: radioLabelDark,
+                    ),
+                    const SizedBox(height: 18),
+                    _sectionLabel('LANGUAGES'),
                     const SizedBox(height: 9),
                     Wrap(
                       spacing: 8,
@@ -1108,56 +1132,14 @@ class _FiltersSheetState extends State<FiltersSheet> {
                           .toList(),
                     ),
                     const SizedBox(height: 18),
-                    _sectionLabel('SKILLS'),
+                    _sectionLabel('EDUCATION LEVEL'),
                     const SizedBox(height: 9),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _skillOptions
-                          .map((o) => _pill(
-                                o,
-                                _skills.contains(o),
-                                () => setState(() {
-                                  if (_skills.contains(o)) {
-                                    _skills.remove(o);
-                                  } else {
-                                    _skills.add(o);
-                                  }
-                                }),
-                              ))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 18),
-                    _sectionLabel('EXPERIENCE'),
-                    const SizedBox(height: 9),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _experienceOptions
-                          .map((o) => _pill(o, _experience == o, () => setState(() => _experience = o)))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 18),
-                    _sectionLabel('NVQ CERTIFICATION'),
-                    const SizedBox(height: 9),
-                    ..._educationOptions.expand((o) => [
-                          _radioRow(o, _education == o, () => setState(() => _education = o),
+                    ...nvqLabels.entries.expand((e) => [
+                          _radioRow(e.value, _nvqLevel == e.key, () => setState(() => _nvqLevel = e.key),
                               labelColor: radioLabelDark),
                           const SizedBox(height: 9),
                         ]),
                     const SizedBox(height: 9),
-                    _sectionLabel('FORMAL TRAINING'),
-                    const SizedBox(height: 9),
-                    Row(
-                      children: [
-                        _toggleButton('Trained only', _training == 'Trained only',
-                            () => setState(() => _training = 'Trained only')),
-                        const SizedBox(width: 10),
-                        _toggleButton('No preference', _training == 'No preference',
-                            () => setState(() => _training = 'No preference')),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
                     _sectionLabel('GENDER'),
                     const SizedBox(height: 9),
                     Row(
