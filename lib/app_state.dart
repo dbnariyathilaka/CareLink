@@ -31,6 +31,12 @@ class AppState {
   // patient-details step), written to patientProfiles/{uid} alongside the
   // care-requirement fields above.
   static final patientName = ValueNotifier<String>('');
+
+  // The caregiver's own name, registered at signup — CaregiverOnboardingDraft
+  // never asks for it again (same reasoning as patientName above), so this
+  // is the only place it's captured before caregiver_onboarding7_screen
+  // writes it onto caregiverProfiles/{uid} at final submit.
+  static final caregiverName = ValueNotifier<String>('');
   static final patientGenderSelf = ValueNotifier<String>('Female');
   static final patientAge = ValueNotifier<String>('');
   static final patientAddress = ValueNotifier<String>('');
@@ -69,6 +75,7 @@ class AppState {
     additionalCareNotes.value = '';
     requiredSkills.value = {};
     patientName.value = '';
+    caregiverName.value = '';
     patientGenderSelf.value = 'Female';
     patientAge.value = '';
     patientAddress.value = '';

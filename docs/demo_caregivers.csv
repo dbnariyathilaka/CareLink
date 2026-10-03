@@ -1,0 +1,24 @@
+idx,docId,name,gender,age,city,distance_km,years_exp,nvq,formal_training,skills,care_category,schedule,languages,review_avg,rating_tier,prox_score,exp_score,edu_score,rating_score_est,adv_pct,onb_pct,excluded_reason
+1,demo-cg-01,Nimal Perera,Male,34,Colombo,0.0,10,6,True,Mobility assistance,Elder care,Full-time,Sinhala,5.0,Excellent,1.0,1.0,1.0,0.885,96.7,94.2,
+2,demo-cg-02,Kumari Jayasinghe,Female,41,Colombo,0.0,7,5,True,Mobility assistance,Elder care,Full-time,Sinhala; English; Tamil,4.25,High,1.0,1.0,0.75,0.792,90.8,89.6,
+3,demo-cg-03,Suresh Fernando,Male,29,Nugegoda,7.5,8,6,True,Mobility assistance; Personal hygiene assistance,Elder care,Full-time,Tamil; English,,Absent,0.751,1.0,1.0,,89.9,75.1,
+4,demo-cg-04,Anusha Wickramasinghe,Female,37,Nugegoda,7.5,5,4,True,Mobility assistance; Medication management,Elder care,Full-time,Sinhala; Tamil,3.0,Mid,0.751,0.75,0.5,0.638,68.6,69.5,
+5,demo-cg-05,Ravi Gunawardena,Male,45,Kaduwela,13.6,9,,False,Mobility assistance; Basic first aid,Elder care,Full-time,Sinhala; English,4.25,High,0.548,1.0,0.5,0.792,74.5,67.0,
+6,demo-cg-06,Chamari Rathnayake,Female,26,Kaduwela,13.6,2,5,True,Mobility assistance; Personal hygiene assistance,Elder care,Full-time,Sinhala,,Absent,0.548,0.5,0.75,,56.5,54.8,
+7,demo-cg-07,Dilshan Bandara,Male,52,Maharagama,11.4,6,4,True,Mobility assistance,Elder care,Full-time,Sinhala; English; Tamil,1.5,Low,0.62,0.75,0.5,0.454,59.5,53.7,
+8,demo-cg-08,Priyanka De Silva,Female,33,Maharagama,11.4,0.5,,False,Mobility assistance; Medication management,Elder care,Full-time,Tamil; English,5.0,Excellent,0.62,0.25,0.125,0.885,52.4,75.2,
+9,demo-cg-09,Ashan Wijesinghe,Male,23,Moratuwa,17.3,4,3,True,Mobility assistance; Personal hygiene assistance,Elder care,Full-time,Sinhala; Tamil,3.0,Mid,0.424,0.75,0.25,0.638,55.9,53.2,
+10,demo-cg-10,Malini Karunaratne,Female,48,Moratuwa,17.3,1,,False,Mobility assistance; Basic first aid,Elder care,Full-time,Sinhala; English,,Absent,0.424,0.5,0.25,,42.4,42.4,
+11,demo-cg-11,Sampath Weerasinghe,Male,39,Homagama,17.9,7,,False,Mobility assistance,Elder care,Full-time,Sinhala,3.0,Mid,0.403,1.0,0.5,0.638,65.9,52.1,
+12,demo-cg-12,Nadeeka Abeysekera,Female,31,Homagama,17.9,3,6,True,Mobility assistance; Personal hygiene assistance; Medication management,Elder care,Full-time,Sinhala; English; Tamil,1.5,Low,0.403,0.5,1.0,0.454,52.3,42.9,
+13,demo-cg-13,Tharindu Senanayake,Male,27,Gampaha,23.8,10,5,True,Mobility assistance,Elder care,Full-time,Tamil; English,4.25,High,0.207,1.0,0.75,0.792,67.9,50.0,
+14,demo-cg-14,Dilani Herath,Female,44,Gampaha,23.8,2,,False,Mobility assistance,Elder care,Full-time,Sinhala; Tamil,,Absent,0.207,0.5,0.25,,33.6,20.7,
+15,demo-cg-15,Chaminda Rajapaksa,Male,36,Negombo,31.5,9,6,True,Mobility assistance; Personal hygiene assistance; Basic first aid,Elder care,Full-time,Sinhala; English,5.0,Excellent,0.0,1.0,1.0,0.885,67.9,44.3,
+16,demo-cg-16,Shanika Amarasinghe,Female,28,Negombo,31.5,0.5,3,True,Mobility assistance; Medication management,Elder care,Full-time,Sinhala,,Absent,0.0,0.25,0.25,,14.9,0.0,
+17,demo-cg-17,Lasantha Dissanayake,Male,50,Kandy,94.3,8,5,True,Mobility assistance,Elder care,Full-time,Sinhala; English; Tamil,4.25,High,0.0,1.0,0.75,0.792,62.0,39.7,
+18,demo-cg-18,Hiruni Gamage,Female,24,Kandy,94.3,1,,False,Mobility assistance; Personal hygiene assistance,Elder care,Full-time,Tamil; English,,Absent,0.0,0.5,0.25,,25.2,0.0,
+19,demo-cg-19,Buddhika Ekanayake,Male,42,Galle,105.0,6,4,True,Mobility assistance,Elder care,Full-time,Sinhala; Tamil,3.0,Mid,0.0,0.75,0.5,0.638,46.9,32.0,
+20,demo-cg-20,Ishara Madushani,Female,30,Galle,105.0,0.5,,False,Mobility assistance; Medication management; Basic first aid,Elder care,Full-time,Sinhala; English,1.5,Low,0.0,0.25,0.125,0.454,22.1,22.7,
+21,demo-cg-21-control,Rangika Jayawardena,Female,35,Colombo,0.0,10,6,True,Mobility assistance; Personal hygiene assistance,Child care,Full-time,Sinhala; English,5.0,Excellent,1.0,1.0,1.0,,,,"careCategory is 'Child care', not the patient's requested 'Elder care' -- fails _careCategoryEligible"
+22,demo-cg-22-control,Chathura Ranasinghe,Male,38,Colombo,0.0,10,6,True,Feeding assistance; Basic first aid,Elder care,Full-time,Sinhala; English,5.0,Excellent,1.0,1.0,1.0,,,,skills list has no 'Mobility assistance' (the patient's required skill) -- fails _requiredSkillsEligible
+23,demo-cg-23-control,Vindya Perera,Female,32,Colombo,0.0,10,6,True,Mobility assistance; Personal hygiene assistance,Elder care,Part-time,Sinhala; English,5.0,Excellent,1.0,1.0,1.0,,,,"schedule is ['Part-time'], not the patient's requested 'Full-time' -- fails _scheduleEligible"

@@ -1213,6 +1213,115 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
     );
   }
 
+  // Opens a bottom sheet showing the per-criterion breakdown behind a
+  // caregiver's match percentage, mirroring advanced_match_results_screen's
+  // _showBreakdown but for the 2-criterion onboarding matching algorithm.
+  void _showOnboardingBreakdown(BuildContext context, OnboardingMatchResult m) {
+    final name = (m.caregiver['name'] as String?) ?? 'Caregiver';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: bgCream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Why $name matched at ${m.matchPercent.round()}%',
+                style: const TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: darkGreen,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Each factor is weighted from what patients told us matters '
+                'most. A greyed-out factor means this caregiver has no '
+                'recorded data for it — it was left out of their score, not '
+                'counted against them.',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  color: Color(0xFF5C5A5A),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...m.breakdown.map(_buildOnboardingBreakdownRow),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOnboardingBreakdownRow(OnboardingCriterionScore row) {
+    final label = OnboardingMatchingService.labels[row.criterion]!;
+    final absent = row.structurallyAbsent;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: absent ? const Color(0xFF9C9C9C) : const Color(0xFF1E1E1E),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 5,
+            child: absent
+                ? const Text(
+                    'Not available — excluded, not penalized',
+                    style: TextStyle(
+                      fontFamily: 'Open Sans',
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: Color(0xFF9C9C9C),
+                    ),
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: row.rawValue,
+                      minHeight: 6,
+                      backgroundColor: matchBadgeText.withValues(alpha: 0.15),
+                      valueColor: const AlwaysStoppedAnimation(matchBadgeText),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 34,
+            child: Text(
+              absent ? '—' : '+${row.contributionPoints.round()}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Top match card ────────────────────────────────────────────────────
   Widget _buildTopMatchCard(OnboardingMatchResult m) {
     final uid = m.caregiver['uid'] as String?;
@@ -1317,36 +1426,39 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen>
                 ),
               ),
               // Match % badge
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  border: Border.all(color: matchBadgeText, width: 1.5),
-                  shape: BoxShape.circle,
-                  color: matchBadgeBg,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '$match%',
-                      style: const TextStyle(
-                        fontFamily: 'Open Sans',
-                        color: matchBadgeText,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+              GestureDetector(
+                onTap: () => _showOnboardingBreakdown(context, m),
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: matchBadgeText, width: 1.5),
+                    shape: BoxShape.circle,
+                    color: matchBadgeBg,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$match%',
+                        style: const TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: matchBadgeText,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const Text(
-                      'Match',
-                      style: TextStyle(
-                        fontFamily: 'Open Sans',
-                        color: Color.fromRGBO(101, 29, 29, 0.7),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
+                      const Text(
+                        'Match',
+                        style: TextStyle(
+                          fontFamily: 'Open Sans',
+                          color: Color.fromRGBO(101, 29, 29, 0.7),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

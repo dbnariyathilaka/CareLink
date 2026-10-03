@@ -175,8 +175,14 @@ class _RegisterScreenState extends State<RegisterScreen>
       // Patient onboarding no longer asks for the name again (Figma node
       // 123-418 dropped that field since it's already collected here) — so
       // seed it into AppState now, the only place it was ever written from.
+      // Caregiver onboarding never asked for it at all — same seeding here,
+      // read back by caregiver_onboarding7_screen at final submit, so
+      // caregiverProfiles/{uid}.name isn't left unset until the caregiver
+      // happens to visit Edit Profile.
       if (_role == 'patient') {
         AppState.patientName.value = _fullNameController.text.trim();
+      } else if (_role == 'caregiver') {
+        AppState.caregiverName.value = _fullNameController.text.trim();
       }
 
       if (mounted) {

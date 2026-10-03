@@ -985,6 +985,7 @@ class _CaregiverEditProfileScreenState
           value: _nvqLevel,
           isExpanded: true,
           dropdownColor: _fieldBg,
+          iconEnabledColor: _fieldText,
           hint: const Text(
             'Select your NVQ level',
             style: TextStyle(

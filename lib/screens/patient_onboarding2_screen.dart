@@ -40,16 +40,10 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
   // Field Controllers
   final _ageController = NoUnderlineTextEditingController();
   final _cityController = NoUnderlineTextEditingController();
-  final _notesController = NoUnderlineTextEditingController();
 
   // Focus Nodes
   final FocusNode _ageFocus = FocusNode();
   final FocusNode _cityFocus = FocusNode();
-  final FocusNode _notesFocus = FocusNode();
-
-  // Lets the special-notes field scroll itself clear of the keyboard when
-  // focused, since it sits at the bottom of the form.
-  final GlobalKey _notesFieldKey = GlobalKey();
 
   // Dropdown / Selection Values — start unselected so the user must
   // actively choose; a silent default would let them skip past unnoticed.
@@ -90,23 +84,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
         setState(() => _filteredCities = []);
       }
     });
-    _notesFocus.addListener(() {
-      setState(() {});
-      if (_notesFocus.hasFocus) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final notesContext = _notesFieldKey.currentContext;
-          if (notesContext != null) {
-            Scrollable.ensureVisible(
-              notesContext,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-              alignment: 0.2,
-            );
-          }
-        });
-      }
-    });
-
     _cityController.addListener(_onCityTextChanged);
   }
 
@@ -115,11 +92,9 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
     _fadeController.dispose();
     _ageController.dispose();
     _cityController.dispose();
-    _notesController.dispose();
 
     _ageFocus.dispose();
     _cityFocus.dispose();
-    _notesFocus.dispose();
 
     super.dispose();
   }
@@ -431,15 +406,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                               onSelect: (v) => setState(() => _preferredCaregiverGender = v),
                             ),
                           ),
-                          const SizedBox(height: 18),
-
-                          _buildLabel('Special notes', required: false),
-                          const SizedBox(height: 7),
-                          _buildTextAreaField(
-                            controller: _notesController,
-                            focusNode: _notesFocus,
-                            hintText: 'e.g. diabetes, high blood pressure, early-stage dementia…',
-                          ),
                         ],
                       ),
                     ),
@@ -491,7 +457,6 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
                         AppState.patientGenderSelf.value = _selectedGender!;
                         AppState.careLocation.value = _cityController.text.trim();
                         AppState.preferredGender.value = _preferredCaregiverGender!;
-                        AppState.additionalCareNotes.value = _notesController.text.trim();
                         Navigator.pushNamed(context, '/patient-onboarding-2');
                       },
                       child: const Center(
@@ -771,50 +736,4 @@ class _PatientOnboarding2ScreenState extends State<PatientOnboarding2Screen>
     );
   }
 
-  Widget _buildTextAreaField({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String hintText,
-  }) {
-    return Container(
-      key: _notesFieldKey,
-      height: 97,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: fieldBorder),
-      ),
-      child: TextFormField(
-        controller: controller,
-        focusNode: focusNode,
-        maxLines: null,
-        expands: true,
-        autofillHints: const [],
-        style: const TextStyle(
-          fontFamily: 'Open Sans',
-          color: fieldValue,
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-        ),
-        decoration: InputDecoration(
-          filled: false,
-          border: InputBorder.none,
-          // The app's ambient ThemeData (AppTheme.darkTheme, set on
-          // MaterialApp) defines a bright green focusedBorder for its
-          // InputDecorationTheme. Without repeating InputBorder.none for
-          // these two states specifically, Flutter falls back to that
-          // theme default the moment the field is focused — this
-          // Container already draws its own border, so none of the
-          // decoration's borders should ever be visible.
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            color: Color.fromRGBO(0, 0, 0, 0.4),
-            fontSize: 12,
-          ),
-        ),
-      ),
-    );
-  }
 }

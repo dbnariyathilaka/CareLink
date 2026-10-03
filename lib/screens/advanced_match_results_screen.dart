@@ -154,9 +154,18 @@ class _AdvancedMatchResultsScreenState
         ...?patientProfile,
       };
 
+      // _bookingArgs['careType'] is NOT a real care-category override — the
+      // advanced wizard has no step that lets the patient pick a different
+      // one. It's schedule_care_screen's own "Elder · $scheduleType" work-
+      // schedule display label (shown as the confirm screen's "Work
+      // schedule" row and stored on the booking doc), reusing the
+      // 'careType' key name by coincidence. Left in requestArgs, it would
+      // shadow effectiveProfile's real careType in MatchContext.careType
+      // and fail every caregiver's care-category check, since no
+      // caregiver's careCategory is ever literally "Elder · Full-time".
       final matchContext = MatchContext(
         patientProfile: effectiveProfile,
-        requestArgs: _bookingArgs,
+        requestArgs: Map<String, dynamic>.from(_bookingArgs)..remove('careType'),
       );
 
       final caregivers = await CaregiverService.searchCaregivers();

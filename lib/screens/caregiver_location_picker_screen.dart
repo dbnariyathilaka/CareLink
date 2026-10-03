@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -19,11 +21,14 @@ import '../widgets/status_bar.dart';
 //
 //  Returns `{'city': String, 'lat': double, 'lng': double}` via
 //  Navigator.pop, or null if dismissed without confirming. The returned
-//  city is the nearest known Sri Lankan city name (a real lookup against
-//  sriLankanCities), not an invented street address — map_selection_screen
-//  fabricates a plausible-looking address for the booking-location flow,
-//  which is fine for an ephemeral visit location but not appropriate to
-//  carry into a caregiver's own permanent profile field.
+//  `city` stays the nearest known Sri Lankan city name (a real lookup
+//  against sriLankanCities) — other screens and MatchingService's
+//  city-name fallback all expect this field to be a short, recognisable
+//  city string, not a full street address. The real reverse-geocoded
+//  address (see _runReverseGeocode) is shown live in the bottom panel so
+//  the caregiver can see exactly where their pin landed, same as
+//  map_selection_screen.dart's address bar, but is for in-screen display
+//  only and never leaves this screen.
 // ─────────────────────────────────────────────────────────────
 class CaregiverLocationPickerScreen extends StatefulWidget {
   const CaregiverLocationPickerScreen({super.key});
@@ -51,6 +56,15 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
   double _currentLng = 79.8612;
   String _cityLabel = 'Colombo';
 
+  // Real reverse-geocoded address, shown live below _cityLabel — purely a
+  // display aid (see class doc comment); the returned `city` field never
+  // changes. Same debounce-while-dragging / fire-immediately-on-deliberate-
+  // move pattern as map_selection_screen.dart.
+  String? _preciseAddress;
+  bool _resolvingAddress = false;
+  Timer? _geocodeDebounce;
+  int _geocodeRequestId = 0;
+
   final TextEditingController _searchController = NoUnderlineTextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<Map<String, String>> _searchResults = [];
@@ -61,14 +75,57 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
     super.initState();
     setStatusBarStyle(Brightness.dark);
     _cityLabel = _nearestCityName(_currentLat, _currentLng);
+    _runReverseGeocode(_currentLat, _currentLng);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _geocodeDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  // Real reverse geocoding via Nominatim (OpenStreetMap) — see
+  // map_selection_screen.dart's identical helper for the full rationale.
+  Future<String?> _reverseGeocode(double lat, double lng) async {
+    try {
+      final client = HttpClient();
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=0',
+      );
+      final request = await client.getUrl(uri);
+      request.headers.set('user-agent', 'com.example.carematch');
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        final content = await response.transform(utf8.decoder).join();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final displayName = data['display_name'] as String?;
+        if (displayName != null && displayName.isNotEmpty) return displayName;
+      }
+    } catch (e) {
+      debugPrint('Reverse geocoding failed: $e');
+    }
+    return null;
+  }
+
+  void _scheduleReverseGeocode(double lat, double lng) {
+    _geocodeDebounce?.cancel();
+    _geocodeDebounce = Timer(const Duration(milliseconds: 700), () {
+      _runReverseGeocode(lat, lng);
+    });
+  }
+
+  Future<void> _runReverseGeocode(double lat, double lng) async {
+    final requestId = ++_geocodeRequestId;
+    if (mounted) setState(() => _resolvingAddress = true);
+    final resolved = await _reverseGeocode(lat, lng);
+    if (!mounted || requestId != _geocodeRequestId) return;
+    setState(() {
+      _preciseAddress = resolved;
+      _resolvingAddress = false;
+    });
   }
 
   String _nearestCityName(double lat, double lng) {
@@ -121,6 +178,7 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
       _searchController.text = _cityLabel;
       _usingGPS = false;
     });
+    _runReverseGeocode(lat, lng);
     _mapController.move(LatLng(lat, lng), 15.5);
     _searchFocusNode.unfocus();
   }
@@ -149,6 +207,7 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
         _cityLabel = _nearestCityName(_currentLat, _currentLng);
         _usingGPS = true;
       });
+      _runReverseGeocode(_currentLat, _currentLng);
       _mapController.move(LatLng(_currentLat, _currentLng), 15.0);
     } catch (e) {
       if (!mounted) return;
@@ -181,6 +240,7 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
                     _cityLabel = _nearestCityName(_currentLat, _currentLng);
                     if (hasGesture) _usingGPS = false;
                   });
+                  _scheduleReverseGeocode(_currentLat, _currentLng);
                 },
               ),
               children: [
@@ -356,27 +416,30 @@ class _CaregiverLocationPickerScreenState extends State<CaregiverLocationPickerS
               padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
               decoration: BoxDecoration(color: _azure11, borderRadius: BorderRadius.circular(12), border: Border.all(color: _azure27)),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.location_city_rounded, color: _accent, size: 18),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(Icons.location_city_rounded, color: _accent, size: 18),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '$_cityLabel, Sri Lanka',
+                      _preciseAddress ?? '$_cityLabel, Sri Lanka',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: _grey98, fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
+                  if (_resolvingAddress) ...[
+                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(_accent)),
+                    ),
+                  ],
                 ],
-              ),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '${_currentLat.toStringAsFixed(5)}° N, ${_currentLng.toStringAsFixed(5)}° E',
-                  style: TextStyle(color: _azure65, fontSize: 10.5, fontWeight: FontWeight.w500),
-                ),
               ),
             ),
             const SizedBox(height: 12),

@@ -41,8 +41,12 @@ class _QualificationsSelectionScreenState
   String? _training;
   static const _trainOptions = ['Yes', 'No'];
 
-  // Q2 – Languages (multi-select)
-  final Set<String> _languages = {'Sinhala', 'English'};
+  // Q2 – Languages (multi-select). Starts empty — matching_service.dart's
+  // language filter is only meant to apply when the patient actually states
+  // a requirement; pre-checking defaults here would silently impose one
+  // (and hard-exclude any caregiver with no recorded languagesSpoken) on
+  // every advanced-match request, even when the patient never chose it.
+  final Set<String> _languages = {};
   static const _langOptions = ['Sinhala', 'English', 'Tamil'];
 
   Map<String, dynamic> _bookingArgs = {};
@@ -97,11 +101,12 @@ class _QualificationsSelectionScreenState
         canProceed: _training != null,
       );
     }
-    // Q2 · Languages (multi-select)
+    // Q2 · Languages (multi-select, optional — leaving all unchecked means
+    // no language requirement, so this never blocks proceeding).
     return _buildQuestionCard(
       context,
       heroAsset: 'assets/images/qualification4.png',
-      title: 'Languages the caregiver must speak',
+      title: 'Languages the caregiver must speak (optional)',
       options: _langOptions,
       isSelected: (v) => _languages.contains(v),
       onToggle: (v) => setState(() {
@@ -111,7 +116,7 @@ class _QualificationsSelectionScreenState
           _languages.add(v);
         }
       }),
-      canProceed: _languages.isNotEmpty,
+      canProceed: true,
     );
   }
 

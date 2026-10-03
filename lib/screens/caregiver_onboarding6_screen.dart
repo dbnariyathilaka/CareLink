@@ -39,6 +39,12 @@ class _CaregiverOnboarding6ScreenState
 
   SriLankanBank? _selectedBank;
   BankBranch? _selectedBranch;
+  // True once the caregiver has explicitly said their branch isn't in the
+  // curated dropdown — switches that bank over to the same free-text entry
+  // banks with no curated list at all already use. Without this, a
+  // caregiver whose real branch is simply missing from a curated list had
+  // no way to enter it at all.
+  bool _manualBranchEntry = false;
   final TextEditingController _manualBranchController = TextEditingController();
   final TextEditingController _accountNumberController = TextEditingController();
   final TextEditingController _accountHolderController = TextEditingController();
@@ -53,9 +59,12 @@ class _CaregiverOnboarding6ScreenState
     }
     if (_selectedBank != null && draft.branchName.isNotEmpty) {
       _selectedBranch = _selectedBank!.branches
-          .where((b) => b.name == draft.branchName && b.code == draft.branchCode)
+          .where((b) => b.name == draft.branchName && (b.code ?? '') == draft.branchCode)
           .firstOrNull;
-      if (_selectedBranch == null) _manualBranchController.text = draft.branchName;
+      if (_selectedBranch == null) {
+        _manualBranchController.text = draft.branchName;
+        _manualBranchEntry = true;
+      }
     } else {
       _manualBranchController.text = draft.branchName;
     }
@@ -79,6 +88,39 @@ class _CaregiverOnboarding6ScreenState
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }
 
+  // Real logos, sourced from each bank's own Wikipedia infobox image —
+  // covers the banks with a curated branch list (see sri_lanka_banks.dart).
+  // Every other bank (and NDB, whose Wikipedia article has no logo image)
+  // falls back to the colored-initials circle below.
+  static const Map<String, String> _bankLogos = {
+    'Bank of Ceylon': 'assets/images/bank_logo_boc.png',
+    'Commercial Bank of Ceylon PLC': 'assets/images/bank_logo_commercial.png',
+    'DFCC Bank PLC': 'assets/images/bank_logo_dfcc.png',
+    'Hatton National Bank PLC': 'assets/images/bank_logo_hnb.png',
+    'Nations Trust Bank PLC': 'assets/images/bank_logo_nations_trust.png',
+    'Pan Asia Banking Corporation PLC': 'assets/images/bank_logo_pan_asia.png',
+    "People's Bank": 'assets/images/bank_logo_peoples.png',
+    'Sampath Bank PLC': 'assets/images/bank_logo_sampath.png',
+    'Seylan Bank PLC': 'assets/images/bank_logo_seylan.png',
+  };
+
+  Widget _bankAvatar(SriLankanBank bank) {
+    final logoAsset = _bankLogos[bank.name];
+    if (logoAsset != null) {
+      return CircleAvatar(
+        backgroundColor: Colors.white,
+        backgroundImage: AssetImage(logoAsset),
+      );
+    }
+    return CircleAvatar(
+      backgroundColor: continueBg,
+      child: Text(
+        _initialsFor(bank.name),
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
   void _pickBank() {
     showModalBottomSheet<void>(
       context: context,
@@ -94,19 +136,14 @@ class _CaregiverOnboarding6ScreenState
             itemBuilder: (_, i) {
               final bank = sriLankanBanks[i];
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: continueBg,
-                  child: Text(
-                    _initialsFor(bank.name),
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
-                  ),
-                ),
+                leading: _bankAvatar(bank),
                 title: Text(bank.name, style: const TextStyle(fontFamily: 'Open Sans', color: titleDark, fontSize: 14)),
                 trailing: bank == _selectedBank ? const Icon(Icons.check_rounded, color: continueBg) : null,
                 onTap: () {
                   setState(() {
                     _selectedBank = bank;
                     _selectedBranch = null;
+                    _manualBranchEntry = false;
                     _manualBranchController.clear();
                   });
                   Navigator.pop(ctx);
@@ -132,15 +169,38 @@ class _CaregiverOnboarding6ScreenState
           heightFactor: 0.7,
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: bank.branches.length,
+            itemCount: bank.branches.length + 1,
             itemBuilder: (_, i) {
+              if (i == bank.branches.length) {
+                return ListTile(
+                  leading: const Icon(Icons.edit_outlined, color: hintText, size: 20),
+                  title: const Text(
+                    "My branch isn't listed",
+                    style: TextStyle(fontFamily: 'Open Sans', color: titleDark, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text('Enter it manually instead', style: TextStyle(fontFamily: 'Inter', color: hintText, fontSize: 11)),
+                  onTap: () {
+                    setState(() {
+                      _selectedBranch = null;
+                      _manualBranchEntry = true;
+                    });
+                    Navigator.pop(ctx);
+                  },
+                );
+              }
               final branch = bank.branches[i];
               return ListTile(
                 title: Text('${branch.name} — ${branch.city}', style: const TextStyle(fontFamily: 'Open Sans', color: titleDark, fontSize: 14)),
-                subtitle: Text('Branch code ${branch.code}', style: const TextStyle(fontFamily: 'Inter', color: hintText, fontSize: 11)),
+                subtitle: Text(
+                  branch.code != null ? 'Branch code ${branch.code}' : 'Branch code not yet verified',
+                  style: TextStyle(fontFamily: 'Inter', color: branch.code != null ? hintText : skipText, fontSize: 11),
+                ),
                 trailing: branch == _selectedBranch ? const Icon(Icons.check_rounded, color: continueBg) : null,
                 onTap: () {
-                  setState(() => _selectedBranch = branch);
+                  setState(() {
+                    _selectedBranch = branch;
+                    _manualBranchEntry = false;
+                  });
                   Navigator.pop(ctx);
                 },
               );
@@ -400,9 +460,12 @@ class _CaregiverOnboarding6ScreenState
                       const SizedBox(height: 16),
                       _buildFieldLabel('Branch'),
                       const SizedBox(height: 6),
-                      if (hasCuratedBranches)
+                      if (hasCuratedBranches && !_manualBranchEntry)
                         _buildDropdownField(
-                          value: _selectedBranch != null ? '${_selectedBranch!.name} — ${_selectedBranch!.city} (${_selectedBranch!.code})' : null,
+                          value: _selectedBranch != null
+                              ? '${_selectedBranch!.name} — ${_selectedBranch!.city}'
+                                  '${_selectedBranch!.code != null ? ' (${_selectedBranch!.code})' : ''}'
+                              : null,
                           hint: 'Select your branch',
                           onTap: _pickBranch,
                           enabled: _selectedBank != null,
@@ -418,6 +481,19 @@ class _CaregiverOnboarding6ScreenState
                         const Text(
                           "We don't have a verified branch list for this bank yet — enter it manually.",
                           style: TextStyle(fontFamily: 'Inter', color: hintText, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                      if (hasCuratedBranches && _manualBranchEntry) ...[
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            _manualBranchEntry = false;
+                            _manualBranchController.clear();
+                          }),
+                          child: const Text(
+                            'Choose from the branch list instead',
+                            style: TextStyle(fontFamily: 'Inter', color: continueBg, fontSize: 11.5, fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
+                          ),
                         ),
                       ],
                       const SizedBox(height: 16),

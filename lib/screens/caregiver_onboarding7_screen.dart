@@ -70,6 +70,7 @@ class _CaregiverOnboarding7ScreenState
           uid: uid,
           data: {
             ...draft.toMap(),
+            'name': AppState.caregiverName.value,
             'onboardingComplete': true,
             'nicVerified': nicCheck.isValid,
             'nicVerificationReason': nicCheck.reason,

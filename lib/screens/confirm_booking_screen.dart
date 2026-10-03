@@ -629,7 +629,6 @@ class ConfirmBookingScreen extends StatelessWidget {
   // matching-analysis/confirmed-dialog step, since nothing was booked.
   Future<bool> _createBookingRequest({
     required BuildContext context,
-    required bool isAdvanced,
     required String? caregiverId,
     required String caregiverName,
     required String careType,
@@ -662,7 +661,7 @@ class ConfirmBookingScreen extends StatelessWidget {
       patientUid: onBehalfOfPatientUid ?? uid,
       createdByUid: uid,
       caregiverId: caregiverId,
-      caregiverName: isAdvanced ? 'Matching caregivers' : caregiverName,
+      caregiverName: caregiverName,
       careType: careType,
       startDate: startDate,
       startTime: startTime,
@@ -672,7 +671,6 @@ class ConfirmBookingScreen extends StatelessWidget {
       location: location,
       locationLat: locationLat,
       locationLng: locationLng,
-      isAdvanced: isAdvanced,
       isEmergency: isEmergency,
     );
     return true;
@@ -716,9 +714,31 @@ class ConfirmBookingScreen extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
                 onTap: () async {
+                  if (isAdvanced) {
+                    // Advanced flow never has a specific caregiver picked yet
+                    // at this step — no booking is created here. The real
+                    // request is created later, with a real caregiverId/
+                    // name/photo, when the patient taps "Request" on a
+                    // specific ranked caregiver in advanced_match_results_
+                    // screen.dart. (Previously this created a placeholder
+                    // bookingRequests doc with caregiverId: null and the
+                    // literal name "Matching caregivers" — no caregiver-side
+                    // query ever matches a null caregiverId, so that request
+                    // could never actually be seen or accepted by anyone.)
+                    final onBehalf = args?['onBehalfOfPatientUid'] as String?;
+                    if (onBehalf == null) {
+                      if (!await ensurePatientProfileComplete(context)) return;
+                      if (!context.mounted) return;
+                    }
+                    Navigator.pushNamed(
+                      context,
+                      '/matching-analysis',
+                      arguments: args,
+                    );
+                    return;
+                  }
                   final created = await _createBookingRequest(
                     context:       context,
-                    isAdvanced:    isAdvanced,
                     caregiverId:   args?['caregiverId'] as String?,
                     caregiverName: caregiverName,
                     careType:      careType,
@@ -735,24 +755,15 @@ class ConfirmBookingScreen extends StatelessWidget {
                   );
                   if (!created) return;
                   if (!context.mounted) return;
-                  if (isAdvanced) {
-                    // Advanced flow → show matching analysis loading screen
-                    Navigator.pushNamed(
-                      context,
-                      '/matching-analysis',
-                      arguments: args,
-                    );
-                  } else {
-                    final resolvedName =
-                        args?['caregiverName'] as String? ?? 'your caregiver';
-                    _showConfirmedDialog(
-                      context,
-                      isAdvanced,
-                      accent,
-                      accentOnColor,
-                      resolvedName,
-                    );
-                  }
+                  final resolvedName =
+                      args?['caregiverName'] as String? ?? 'your caregiver';
+                  _showConfirmedDialog(
+                    context,
+                    isAdvanced,
+                    accent,
+                    accentOnColor,
+                    resolvedName,
+                  );
                 },
                 child: SizedBox(
                   width: double.infinity,

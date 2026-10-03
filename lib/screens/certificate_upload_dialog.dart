@@ -157,6 +157,13 @@ class _CertificateUploadDialogState extends State<CertificateUploadDialog> {
                 child: DropdownButton<int>(
                   value: _nvqLevel,
                   isExpanded: true,
+                  // Both unset by default, this dialog inherits the app's
+                  // dark ambient theme — a dark popup menu behind this
+                  // dialog's already-dark item text, and a pale icon
+                  // against this dialog's light field background, were
+                  // each illegible without these explicit overrides.
+                  dropdownColor: _dialogBg,
+                  iconEnabledColor: _dropzoneLabel,
                   hint: const Text(
                     'Select your NVQ level',
                     style: TextStyle(fontFamily: 'Open Sans', color: _dropzoneCaption, fontSize: 13),

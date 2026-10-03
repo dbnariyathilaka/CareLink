@@ -65,10 +65,19 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   final MapController _mapController = MapController();
   double _zoomLevel = 14.0;
   bool _isLocating = false;
-  String _address = 'Colombo';
+  String _address = 'Locating address…';
+  bool _resolvingAddress = false;
   double _currentLat = 6.9271; // Colombo initial lat
   double _currentLng = 79.8612; // Colombo initial lng
   bool _usingGPS = false;
+
+  // Reverse-geocoding — debounced during a drag (onPositionChanged fires
+  // continuously), fired immediately for deliberate position changes (GPS
+  // fix, search result tap). _geocodeRequestId guards against a slow
+  // response for an old position overwriting the address for wherever the
+  // pin has since moved to.
+  Timer? _geocodeDebounce;
+  int _geocodeRequestId = 0;
 
   // Search bar state
   final TextEditingController _searchController = NoUnderlineTextEditingController();
@@ -103,8 +112,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
       _isAdvanced = args['isAdvanced'] ?? false;
       _bookingArgs = Map<String, dynamic>.from(args);
     }
-    // Set initial address matching initial coordinates
-    _address = _getFormattedAddress(_currentLat, _currentLng);
+    // Resolve the real address for the initial coordinates.
+    _runReverseGeocode(_currentLat, _currentLng);
   }
 
   String _getClosestCityName(double lat, double lng) {
@@ -217,8 +226,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
             _currentLat = 6.8438;
             _currentLng = 80.0000;
             _zoomLevel = 15.0;
-            _address = _getFormattedAddress(_currentLat, _currentLng);
           });
+          _runReverseGeocode(_currentLat, _currentLng);
           _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
           scaffoldMessenger.showSnackBar(
             SnackBar(
@@ -246,8 +255,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
         _gpsLng = position.longitude;
         _currentLat = position.latitude;
         _currentLng = position.longitude;
-        _address = _getFormattedAddress(_currentLat, _currentLng);
       });
+      _runReverseGeocode(_currentLat, _currentLng);
       _mapController.move(LatLng(_currentLat, _currentLng), _zoomLevel);
     }
   }
@@ -363,6 +372,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
   @override
   void dispose() {
     _debounce?.cancel();
+    _geocodeDebounce?.cancel();
     _positionStreamSubscription?.cancel();
     _pulseController.dispose();
     _searchController.dispose();
@@ -370,55 +380,54 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
     super.dispose();
   }
 
-  String _getFormattedAddress(double lat, double lng) {
-    // Check if near any custom landmarks (like NSBM Sports Centre)
-    double distanceTo(double targetLat, double targetLng) {
-      return math.sqrt(math.pow(lat - targetLat, 2) + math.pow(lng - targetLng, 2));
+  // Real reverse geocoding via Nominatim (the same OpenStreetMap API
+  // _performSearch already uses for forward search) — returns the actual
+  // address at these coordinates, or null on any failure/empty response.
+  Future<String?> _reverseGeocode(double lat, double lng) async {
+    try {
+      final client = HttpClient();
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=0',
+      );
+      final request = await client.getUrl(uri);
+      request.headers.set('user-agent', 'com.example.carematch');
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        final content = await response.transform(utf8.decoder).join();
+        final data = jsonDecode(content) as Map<String, dynamic>;
+        final displayName = data['display_name'] as String?;
+        if (displayName != null && displayName.isNotEmpty) return displayName;
+      }
+    } catch (e) {
+      debugPrint('Reverse geocoding failed: $e');
     }
+    return null;
+  }
 
-    if (distanceTo(6.8220, 80.0407) < 0.0006) {
-      return 'NSBM Sports Centre, Temple Road, Pitipana, Homagama';
-    }
-    if (distanceTo(6.8215, 80.0415) < 0.0012) {
-      return 'NSBM Green University, Temple Road, Pitipana, Homagama';
-    }
-    if (distanceTo(6.8227, 80.0422) < 0.0006) {
-      return 'Faculty of Technology, NSBM, Temple Road, Pitipana, Homagama';
-    }
+  // Debounced — onPositionChanged fires continuously while dragging, and
+  // Nominatim's usage policy caps free requests to about one per second.
+  void _scheduleReverseGeocode(double lat, double lng) {
+    _geocodeDebounce?.cancel();
+    _geocodeDebounce = Timer(const Duration(milliseconds: 700), () {
+      _runReverseGeocode(lat, lng);
+    });
+  }
 
-    final closestCity = _getClosestCityName(lat, lng);
-
-    final places = [
-      'Keells Super', 'Cargills Food City', 'Arpico Supercentre', 'Hemas Hospital', 
-      'Softlogic Max', 'Pizza Hut', 'KFC Outlet', 'SLT-MOBITEL Centre',
-      'Majestic Apartments', 'Commercial Bank', 'Sampath Bank Branch', 'Singer Mega',
-      'People\'s Bank', 'Lanka Hospitals Clinic', 'Nawaloka Medical Centre', 'Odel Mall',
-      'NSBM Campus Hub', 'Royal Institute', 'Lyceum School', 'Gateway College Office'
-    ];
-
-    final lanes = [
-      'Dharmapala Mawatha', 'Anagarika Dharmapala Mawatha', 'Galle Road', 'Kandy Road', 
-      'High Level Road', 'Negombo Road', 'Baseline Road', 'Temple Road', 'Station Road', 
-      'School Lane', 'Church Road', 'Lewis Place', 'Porutota Road', 'Lake Road', 
-      'Flower Road', 'Duplication Road', 'Havelock Road', 'Ward Place', 'Bullers Lane'
-    ];
-
-    // Use lat/lng as seed to deterministically choose place and road names
-    final seed = (lat.abs() * 100000 + lng.abs() * 100000).round();
-    final randPlaceIdx = seed % places.length;
-    final randLaneIdx = (seed ~/ 3) % lanes.length;
-    final number = (seed % 150) + 1;
-
-    final String place = places[randPlaceIdx];
-    final String lane = lanes[randLaneIdx];
-
-    if (seed % 3 == 0) {
-      return '$place, No. $number, $lane, $closestCity';
-    } else if (seed % 3 == 1) {
-      return '$place, $lane, $closestCity';
-    } else {
-      return 'No. $number, $lane, $closestCity';
-    }
+  // Fires immediately — for deliberate one-off position changes (initial
+  // load, GPS fix, search-result tap) where waiting for a drag to settle
+  // doesn't apply.
+  Future<void> _runReverseGeocode(double lat, double lng) async {
+    final requestId = ++_geocodeRequestId;
+    if (mounted) setState(() => _resolvingAddress = true);
+    final resolved = await _reverseGeocode(lat, lng);
+    // The pin may have moved again (or this screen been disposed) while
+    // that request was in flight — a stale response must never overwrite
+    // the address for wherever the pin actually is now.
+    if (!mounted || requestId != _geocodeRequestId) return;
+    setState(() {
+      _address = resolved ?? '${_getClosestCityName(lat, lng)}, Sri Lanka';
+      _resolvingAddress = false;
+    });
   }
 
   void _onSearchChanged(String query) {
@@ -532,11 +541,11 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
       setState(() {
         _currentLat = lat;
         _currentLng = lng;
-        _address = _getFormattedAddress(lat, lng);
         _searchResults = [];
         _searchController.text = cityName;
         _showSearchClear = true;
       });
+      _runReverseGeocode(lat, lng);
 
       _mapController.move(LatLng(lat, lng), 15.5);
       _searchFocusNode.unfocus();
@@ -552,6 +561,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
       children: [
         if (_searchResults.isNotEmpty) ...[
           Container(
+            key: const ValueKey('search_results'),
             constraints: const BoxConstraints(maxHeight: 220),
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
@@ -634,6 +644,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
           ),
         ],
         Container(
+          key: const ValueKey('search_field'),
           decoration: BoxDecoration(
             color: _searchFieldBg,
             borderRadius: BorderRadius.circular(12),
@@ -720,11 +731,11 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                     setState(() {
                       _currentLat = position.center!.latitude;
                       _currentLng = position.center!.longitude;
-                      _address = _getFormattedAddress(_currentLat, _currentLng);
                       if (hasGesture) {
                         _usingGPS = false;
                       }
                     });
+                    _scheduleReverseGeocode(_currentLat, _currentLng);
                   }
                 },
               ),
@@ -958,6 +969,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                 Expanded(
                   child: Text(
                     _address,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: _grey98,
                       fontSize: 13,
@@ -965,6 +978,17 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> with SingleTick
                     ),
                   ),
                 ),
+                if (_resolvingAddress) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(_accentColor),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

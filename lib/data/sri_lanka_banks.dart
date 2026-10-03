@@ -27,13 +27,26 @@
 // in addition to thecodes.us. DFCC Bank, Nations Trust Bank, and Pan Asia
 // Banking Corporation branch codes are single-sourced (thecodes.us only) —
 // treat those as slightly lower confidence than the cross-verified ones.
+//
+// Bank of Ceylon is the one exception to "not a full directory" above — at
+// the user's request, its branch list was substantially expanded using the
+// Sri Lanka Department of Pensions' official branch-name circular (see that
+// bank's own comment, inline below). `BankBranch.code` is nullable
+// specifically to support this: a branch can be a real, confirmed BOC
+// branch without yet having a verified SLIPS code attached. Never fill a
+// null code with a guess — add a real, sourced one or leave it null.
 
 class BankBranch {
   final String city;
   final String name;
-  final String code; // 3-digit branch code
+  // 3-digit branch code — null means this branch's real existence and name
+  // are confirmed (see each bank's own sourcing note), but no verified
+  // branch code has been found for it yet. Never fabricated: a caregiver
+  // picking one of these sees "code not yet verified" rather than a
+  // plausible-looking but unconfirmed number.
+  final String? code;
 
-  const BankBranch({required this.city, required this.name, required this.code});
+  const BankBranch({required this.city, required this.name, this.code});
 }
 
 class SriLankanBank {
@@ -50,24 +63,117 @@ final List<SriLankanBank> sriLankanBanks = List<SriLankanBank>.unmodifiable(
     const SriLankanBank(
       name: 'Bank of Ceylon',
       code: '7010',
+      // BOC runs ~663 branches nationwide — a full directory with verified
+      // codes isn't available from any single accessible source (BOC's own
+      // branch locator at boc.lk/branches lists names/addresses only, no
+      // codes, across 132 paginated results; third-party code aggregators
+      // either lack full coverage or block automated access). The 13 marked
+      // "— verified code" below are cross-checked the same way as the rest
+      // of this file (see header comment). The remaining branches are real,
+      // confirmed names — sourced from the Sri Lanka Department of
+      // Pensions' official "Divisional Secretariats and Bank Branches"
+      // circular (pensions.gov.lk, Bank-and-DS-Office-List-English.pdf,
+      // LC_2023), which lists them as real BOC branches accepting
+      // pensioners' life-certificate fingerprint confirmation — but that
+      // document is a branch-name list for a DS/branch verification
+      // programme, not a SLIPS branch-code directory, so it carries no
+      // codes. Rather than invent one, those branches have `code: null` and
+      // the picker UI shows "code not yet verified" for them.
       branches: [
         BankBranch(city: 'Colombo', name: 'City Office', code: '001'),
         BankBranch(city: 'Colombo', name: 'Pettah', code: '004'),
         BankBranch(city: 'Colombo', name: 'Kollupitiya', code: '034'),
         BankBranch(city: 'Colombo', name: 'Bambalapitiya', code: '037'),
-        BankBranch(city: 'Colombo', name: 'Borella S/G', code: '038'),
-        BankBranch(city: 'Negombo', name: 'Negombo', code: '018'),
-        BankBranch(city: 'Kandy', name: 'Kandy', code: '002'),
-        BankBranch(city: 'Galle', name: 'Galle Fort', code: '003'),
-        BankBranch(city: 'Jaffna', name: 'Jaffna', code: '005'),
-        BankBranch(city: 'Kurunegala', name: 'Kurunegala', code: '009'),
-        BankBranch(city: 'Gampaha', name: 'Gampaha S/G', code: '045'),
-        BankBranch(city: 'Matara', name: 'Matara', code: '024'),
+        BankBranch(city: 'Aluthgama', name: 'Aluthgama'),
+        BankBranch(city: 'Ambalangoda', name: 'Ambalangoda'),
+        BankBranch(city: 'Ampara', name: 'Ampara'),
         BankBranch(city: 'Anuradhapura', name: 'Anuradhapura', code: '022'),
-        BankBranch(city: 'Ratnapura', name: 'Ratnapura', code: '031'),
-        BankBranch(city: 'Batticaloa', name: 'Batticaloa', code: '012'),
+        BankBranch(city: 'Avissawella', name: 'Avissawella'),
+        BankBranch(city: 'Badulla', name: 'Badulla'),
+        BankBranch(city: 'Balangoda', name: 'Balangoda'),
+        BankBranch(city: 'Bandarawela', name: 'Bandarawela'),
+        BankBranch(city: 'Batticaloa', name: 'Batticaloa Super Grade', code: '012'),
+        BankBranch(city: 'Bibile', name: 'Bibile'),
+        BankBranch(city: 'Colombo', name: 'Borella', code: '038'),
+        BankBranch(city: 'Chilaw', name: 'Chilaw'),
+        BankBranch(city: 'Dambulla', name: 'Dambulla'),
+        BankBranch(city: 'Dehiattakandiya', name: 'Dehiattakandiya'),
+        BankBranch(city: 'Digana', name: 'Digana'),
+        BankBranch(city: 'Divulapitiya', name: 'Divulapitiya'),
+        BankBranch(city: 'Embilipitiya', name: 'Embilipitiya'),
+        BankBranch(city: 'Galagedara', name: 'Galagedara'),
+        BankBranch(city: 'Galenbindunuwewa', name: 'Galenbindunuwewa'),
+        BankBranch(city: 'Galgamuwa', name: 'Galgamuwa'),
+        BankBranch(city: 'Galle', name: 'Galle Fort', code: '003'),
+        BankBranch(city: 'Gampaha', name: 'Gampaha S/G', code: '045'),
+        BankBranch(city: 'Gampola', name: 'Gampola'),
+        BankBranch(city: 'Hambantota', name: 'Hambantota'),
+        BankBranch(city: 'Hatton', name: 'Hatton'),
+        BankBranch(city: 'Hikkaduwa', name: 'Hikkaduwa'),
+        BankBranch(city: 'Hiripitiya', name: 'Hiripitiya'),
+        BankBranch(city: 'Homagama', name: 'Homagama'),
+        BankBranch(city: 'Horana', name: 'Horana'),
+        BankBranch(city: 'Horowpathana', name: 'Horowpathana'),
+        BankBranch(city: 'Ja-Ela', name: 'Ja-Ela'),
+        BankBranch(city: 'Jaffna', name: 'Jaffna', code: '005'),
+        BankBranch(city: 'Kadawata', name: 'Kadawata'),
+        BankBranch(city: 'Kaduwela', name: 'Kaduwela'),
+        BankBranch(city: 'Kalmunai', name: 'Kalmunai'),
+        BankBranch(city: 'Kalutara', name: 'Kalutara'),
+        BankBranch(city: 'Kamburupitiya', name: 'Kamburupitiya'),
+        BankBranch(city: 'Kandy', name: 'Kandy', code: '002'),
+        BankBranch(city: 'Katugastota', name: 'Katugastota'),
+        BankBranch(city: 'Kegalle', name: 'Kegalle'),
+        BankBranch(city: 'Kekirawa', name: 'Kekirawa'),
+        BankBranch(city: 'Kilinochchi', name: 'Kilinochchi'),
+        BankBranch(city: 'Kiribathgoda', name: 'Kiribathgoda'),
+        BankBranch(city: 'Kirindiwela', name: 'Kirindiwela'),
+        BankBranch(city: 'Kuliyapitiya', name: 'Kuliyapitiya'),
+        BankBranch(city: 'Kurunegala', name: 'Kurunegala', code: '009'),
+        BankBranch(city: 'Mahiyangana', name: 'Mahiyangana'),
+        BankBranch(city: 'Maho', name: 'Maho'),
+        BankBranch(city: 'Malabe', name: 'Malabe'),
+        BankBranch(city: 'Mannar', name: 'Mannar'),
+        BankBranch(city: 'Matale', name: 'Matale'),
+        BankBranch(city: 'Matara', name: 'Matara', code: '024'),
+        BankBranch(city: 'Matugama', name: 'Matugama'),
+        BankBranch(city: 'Mawanella', name: 'Mawanella'),
+        BankBranch(city: 'Medawachchiya', name: 'Medawachchiya'),
+        BankBranch(city: 'Melsiripura', name: 'Melsiripura'),
+        BankBranch(city: 'Mihintale', name: 'Mihintale'),
+        BankBranch(city: 'Minuwangoda', name: 'Minuwangoda'),
+        BankBranch(city: 'Mirigama', name: 'Mirigama'),
+        BankBranch(city: 'Moneragala', name: 'Moneragala'),
+        BankBranch(city: 'Moratuwa', name: 'Moratuwa'),
+        BankBranch(city: 'Mullativu', name: 'Mullativu'),
+        BankBranch(city: 'Nawalapitiya', name: 'Nawalapitiya'),
+        BankBranch(city: 'Negombo', name: 'Negombo', code: '018'),
+        BankBranch(city: 'Nikaweratiya', name: 'Nikaweratiya'),
+        BankBranch(city: 'Nittambuwa', name: 'Nittambuwa'),
         BankBranch(city: 'Nugegoda', name: 'Nugegoda', code: '049'),
+        BankBranch(city: 'Nuwara Eliya', name: 'Nuwara Eliya'),
+        BankBranch(city: 'Padukka', name: 'Padukka'),
+        BankBranch(city: 'Panadura', name: 'Panadura'),
+        BankBranch(city: 'Piliyandala', name: 'Piliyandala'),
+        BankBranch(city: 'Polgahawela', name: 'Polgahawela'),
+        BankBranch(city: 'Polonnaruwa', name: 'Polonnaruwa'),
+        BankBranch(city: 'Puttalam', name: 'Puttalam'),
+        BankBranch(city: 'Rambukkana', name: 'Rambukkana'),
+        BankBranch(city: 'Ratnapura', name: 'Ratnapura', code: '031'),
+        BankBranch(city: 'Rikillagaskada', name: 'Rikillagaskada'),
+        BankBranch(city: 'Siyambalanduwa', name: 'Siyambalanduwa'),
+        BankBranch(city: 'Talatuoya', name: 'Talatuoya'),
+        BankBranch(city: 'Tangalle', name: 'Tangalle'),
+        BankBranch(city: 'Colombo', name: 'Taprobane'),
+        BankBranch(city: 'Thambuttegama', name: 'Thambuttegama'),
         BankBranch(city: 'Trincomalee', name: 'Trincomalee', code: '006'),
+        BankBranch(city: 'Vavuniya', name: 'Vavuniya'),
+        BankBranch(city: 'Walasmulla', name: 'Walasmulla'),
+        BankBranch(city: 'Wariyapola', name: 'Wariyapola'),
+        BankBranch(city: 'Weligama', name: 'Weligama'),
+        BankBranch(city: 'Colombo', name: 'Wellawatta'),
+        BankBranch(city: 'Wennappuwa', name: 'Wennappuwa'),
+        BankBranch(city: 'Yakkalamulla', name: 'Yakkalamulla'),
       ],
     ),
     const SriLankanBank(name: 'Cargills Bank PLC', code: '7481'),

@@ -107,6 +107,8 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
                                       ],
                                       const SizedBox(height: 16),
                                       _buildGenderRow(),
+                                      const SizedBox(height: 10),
+                                      _buildLanguagesRow(),
                                       const SizedBox(height: 20),
                                       _buildSkillsSection(),
                                       const SizedBox(height: 20),
@@ -500,6 +502,45 @@ class _CaregiverProfileScreenState extends State<CaregiverProfileScreen> {
               color: Colors.black,
               fontSize: 13,
               fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Languages row ──────────────────────────────────────────
+  Widget _buildLanguagesRow() {
+    final languages = (_caregiver?['languagesSpoken'] as List?)?.cast<String>() ?? [];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        border: Border.all(color: fieldRowBorder),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Languages',
+            style: TextStyle(
+              fontFamily: 'Open Sans',
+              color: fieldRowLabel,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              languages.isEmpty ? 'Not specified' : languages.join(', '),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontFamily: 'Open Sans',
+                color: Colors.black,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
